@@ -1,0 +1,30 @@
+{
+  "name": "kakao.maps.d.ts",
+  "version": "0.1.40",
+  "description": "Kakao Map API Type Definitions",
+  "types": "./@types/index.d.ts",
+  "typeRoots": "./@types",
+  "scripts": {
+    "type": "tsc --project ./tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JaeSeoKim/kakao.maps.d.ts.git"
+  },
+  "keywords": [
+    "kakao map",
+    "kakao maps",
+    "kakao-maps-api",
+    "kakao.maps.d.ts",
+    "types"
+  ],
+  "author": "JaeSeoKim devjaeseo@gmail.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/JaeSeoKim/kakao.maps.d.ts/issues"
+  },
+  "homepage": "https://github.com/JaeSeoKim/kakao.maps.d.ts"
+}
