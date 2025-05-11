@@ -1,7 +1,15 @@
 from fastapi import APIRouter
+from app.models.marker import Marker
 
 router = APIRouter()
 
-@router.get("/")
-def read_root():
-    return {"message": "너굴맵 FastAPI 백엔드 준비 완료!"}
+db = []  # 임시 DB
+
+@router.post("/marker")
+def create_marker(marker: Marker):
+    db.append(marker)
+    return {"status": "saved", "marker": marker}
+
+@router.get("/marker")
+def get_markers():
+    return {"markers": db}
