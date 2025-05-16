@@ -23,6 +23,11 @@ const LoadingPage = () => {
         alt="Logo" 
         className="loading-logo" 
       />
+      <img 
+        src="./너구리.gif" // 로고 이미지
+        alt="Logo" 
+        className="loading-logo" 
+      />
       <div className="progress-bar">
         <div 
           className="progress-fill" 

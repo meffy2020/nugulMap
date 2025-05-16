@@ -6,10 +6,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 2초 후 로딩 상태를 false로 변경
+    // 3초 후 로딩 상태를 false로 변경
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 2000); // 2초
+    }, 4000); // 3초
 
     // 클린업 함수: 컴포넌트가 언마운트될 때 타이머 제거
     return () => clearTimeout(timer);
