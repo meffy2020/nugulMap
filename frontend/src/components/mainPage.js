@@ -8,6 +8,7 @@ const MainPage = () => {
     { name: "흡연구역", lat: 37.64992559411937, lng: 127.06300401143832 },
   ]);
   const [address, setAddress] = useState(""); // 주소 입력값 상태
+  const [clickedAddress, setClickedAddress] = useState(""); // 클릭한 위치의 주소
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
@@ -25,8 +26,23 @@ const MainPage = () => {
           center: new window.kakao.maps.LatLng(37.648841453089, 127.064317548529), // 시작 중심 좌표
           level: 2,
         };
-        mapRef.current = new window.kakao.maps.Map(container, options);
+        const map = new window.kakao.maps.Map(container, options);
+        mapRef.current = map;
         drawMarkers(smokingZones);
+
+        // 지도 클릭 이벤트 등록
+        window.kakao.maps.event.addListener(map, "click", function(mouseEvent) {
+          const latlng = mouseEvent.latLng;
+          const geocoder = new window.kakao.maps.services.Geocoder();
+          geocoder.coord2Address(latlng.getLng(), latlng.getLat(), function(result, status) {
+            if (status === window.kakao.maps.services.Status.OK) {
+              const addr = result[0].address.address_name;
+              setClickedAddress(addr);
+            } else {
+              setClickedAddress("주소를 찾을 수 없습니다.");
+            }
+          });
+        });
       });
     };
 
@@ -87,6 +103,13 @@ const MainPage = () => {
       <h1 style={{ textAlign: "center", margin: "20px 0" }}>Neogul Map</h1>
       
       <div id="map" style={{ margin: "0 auto", width: "50%", height: "80vh" }} />
+      <div style={{ textAlign: "center", marginTop: "10px", color: "#333" }}>
+        {clickedAddress && (
+          <div>
+            <b>클릭한 위치 주소:</b> {clickedAddress}
+          </div>
+        )}
+      </div>
       <div style={{ textAlign: "center", marginBottom: "10px" }}>
         <input
           type="text"
@@ -100,7 +123,6 @@ const MainPage = () => {
         </button>
       </div>
     </div>
-    
   );
 };
 
