@@ -7,6 +7,7 @@ const MainPage = () => {
     { name: "흡연구역", lat: 37.64992958530332, lng: 127.06395870684 },
     { name: "흡연구역", lat: 37.64992559411937, lng: 127.06300401143832 },
   ]);
+  const [address, setAddress] = useState(""); // 주소 입력값 상태
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
@@ -18,25 +19,14 @@ const MainPage = () => {
     document.head.appendChild(script);
 
     script.onload = () => {
-      window.kakao.maps.load(async () => {
+      window.kakao.maps.load(() => {
         const container = document.getElementById("map");
         const options = {
-          center: new window.kakao.maps.LatLng(37.648841453089, 127.064317548529),
+          center: new window.kakao.maps.LatLng(37.648841453089, 127.064317548529), // 시작 중심 좌표
           level: 2,
         };
         mapRef.current = new window.kakao.maps.Map(container, options);
         drawMarkers(smokingZones);
-
-        // 주소로 새로운 흡연구역 좌표 입력
-        try {
-          const newCoords = await getAddress("서울 노원구 상계동 205-4");
-          setSmokingZones((newZones) => [
-            ...newZones,
-            { name: "새로운 흡연구역", ...newCoords },
-          ]);
-        } catch (error) {
-          console.error("주소 검색 실패:", error.message);
-        }
       });
     };
 
@@ -54,6 +44,21 @@ const MainPage = () => {
     }
     // eslint-disable-next-line
   }, [smokingZones]);
+
+  // 주소 입력 후 버튼 클릭 시 실행되는 함수
+  const handleAddZone = async () => {
+    if (!address.trim()) return;
+    try {
+      const newCoords = await getAddress(address);
+      setSmokingZones((zones) => [
+        ...zones,
+        { name: "새로운 흡연구역", ...newCoords },
+      ]);
+      setAddress(""); // 입력창 초기화
+    } catch (error) {
+      alert("주소 검색 실패: " + error.message);
+    }
+  };
 
   function drawMarkers(zones) {
     markersRef.current.forEach(marker => marker.setMap(null));
@@ -80,8 +85,22 @@ const MainPage = () => {
   return (
     <div>
       <h1 style={{ textAlign: "center", margin: "20px 0" }}>Neogul Map</h1>
+      
       <div id="map" style={{ margin: "0 auto", width: "50%", height: "80vh" }} />
+      <div style={{ textAlign: "center", marginBottom: "10px" }}>
+        <input
+          type="text"
+          value={address}
+          onChange={e => setAddress(e.target.value)}
+          placeholder="주소를 입력하세요"
+          style={{ width: "300px", padding: "8px" }}
+        />
+        <button onClick={handleAddZone} style={{ marginLeft: "8px", padding: "8px 16px" }}>
+          흡연구역 추가
+        </button>
+      </div>
     </div>
+    
   );
 };
 
