@@ -7,14 +7,12 @@ WORKDIR /app
 # PYTHONPATH 설정
 ENV PYTHONPATH=/app
 
-# requirements.txt만 먼저 복사
+# requirements.txt 복사 및 의존성 설치
 COPY ./backend/requirements.txt /app/requirements.txt
-
-# 의존성 설치
 RUN pip install --no-cache-dir -r requirements.txt
 
-# app 디렉토리만 복사
-COPY ./backend/app /app
+# app 디렉토리 복사
+COPY ./backend/app/ /app/
 
-# 컨테이너 실행 시 실행할 명령어
-CMD ["python", "main.py"]
+# FastAPI 실행
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
