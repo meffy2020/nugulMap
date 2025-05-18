@@ -1,0 +1,28 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Spotlight files
+.Spotlight-V100
+
+# Trash
+.Trashes
+
+# Volume settings
+.VolumeIcon.icns
+
+__pycache__/
+*.pyc
+venv/
+.env
+
+.node_modules/
+
+firebase/
+*.json
+
+*.csv
