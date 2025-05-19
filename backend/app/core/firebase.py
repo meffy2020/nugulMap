@@ -1,16 +1,23 @@
 import os
-from dotenv import load_dotenv
+import json
 from firebase_admin import credentials, initialize_app, firestore
 
-# .env 파일 명시적으로 로드
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../.env'))
+# Firebase 자격 증명 로드
+cred_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")  # JSON 문자열
+cred_path = os.getenv("FIREBASE_CREDENTIAL")  # 파일 경로
 
-# Firebase 자격 증명 경로 로드
-cred_path = os.getenv("FIREBASE_CREDENTIAL")
-print("ENV 경로 확인:", cred_path)
+if cred_json:
+    # 환경 변수에서 JSON 문자열로 인증서 로드
+    print("Firebase 인증서를 JSON 문자열로 로드합니다.")
+    cred = credentials.Certificate(json.loads(cred_json))
+elif cred_path and os.path.exists(cred_path):
+    # 환경 변수에서 파일 경로로 인증서 로드
+    print("Firebase 인증서를 파일 경로로 로드합니다.")
+    cred = credentials.Certificate(cred_path)
+else:
+    raise ValueError("Firebase 인증서가 설정되지 않았습니다. 환경 변수를 확인하세요.")
 
 # Firebase 초기화
-cred = credentials.Certificate(cred_path)
 firebase_app = initialize_app(cred)
 
 # Firestore DB 인스턴스

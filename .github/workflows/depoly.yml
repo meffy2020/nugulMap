@@ -1,0 +1,31 @@
+name: Deploy FastAPI App
+
+on:
+  push:
+    branches:
+      - main # main 브랜치에 푸시될 때 실행
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Firebase 인증서 설정
+      - name: Set up Firebase credentials
+        run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}" > serviceAccountKey.json
+
+      # 3. Docker 이미지 빌드
+      - name: Build Docker image
+        run: docker build -t nugulmap-backend .
+
+      # 4. Docker 컨테이너 실행 (테스트용)
+      - name: Run Docker container
+        run: docker run -d -p 8000:8000 --name nugulmap-backend nugulmap-backend
+
+      # 5. 컨테이너 로그 확인 (선택 사항)
+      - name: Check container logs
+        run: docker logs nugulmap-backend
