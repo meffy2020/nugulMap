@@ -23,7 +23,12 @@ def get_markers():
     for doc in docs:
         try:
             data = doc.to_dict()
-            if data.get("latitude") is None or data.get("longitude") is None or data.get("name") is None:
+            lat = data.get("latitude")
+            lng = data.get("longitude")
+            name = data.get("name")
+            # 필수값 체크: None, 빈 문자열, 타입까지
+            if not isinstance(lat, (int, float)) or not isinstance(lng, (int, float)) or not isinstance(name, str) or not name.strip():
+                print(f"Skip invalid marker: {data}")
                 continue
             last_updated = data.get("last_updated")
             created_at = data.get("created_at")
@@ -33,9 +38,9 @@ def get_markers():
                 created_at = created_at.to_datetime()
             marker = Marker(
                 id=doc.id,
-                latitude=data.get("latitude"),
-                longitude=data.get("longitude"),
-                name=data.get("name"),
+                latitude=lat,
+                longitude=lng,
+                name=name,
                 description=data.get("description"),
                 address=data.get("address"),
                 region=data.get("region"),
