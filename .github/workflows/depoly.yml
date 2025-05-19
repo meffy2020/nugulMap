@@ -1,4 +1,4 @@
-name: Deploy FastAPI App
+name: Deploy FastAPI App to Cloudtype
 
 on:
   push:
@@ -18,14 +18,14 @@ jobs:
       - name: Set up Firebase credentials
         run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}" > serviceAccountKey.json
 
-      # 3. Docker 이미지 빌드
-      - name: Build Docker image
-        run: docker build -t nugulmap-backend .
+      # 3. Cloudtype CLI 설치
+      - name: Install Cloudtype CLI
+        run: curl -fsSL https://cli.cloudtype.io/install.sh | sh
 
-      # 4. Docker 컨테이너 실행 (테스트용)
-      - name: Run Docker container
-        run: docker run -d -p 8000:8000 --name nugulmap-backend nugulmap-backend
+      # 4. Cloudtype 로그인
+      - name: Authenticate with Cloudtype
+        run: cloudtype auth login --api-key "${{ secrets.CLOUDTYPE_API_KEY }}"
 
-      # 5. 컨테이너 로그 확인 (선택 사항)
-      - name: Check container logs
-        run: docker logs nugulmap-backend
+      # 5. Cloudtype 애플리케이션 배포
+      - name: Deploy to Cloudtype
+        run: cloudtype deploy
