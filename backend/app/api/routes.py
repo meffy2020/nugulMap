@@ -22,7 +22,18 @@ def get_markers():
     markers = []
     for doc in docs:
         data = doc.to_dict()
-        # Firestore 데이터에서 Marker 모델로 변환
+        # 필수 필드 체크
+        if data.get("latitude") is None or data.get("longitude") is None or data.get("name") is None:
+            continue  # 필수값이 없으면 건너뜀
+
+        # 날짜 필드 변환
+        last_updated = data.get("last_updated")
+        created_at = data.get("created_at")
+        if hasattr(last_updated, "to_datetime"):
+            last_updated = last_updated.to_datetime()
+        if hasattr(created_at, "to_datetime"):
+            created_at = created_at.to_datetime()
+
         marker = Marker(
             id=doc.id,
             latitude=data.get("latitude"),
@@ -33,8 +44,8 @@ def get_markers():
             region=data.get("region"),
             type=data.get("type"),
             status=data.get("status", "운영 중"),
-            last_updated=data.get("last_updated"),
-            created_at=data.get("created_at"),
+            last_updated=last_updated,
+            created_at=created_at,
             amenities=data.get("amenities"),
             capacity=data.get("capacity"),
             image_url=data.get("image_url"),
