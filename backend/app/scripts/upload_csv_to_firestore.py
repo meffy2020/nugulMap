@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import requests
 from app.core.firebase import db
 
 # 공통 열 이름 매핑 패턴
@@ -37,6 +38,21 @@ COLUMN_MAPPING_PATTERNS = {
     "관리여부": "manager",
 }
 
+KAKAO_API_KEY = "여기에_본인_카카오_REST_API_KEY_입력"  # 반드시 본인 키로 교체
+
+def kakao_geocode(address, rest_api_key):
+    url = "https://dapi.kakao.com/v2/local/search/address.json"
+    headers = {"Authorization": f"KakaoAK {rest_api_key}"}
+    params = {"query": address}
+    resp = requests.get(url, headers=headers, params=params)
+    if resp.status_code == 200:
+        result = resp.json()
+        if result["documents"]:
+            lat = float(result["documents"][0]["y"])
+            lng = float(result["documents"][0]["x"])
+            return lat, lng
+    return None, None
+
 def auto_map_columns(df):
     """
     자동으로 열 이름을 공통 데이터 구조로 매핑합니다.
@@ -67,6 +83,13 @@ def clean_data(row):
             row["longitude"] = float(row["longitude"])
         except ValueError:
             row["longitude"] = None
+
+    # 주소로 위도/경도 변환 (둘 다 없을 때만)
+    if (not row.get("latitude") or not row.get("longitude")) and row.get("address"):
+        lat, lng = kakao_geocode(row["address"], KAKAO_API_KEY)
+        if lat and lng:
+            row["latitude"] = lat
+            row["longitude"] = lng
 
     # 기타 문자열 처리
     for key in ["region", "type", "subtype", "description", "address", "manager", "size"]:
