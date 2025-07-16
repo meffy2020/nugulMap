@@ -3,19 +3,34 @@ from typing import List, Optional
 from datetime import datetime
 
 class Marker(BaseModel):
-    id: Optional[str]  # Firestore에서 자동 생성될 수 있음
+    id: Optional[str] = None
     latitude: float
     longitude: float
     name: str
-    description: Optional[str]
-    address: Optional[str]
-    region: Optional[str]
-    type: Optional[str]
+    description: Optional[str] = None
+    address: Optional[str] = None
+    region: Optional[str] = None
+    type: Optional[str] = None
     status: Optional[str] = "운영 중"
-    last_updated: Optional[datetime]
-    created_at: Optional[datetime]
-    amenities: Optional[List[str]]
-    capacity: Optional[int]
-    image_url: Optional[str]
-    rating: Optional[float]
-    reviews: Optional[List[str]]
+    last_updated: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    amenities: Optional[List[str]] = None
+    capacity: Optional[int] = None
+    image_url: Optional[str] = None
+    rating: Optional[float] = None
+    reviews: Optional[List[str]] = None
+
+class MarkerUpdate(BaseModel):
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    address: Optional[str] = None
+    region: Optional[str] = None
+    type: Optional[str] = None
+    status: Optional[str] = None
+    amenities: Optional[List[str]] = None
+    capacity: Optional[int] = None
+    image_url: Optional[str] = None
+    rating: Optional[float] = None
+    reviews: Optional[List[str]] = None
