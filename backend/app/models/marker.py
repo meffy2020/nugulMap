@@ -4,9 +4,9 @@ from datetime import datetime
 
 class Marker(BaseModel):
     id: Optional[str] = None
-    latitude: float
-    longitude: float
-    name: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    name: Optional[str] = None
     description: Optional[str] = None
     address: Optional[str] = None
     region: Optional[str] = None
