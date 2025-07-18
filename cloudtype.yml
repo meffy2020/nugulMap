@@ -1,6 +1,6 @@
 name: nugulmap
-app: python@3.9
-options:
-  ports: 8000
-  install: pip install -r backend/requirements.txt
-  start: uvicorn app.main:app --host 0.0.0.0 --port 8000
+type: python
+build:
+  dockerfile: ./Dockerfile
+run:
+  command: uvicorn main:app --host 0.0.0.0 --port 8000
