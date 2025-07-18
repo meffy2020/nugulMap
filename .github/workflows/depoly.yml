@@ -1,4 +1,4 @@
-name: Deploy FastAPI App to Cloudtype
+name: Deploy to Cloudtype
 
 on:
   push:
@@ -6,26 +6,21 @@ on:
       - main # main 브랜치에 푸시될 때 실행
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 코드 체크아웃
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout Source
+      uses: actions/checkout@v3 # 코드 체크아웃
 
-      # 2. Firebase 인증서 설정
-      - name: Set up Firebase credentials
-        run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}" > serviceAccountKey.json
+    # Firebase 인증서 설정 (기존 유지)
+    - name: Set up Firebase credentials
+      run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}" > serviceAccountKey.json
 
-      # 3. Cloudtype CLI 설치
-      - name: Install Cloudtype CLI
-        run: npm i -g @cloudtype/cli
-
-      # 4. Cloudtype 로그인
-      - name: Authenticate with Cloudtype
-        run: cloudtype auth login --api-key "${{ secrets.CLOUDTYPE_API_KEY }}"
-
-      # 5. Cloudtype 애플리케이션 배포
-      - name: Deploy to Cloudtype
-        run: cloudtype deploy
+    # Cloudtype 공식 배포 액션 사용
+    - name: Deploy to Cloudtype
+      uses: cloudtype-github-actions/deploy@v1
+      with:
+        token: ${{ secrets.CLOUDTYPE_API_KEY }} # Cloudtype API 키
+        project: madksj/nugulmap
+        file: ./cloudtype.yml
