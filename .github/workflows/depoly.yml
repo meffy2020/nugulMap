@@ -24,6 +24,14 @@ jobs:
           curl -fsSL https://cli.cloudtype.io/install.sh | sh
           echo "$HOME/.cloudtype/bin" >> $GITHUB_PATH
 
+      # 디버깅: PATH 확인
+      - name: Debug - Check PATH
+        run: echo $PATH
+
+      # 디버깅: Cloudtype CLI 설치 경로 확인
+      - name: Debug - Check Cloudtype CLI path
+        run: ls -la $HOME/.cloudtype/bin
+
       # 4. Cloudtype 로그인
       - name: Authenticate with Cloudtype
         run: cloudtype auth login --api-key "${{ secrets.CLOUDTYPE_API_KEY }}"
