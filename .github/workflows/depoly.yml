@@ -20,7 +20,9 @@ jobs:
 
       # 3. Cloudtype CLI 설치
       - name: Install Cloudtype CLI
-        run: curl -fsSL https://cli.cloudtype.io/install.sh | sh
+        run: |
+          curl -fsSL https://cli.cloudtype.io/install.sh | sh
+          echo "$HOME/.cloudtype/bin" >> $GITHUB_PATH
 
       # 4. Cloudtype 로그인
       - name: Authenticate with Cloudtype
