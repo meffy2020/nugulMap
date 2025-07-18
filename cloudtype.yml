@@ -1,4 +1,5 @@
 deployment:
+  name: nugulmap-backend
   app:
     name: nugulmap-backend
     type: python
