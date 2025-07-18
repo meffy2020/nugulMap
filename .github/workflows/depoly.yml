@@ -21,6 +21,6 @@ jobs:
     - name: Deploy to Cloudtype
       uses: cloudtype-github-actions/deploy@v1
       with:
-        token: ${{ secrets.CLOUDTYPE_API_KEY }} # Cloudtype API 키
+        token: ${{ secrets.CLOUDTYPE_TOKEN }} # Cloudtype API 키
         project: madksj/nugulmap
         file: ./cloudtype.yml
