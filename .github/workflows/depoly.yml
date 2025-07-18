@@ -59,7 +59,12 @@ jobs:
           # file 대신 yaml 파라미터를 사용하여 인라인으로 cloudtype.yml 내용 전달
           yaml: |
             name: nugulmap # Cloudtype 서비스 이름
-            app: docker # Docker 이미지 배포 명시
+            app: nugulmap # 애플리케이션 이름 (서비스 이름과 동일)
+            type: dockerfile # Dockerfile 기반 배포 명시
+            build: # Dockerfile 빌드 관련 설정
+              dockerfile: ./Dockerfile # Dockerfile 경로
+            run: # 애플리케이션 실행 명령어
+              command: uvicorn main:app --host 0.0.0.0 --port 8000
             options:
               image: ${{ steps.meta.outputs.tags }} # 빌드된 Docker 이미지 태그 사용
               ports:
