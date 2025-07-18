@@ -1,4 +1,4 @@
-name: nugulmap-backend
+name: nugulmap
 app: python@3.9
 options:
   ports: 8000
