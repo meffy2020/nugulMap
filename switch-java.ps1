@@ -17,3 +17,9 @@ if ($Version -eq "19") {
 Write-Host "현재 Java 버전:" -ForegroundColor Yellow
 java -version
 Write-Host "JAVA_HOME: $env:JAVA_HOME" -ForegroundColor Yellow
+
+
+
+
+
+
