@@ -10,3 +10,10 @@ spring:
     console:
       enabled: true
       path: /h2-console
+
+server:
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true

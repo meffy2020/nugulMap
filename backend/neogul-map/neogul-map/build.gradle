@@ -14,6 +14,10 @@ java {
 	}
 }
 
+// 인코딩 설정
+compileJava.options.encoding = 'UTF-8'
+compileTestJava.options.encoding = 'UTF-8'
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor

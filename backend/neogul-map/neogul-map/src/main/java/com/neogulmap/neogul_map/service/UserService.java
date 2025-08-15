@@ -39,6 +39,10 @@ public class UserService {
 
     @Transactional
     public void deleteUser(Long id) {
+        // 사용자가 존재하는지 먼저 확인
+        if (!userRepository.existsById(id)) {
+            throw new NotFoundException(ErrorCode.USER_NOT_FOUND);
+        }
         userRepository.deleteById(id);
     }
 

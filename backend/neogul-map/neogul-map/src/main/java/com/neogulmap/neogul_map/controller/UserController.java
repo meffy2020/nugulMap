@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import java.lang.Long;
 
 import com.neogulmap.neogul_map.dto.UserRequest;
@@ -22,22 +24,34 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/users/{id}")
-    public User getUser(@PathVariable("id") Long id) {
-        return userService.getUser(id);
+    public ResponseEntity<UserResponse> getUser(@PathVariable("id") Long id) {
+        User user = userService.getUser(id);
+        return ResponseEntity.ok()
+                .header("X-Message", "사용자 조회 성공")
+                .body(UserResponse.from(user));
     }
 
     @PostMapping("/users")
-    public UserResponse  createUser(@RequestBody UserRequest userRequest) {
-        return userService.createUser(userRequest);
+    public ResponseEntity<UserResponse> createUser(@RequestBody @Valid UserRequest userRequest) {
+        UserResponse userResponse = userService.createUser(userRequest);
+        return ResponseEntity.ok()
+                .header("X-Message", "사용자 생성 성공")
+                .body(userResponse);
     }
 
     @PutMapping("/users/{id}")
-    public UserResponse updateUser(@PathVariable("id") Long id, @RequestBody UserRequest userRequest) {
-        return userService.updateUser(id, userRequest);
+    public ResponseEntity<UserResponse> updateUser(@PathVariable("id") Long id, @RequestBody @Valid UserRequest userRequest) {
+        UserResponse userResponse = userService.updateUser(id, userRequest);
+        return ResponseEntity.ok()
+                .header("X-Message", "사용자 업데이트 성공")
+                .body(userResponse);
     }
 
     @DeleteMapping("/users/{id}")
-    public void deleteUser(@PathVariable("id") Long id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable("id") Long id) {
         userService.deleteUser(id);
+        return ResponseEntity.ok()
+                .header("X-Message", "사용자 삭제 성공")
+                .build();
     }
 }

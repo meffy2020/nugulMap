@@ -173,7 +173,17 @@
                 const resultDiv = document.getElementById('createResult');
                 resultDiv.style.display = 'block';
                 resultDiv.className = response.ok ? 'result success' : 'result error';
-                resultDiv.textContent = `Status: ${response.status}\nResponse: ${result}`;
+                
+                if (response.ok) {
+                    resultDiv.textContent = `Status: ${response.status}\nResponse: ${result}`;
+                } else {
+                    try {
+                        const errorData = JSON.parse(result);
+                        resultDiv.textContent = `Status: ${response.status}\nError: ${errorData.message || result}`;
+                    } catch {
+                        resultDiv.textContent = `Status: ${response.status}\nResponse: ${result}`;
+                    }
+                }
             } catch (error) {
                 const resultDiv = document.getElementById('createResult');
                 resultDiv.style.display = 'block';
