@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS `zone` (
   `size` VARCHAR(50) NULL,
   `date` DATE NOT NULL DEFAULT CURRENT_DATE,
   `address` VARCHAR(100) NOT NULL,
-  `user` VARCHAR(100) NULL,
+  `creator` VARCHAR(100) NULL,
   `image` VARCHAR(255) NULL,
   PRIMARY KEY (`id`),
   UNIQUE (`address`)
