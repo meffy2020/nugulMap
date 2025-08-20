@@ -10,11 +10,11 @@ ENV PYTHONPATH=/app
 
 
 # requirements.txt 복사 및 의존성 설치
-COPY ./backend/requirements.txt /app/requirements.txt
+COPY ./backend/data-scripts/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # app 디렉토리 복사
-COPY ./backend/ /app/
+COPY ./backend/data-scripts/ /app/
 
 # FastAPI 실행
 
