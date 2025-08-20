@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS `zone` (
   `region` VARCHAR(100) NOT NULL,
   `type` VARCHAR(50) NULL,
   `subtype` VARCHAR(50) NULL,
-  `description` CLOB NULL,
+  `description` TEXT NULL,
   `latitude` DECIMAL(10,7) NOT NULL,
   `longitude` DECIMAL(10,7) NOT NULL,
   `size` VARCHAR(50) NULL,

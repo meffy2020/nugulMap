@@ -4,6 +4,10 @@ import requests
 import sys
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
+from dotenv import load_dotenv
+
+# .env 파일에서 환경 변수 로드
+load_dotenv()
 
 # 프로젝트 루트 경로를 sys.path에 추가
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -22,7 +26,7 @@ COLUMN_MAPPING_PATTERNS = {
     "설치일": "date", "설치연월": "date", "데이터기준일자": "date",
 }
 
-KAKAO_API_KEY = "여기에_본인_카카오_REST_API_KEY_입력"  # 반드시 본인 키로 교체
+KAKAO_API_KEY = os.getenv("KAKAO_REST_API_KEY")
 
 def kakao_geocode(address, rest_api_key):
     if not address or pd.isna(address):
