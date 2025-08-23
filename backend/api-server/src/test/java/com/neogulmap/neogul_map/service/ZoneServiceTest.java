@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -23,7 +24,7 @@ class ZoneServiceTest {
 
     @Test
     @DisplayName("흡연구역 정보를 받아 성공적으로 저장한다.")
-    void createZone_Success() {
+    void createZone_Success() throws IOException {
         // given (주어진 상황)
         ZoneRequest request = ZoneRequest.builder()
                 .address("서울시 강남구 테헤란로 231")
@@ -33,7 +34,7 @@ class ZoneServiceTest {
                 .build();
 
         // when (무엇을 할 때)
-        ZoneResponse response = zoneService.createZone(request);
+        ZoneResponse response = zoneService.createZone(request, null);
 
         // then (결과는 이래야 한다)
         assertThat(response.getId()).isNotNull();
@@ -42,7 +43,7 @@ class ZoneServiceTest {
 
     @Test
     @DisplayName("이미 존재하는 주소로 흡연구역을 생성하려고 하면 예외가 발생한다.")
-    void createZone_Fail_With_Duplicate_Address() {
+    void createZone_Fail_With_Duplicate_Address() throws IOException {
         // given
         ZoneRequest request1 = ZoneRequest.builder()
                 .address("서울시 강남구 테헤란로 231")
@@ -50,7 +51,7 @@ class ZoneServiceTest {
                 .longitude(new BigDecimal("127.045561"))
                 .region("서울 강남구")
                 .build();
-        zoneService.createZone(request1);
+        zoneService.createZone(request1, null);
 
         ZoneRequest request2 = ZoneRequest.builder()
                 .address("서울시 강남구 테헤란로 231") // Same address
@@ -61,7 +62,7 @@ class ZoneServiceTest {
 
         // when & then
         assertThrows(BusinessBaseException.class, () -> {
-            zoneService.createZone(request2);
+            zoneService.createZone(request2, null);
         });
     }
 }
