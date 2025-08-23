@@ -13,4 +13,10 @@ public class BusinessBaseException extends RuntimeException {
         super(errorCode.getMessage()); // RuntimeException의 메시지 설정
         this.errorCode = errorCode;
     }
+    
+    // 예외 생성 시 ErrorCode와 커스텀 메시지를 받아 설정
+    public BusinessBaseException(ErrorCode errorCode, String message) {
+        super(message); // RuntimeException의 메시지 설정
+        this.errorCode = errorCode;
+    }
 }

@@ -15,6 +15,12 @@ public enum ErrorCode {
     LOGIN_INPUT_INVALID(HttpStatus.BAD_REQUEST, "U003", "로그인 정보가 올바르지 않습니다."),
     USER_DATA_INTEGRITY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "U004", "사용자 데이터 무결성 오류가 발생했습니다."),
     
+    // Profile Image
+    PROFILE_IMAGE_REQUIRED(HttpStatus.BAD_REQUEST, "P001", "프로필 이미지가 필요합니다."),
+    PROFILE_IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "P002", "이미지 크기는 10MB 이하여야 합니다."),
+    PROFILE_IMAGE_INVALID_TYPE(HttpStatus.BAD_REQUEST, "P003", "이미지 파일만 업로드 가능합니다."),
+    PROFILE_IMAGE_PROCESSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "P004", "이미지 처리 중 오류가 발생했습니다."),
+    
     // Zone
     ZONE_NOT_FOUND(HttpStatus.NOT_FOUND, "Z001", "장소를를 찾을 수 없습니다."),
     ZONE_ALREADY_EXISTS(HttpStatus.CONFLICT, "Z002", "이미 존재하는 장소소입니다.");
