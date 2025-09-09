@@ -55,7 +55,12 @@ public class User {
             this.nickname = userRequest.getNickname();
         }
         if (userRequest.getProfileImage() != null) {
-            this.profileImage = userRequest.getProfileImage();
+            // 프로필 이미지 경로를 profiles/ 디렉토리로 설정
+            if (!userRequest.getProfileImage().startsWith("profiles/")) {
+                this.profileImage = "profiles/" + userRequest.getProfileImage();
+            } else {
+                this.profileImage = userRequest.getProfileImage();
+            }
         }
     }
 }

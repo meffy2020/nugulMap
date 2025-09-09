@@ -20,7 +20,7 @@ public class UserResponse {
                 .id(user.getId())
                 .email(user.getEmail())
                 .nickname(user.getNickname())
-                .profileImage(user.getProfileImage())
+                .profileImage(user.getProfileImage() != null ? "/images/" + user.getProfileImage() : null)
                 .createdAt(user.getCreatedAt())
                 .build();
     }

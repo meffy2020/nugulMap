@@ -26,3 +26,5 @@ firebase/
 *.json
 
 *.csv
+# IntelliJ IDE specific files
+.idea/

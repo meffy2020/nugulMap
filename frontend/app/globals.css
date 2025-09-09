@@ -1,0 +1,125 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Updated to refined color palette with proper usage hierarchy */
+  --background: #faf6f1; /* Light cream background */
+  --foreground: #2c2c2c; /* Warm black for text */
+  --card: #3a3a3a; /* Sophisticated warm gray for cards */
+  --card-foreground: #faf6f1; /* Light text on dark cards */
+  --popover: #3a3a3a; /* Matching popover background */
+  --popover-foreground: #faf6f1; /* Light text */
+  --primary: #5c3a21; /* Primary brown for main elements */
+  --primary-foreground: #faf6f1; /* Light background on primary */
+  --secondary: #2c2c2c; /* Warm black for secondary elements */
+  --secondary-foreground: #faf6f1; /* Light text on secondary */
+  --muted: #3a3a3a; /* Matching muted background */
+  --muted-foreground: #e4cda7; /* Sub accent text on muted */
+  --accent: #d97742; /* Orange accent for interactive elements */
+  --accent-foreground: #faf6f1; /* Light text on accent */
+  --destructive: #d97742; /* Using accent color for destructive actions */
+  --destructive-foreground: #faf6f1; /* Light text */
+  --border: #e4cda7; /* Sub accent for borders */
+  --input: #3a3a3a; /* Matching input background */
+  --ring: #d97742; /* Orange accent for focus rings */
+  --chart-1: #5c3a21; /* Primary */
+  --chart-2: #d97742; /* Accent */
+  --chart-3: #2c2c2c; /* Secondary */
+  --chart-4: #3a3a3a; /* Sub accent */
+  --chart-5: #faf6f1; /* Background */
+  --radius: 0.5rem;
+  --sidebar: #3a3a3a; /* Matching sidebar background */
+  --sidebar-foreground: #faf6f1; /* Light text */
+  --sidebar-primary: #5c3a21; /* Primary brown */
+  --sidebar-primary-foreground: #faf6f1; /* Light text */
+  --sidebar-accent: #d97742; /* Orange accent */
+  --sidebar-accent-foreground: #faf6f1; /* Light text */
+  --sidebar-border: #3a3a3a; /* Sub accent */
+  --sidebar-ring: #d97742; /* Orange accent */
+}
+
+.dark {
+  /* Dark mode with inverted hierarchy but maintaining warm tones */
+  --background: #2c2c2c; /* Warm black background */
+  --foreground: #faf6f1; /* Light cream text */
+  --card: #4a4a4a; /* Slightly lighter warm gray for dark mode cards */
+  --card-foreground: #faf6f1; /* Light text on cards */
+  --popover: #4a4a4a; /* Matching popover */
+  --popover-foreground: #faf6f1; /* Light text */
+  --primary: #d97742; /* Orange accent becomes primary in dark */
+  --primary-foreground: #2c2c2c; /* Dark text on bright primary */
+  --secondary: #e4cda7; /* Sub accent for secondary in dark */
+  --secondary-foreground: #2c2c2c; /* Dark text on light secondary */
+  --muted: #4a4a4a; /* Matching muted background */
+  --muted-foreground: #e4cda7; /* Sub accent text */
+  --accent: #d97742; /* Orange accent remains consistent */
+  --accent-foreground: #2c2c2c; /* Dark text on accent */
+  --destructive: #d97742; /* Consistent accent for destructive */
+  --destructive-foreground: #2c2c2c; /* Dark text */
+  --border: #5c3a21; /* Primary brown for borders */
+  --input: #4a4a4a; /* Matching input background */
+  --ring: #d97742; /* Orange accent for focus */
+  --chart-1: #d97742; /* Accent */
+  --chart-2: #e4cda7; /* Sub accent */
+  --chart-3: #faf6f1; /* Background */
+  --chart-4: #5c3a21; /* Primary */
+  --chart-5: #2c2c2c; /* Secondary */
+  --sidebar: #4a4a4a; /* Matching sidebar */
+  --sidebar-foreground: #faf6f1; /* Light text */
+  --sidebar-primary: #d97742; /* Orange accent */
+  --sidebar-primary-foreground: #2c2c2c; /* Dark text */
+  --sidebar-accent: #e4cda7; /* Sub accent */
+  --sidebar-accent-foreground: #2c2c2c; /* Dark text */
+  --sidebar-border: #4a4a4a; /* Sub accent */
+  --sidebar-ring: #d97742; /* Orange accent */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
