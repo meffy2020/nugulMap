@@ -1,150 +1,68 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+// frontend/lib/api.ts
 
-export interface ZoneRequest {
-  region: string
-  type: string
-  subtype: string
-  description: string
-  latitude: number
-  longitude: number
-  address: string
-  user: string
+// 백엔드의 ZoneResponse DTO와 일치하는 타입 정의
+export interface SmokingZone {
+  id: number;
+  region: string;
+  type: string;
+  subtype: string;
+  description: string;
+  latitude: number;
+  longitude: number;
+  address: string;
+  user: string;
+  image: string | null;
 }
 
-export interface ZoneResponse {
-  id: number
-  region: string
-  type: string
-  subtype: string
-  description: string
-  latitude: number
-  longitude: number
-  address: string
-  user: string
-  image?: string
+
+// Zone 생성 시 요청 DTO에 맞는 타입 정의
+export type CreateZonePayload = Omit<SmokingZone, 'id' | 'image'>;
+
+/**
+ * 특정 위치 주변의 흡연구역 목록을 서버에서 가져옵니다.
+ * @param lat - 검색 중심의 위도
+ * @param lon - 검색 중심의 경도
+ * @param radius - 검색 반경 (km)
+ * @returns SmokingZone 객체의 배열
+ */
+export async function fetchZones(lat: number, lon: number, radius: number = 1.0): Promise<SmokingZone[]> {
+  const response = await fetch(`/api/zones?latitude=${lat}&longitude=${lon}&radius=${radius}`);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API call failed: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
 }
 
-export interface UserResponse {
-  id: number
-  nickname: string
-  email: string
-  profileImageUrl?: string
+/**
+ * 새로운 흡연구역을 서버에 생성합니다.
+ * @param zoneData - 생성할 흡연구역의 데이터
+ * @param imageFile - 업로드할 이미지 파일 (선택 사항)
+ * @returns 생성된 SmokingZone 객체
+ */
+export async function createZone(zoneData: CreateZonePayload, imageFile?: File): Promise<SmokingZone> {
+  const formData = new FormData();
+
+  // ‼️‼️‼️ 수정된 부분: 파트 이름을 'request'에서 'data'로 변경 ‼️‼️‼️
+  formData.append('data', new Blob([JSON.stringify(zoneData)], { type: 'application/json' }));
+
+  // 이미지 파일이 있으면 'image' 파트에 추가
+  if (imageFile) {
+    formData.append('image', imageFile);
+  }
+
+  // multipart/form-data 요청
+  const response = await fetch('/api/zones', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API call failed: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
 }
-
-export interface NicknameUpdateRequest {
-  nickname: string
-}
-
-class ApiService {
-  private getAuthToken(): string | null {
-    // This should be implemented based on your auth system
-    return localStorage.getItem("access_token")
-  }
-
-  private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const url = `${API_BASE_URL}/api${endpoint}`
-    const authToken = this.getAuthToken()
-
-    const response = await fetch(url, {
-      headers: {
-        ...(options?.headers?.["Content-Type"] ? {} : { "Content-Type": "application/json" }),
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        ...options?.headers,
-      },
-      ...options,
-    })
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`)
-    }
-
-    const contentType = response.headers.get("content-type")
-    if (contentType && contentType.includes("application/json")) {
-      return response.json()
-    }
-    return {} as T
-  }
-
-  async createZone(zoneData: ZoneRequest, imageFile?: File): Promise<ZoneResponse> {
-    const formData = new FormData()
-    formData.append("request", JSON.stringify(zoneData))
-    if (imageFile) {
-      formData.append("image", imageFile)
-    }
-
-    return this.request<ZoneResponse>("/zones", {
-      method: "POST",
-      headers: {}, // Let browser set Content-Type for FormData
-      body: formData,
-    })
-  }
-
-  async getAllZones(latitude?: number, longitude?: number, radius?: number): Promise<ZoneResponse[]> {
-    let endpoint = "/zones"
-    const params = new URLSearchParams()
-
-    if (latitude !== undefined) params.append("latitude", latitude.toString())
-    if (longitude !== undefined) params.append("longitude", longitude.toString())
-    if (radius !== undefined) params.append("radius", radius.toString())
-
-    if (params.toString()) {
-      endpoint += `?${params.toString()}`
-    }
-
-    return this.request<ZoneResponse[]>(endpoint)
-  }
-
-  async getZone(id: number): Promise<ZoneResponse> {
-    return this.request<ZoneResponse>(`/zones/${id}`)
-  }
-
-  async updateZone(id: number, zoneData: ZoneRequest, imageFile?: File): Promise<ZoneResponse> {
-    const formData = new FormData()
-    formData.append("request", JSON.stringify(zoneData))
-    if (imageFile) {
-      formData.append("image", imageFile)
-    }
-
-    return this.request<ZoneResponse>(`/zones/${id}`, {
-      method: "PUT",
-      headers: {}, // Let browser set Content-Type for FormData
-      body: formData,
-    })
-  }
-
-  async deleteZone(id: number): Promise<void> {
-    return this.request<void>(`/zones/${id}`, {
-      method: "DELETE",
-    })
-  }
-
-  async getCurrentUser(): Promise<UserResponse> {
-    return this.request<UserResponse>("/users/me")
-  }
-
-  async updateUserNickname(nickname: string): Promise<UserResponse> {
-    return this.request<UserResponse>("/users/me/nickname", {
-      method: "PUT",
-      body: JSON.stringify({ nickname }),
-    })
-  }
-
-  async updateUserProfileImage(imageFile: File): Promise<UserResponse> {
-    const formData = new FormData()
-    formData.append("image", imageFile)
-
-    return this.request<UserResponse>("/users/me/profile-image", {
-      method: "PUT",
-      headers: {}, // Let browser set Content-Type for FormData
-      body: formData,
-    })
-  }
-
-  async deleteCurrentUser(): Promise<void> {
-    return this.request<void>("/users/me", {
-      method: "DELETE",
-    })
-  }
-}
-
-export const apiService = new ApiService()
