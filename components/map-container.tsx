@@ -215,7 +215,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       )}
 
       {error && (
-        <div className="absolute top-4 left-4 right-4 bg-red-500/10 border border-red-500/20 text-red-100 p-3 rounded-md z-20">
+        <div className="absolute top-4 left-4 right-4 bg-red-500/20 border border-red-500/30 text-red-50 p-3 rounded-md z-20 backdrop-blur-sm">
           {error}
         </div>
       )}

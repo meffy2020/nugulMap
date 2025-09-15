@@ -6,6 +6,7 @@ import { FloatingActionButton } from "@/components/floating-action-button"
 import { AddLocationModal } from "@/components/add-location-modal"
 import { FloatingUserProfile } from "@/components/floating-user-profile"
 import { CurrentLocationButton } from "@/components/current-location-button"
+import { SearchBar } from "@/components/search-bar"
 
 export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -25,11 +26,20 @@ export default function HomePage() {
     }
   }
 
+  const handleSearch = (query: string) => {
+    console.log("[v0] Search query:", query)
+    // TODO: 실제 검색 로직 구현
+  }
+
   return (
     <div className="h-screen w-screen bg-background text-foreground overflow-hidden relative">
       <MapContainer ref={mapRef} />
 
       <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-6 left-1/2 transform -translate-x-1/2 w-full max-w-md px-6 pointer-events-auto z-[1000]">
+          <SearchBar onSearch={handleSearch} />
+        </div>
+
         <div className="absolute top-6 right-6 pointer-events-auto">
           <FloatingUserProfile />
         </div>
