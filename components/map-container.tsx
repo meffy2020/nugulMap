@@ -215,8 +215,11 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       )}
 
       {error && (
-        <div className="absolute top-4 left-4 right-4 bg-red-500/20 border border-red-500/30 text-red-50 p-3 rounded-md z-20 backdrop-blur-sm">
-          {error}
+        <div
+          className="absolute top-20 left-1/2 transform -translate-x-1/2 w-80 border-2 border-red-600 text-white p-4 rounded-lg z-[1001] shadow-2xl"
+          style={{ backgroundColor: "rgb(127, 29, 29)" }}
+        >
+          <div className="text-center font-medium">{error}</div>
         </div>
       )}
 
