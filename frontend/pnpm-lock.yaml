@@ -140,6 +140,9 @@ importers:
       react-hook-form:
         specifier: ^7.60.0
         version: 7.60.0(react@19.0.0)
+      react-kakao-maps-sdk:
+        specifier: ^1.2.0
+        version: 1.2.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       react-resizable-panels:
         specifier: ^2.1.7
         version: 2.1.7(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -1626,6 +1629,9 @@ packages:
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
+  kakao.maps.d.ts@0.1.40:
+    resolution: {integrity: sha512-nX69MB1ok04epe3OqS+/tEeWBbU31GSQbvDPJmQRRltzzqn6t4jBsO5v1nzalUjCKzwcH2CptOc767NZ7Hbu3g==}
+
   leaflet@1.9.4:
     resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
 
@@ -1803,6 +1809,12 @@ packages:
 
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
+
+  react-kakao-maps-sdk@1.2.0:
+    resolution: {integrity: sha512-ptyHhtSbvyza+9IAf6TXjE4ZhwwLbXR6avgNM2ju5xed2+fDwJ+gJDFSqhfsKbvFn9K9+3I+dY3JrqruwsGNBw==}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
 
   react-remove-scroll-bar@2.3.8:
     resolution: {integrity: sha512-9r+yi9+mgU33AKcj6IbT9oRCO78WriSj6t/cF8DWBZJ9aOGPOTEDvdUDz1FwKim7QXWwmHqtdHnRJfhAxEG46Q==}
@@ -3365,6 +3377,8 @@ snapshots:
 
   js-tokens@4.0.0: {}
 
+  kakao.maps.d.ts@0.1.40: {}
+
   leaflet@1.9.4: {}
 
   lightningcss-darwin-arm64@1.30.1:
@@ -3513,6 +3527,13 @@ snapshots:
   react-is@16.13.1: {}
 
   react-is@18.3.1: {}
+
+  react-kakao-maps-sdk@1.2.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
+    dependencies:
+      '@babel/runtime': 7.28.3
+      kakao.maps.d.ts: 0.1.40
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
 
   react-remove-scroll-bar@2.3.8(@types/react@19.0.0)(react@19.0.0):
     dependencies:
