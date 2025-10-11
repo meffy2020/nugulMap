@@ -15,6 +15,8 @@ export interface SmokingZone {
 // Zone 생성 시 요청 DTO에 맞는 타입 정의
 export type CreateZonePayload = Omit<SmokingZone, "id" | "image">
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+
 /**
  * 특정 위치 주변의 흡연구역 목록을 서버에서 가져옵니다.
  * @param lat - 검색 중심의 위도
@@ -23,7 +25,7 @@ export type CreateZonePayload = Omit<SmokingZone, "id" | "image">
  * @returns SmokingZone 객체의 배열
  */
 export async function fetchZones(lat: number, lon: number, radius = 1.0): Promise<SmokingZone[]> {
-  const response = await fetch(`/api/zones?latitude=${lat}&longitude=${lon}&radius=${radius}`)
+  const response = await fetch(`${API_BASE_URL}/api/zones?latitude=${lat}&longitude=${lon}&radius=${radius}`)
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -48,7 +50,7 @@ export async function createZone(zoneData: CreateZonePayload, imageFile?: File):
     formData.append("image", imageFile)
   }
 
-  const response = await fetch("/api/zones", {
+  const response = await fetch(`${API_BASE_URL}/api/zones`, {
     method: "POST",
     body: formData,
   })
@@ -80,7 +82,7 @@ export interface UserProfile {
  * @returns UserProfile 객체
  */
 export async function fetchUserProfile(userId: number): Promise<UserProfile> {
-  const response = await fetch(`/api/users/${userId}`)
+  const response = await fetch(`${API_BASE_URL}/api/users/${userId}`)
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -97,7 +99,7 @@ export async function fetchUserProfile(userId: number): Promise<UserProfile> {
  * @returns 업데이트된 UserProfile 객체
  */
 export async function updateUserNickname(userId: number, nickname: string): Promise<UserProfile> {
-  const response = await fetch(`/api/users/${userId}`, {
+  const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -122,7 +124,7 @@ export async function updateUserProfileImage(userId: number, imageFile: File): P
   const formData = new FormData()
   formData.append("profileImage", imageFile)
 
-  const response = await fetch(`/api/users/${userId}/profile-image`, {
+  const response = await fetch(`${API_BASE_URL}/api/users/${userId}/profile-image`, {
     method: "PUT",
     body: formData,
   })
