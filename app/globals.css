@@ -26,77 +26,79 @@
 
 :root {
   /* Updated to refined color palette with proper usage hierarchy */
-  --background: #faf6f1; /* Light cream background */
-  --foreground: #2c2c2c; /* Warm black for text */
-  --card: #3a3a3a; /* Sophisticated warm gray for cards */
-  --card-foreground: #faf6f1; /* Light text on dark cards */
-  --popover: #3a3a3a; /* Matching popover background */
-  --popover-foreground: #faf6f1; /* Light text */
-  --primary: #5c3a21; /* Primary brown for main elements */
-  --primary-foreground: #faf6f1; /* Light background on primary */
-  --secondary: #2c2c2c; /* Warm black for secondary elements */
-  --secondary-foreground: #faf6f1; /* Light text on secondary */
-  --muted: #3a3a3a; /* Matching muted background */
-  --muted-foreground: #e4cda7; /* Sub accent text on muted */
-  --accent: #d97742; /* Orange accent for interactive elements */
-  --accent-foreground: #faf6f1; /* Light text on accent */
-  --destructive: #d97742; /* Using accent color for destructive actions */
-  --destructive-foreground: #faf6f1; /* Light text */
-  --border: #e4cda7; /* Sub accent for borders */
-  --input: #3a3a3a; /* Matching input background */
-  --ring: #d97742; /* Orange accent for focus rings */
-  --chart-1: #5c3a21; /* Primary */
-  --chart-2: #d97742; /* Accent */
-  --chart-3: #2c2c2c; /* Secondary */
-  --chart-4: #3a3a3a; /* Sub accent */
-  --chart-5: #faf6f1; /* Background */
+  /* 제공된 색상 팔레트로 업데이트: #7b542f, #b6771d, #ff9d00, #ffcf71 */
+  --background: #fffbf5; /* 매우 연한 크림색 배경 */
+  --foreground: #2c2c2c; /* 텍스트용 어두운 색 */
+  --card: #3a3a3a; /* 카드 배경 */
+  --card-foreground: #fffbf5; /* 카드 텍스트 */
+  --popover: #3a3a3a; /* 팝오버 배경 */
+  --popover-foreground: #fffbf5; /* 팝오버 텍스트 */
+  --primary: #7b542f; /* 어두운 갈색 - 주요 요소 */
+  --primary-foreground: #fffbf5; /* 주요 요소 텍스트 */
+  --secondary: #b6771d; /* 중간 갈색 - 보조 요소 */
+  --secondary-foreground: #fffbf5; /* 보조 요소 텍스트 */
+  --muted: #3a3a3a; /* 음소거된 배경 */
+  --muted-foreground: #ffcf71; /* 연한 오렌지 텍스트 */
+  --accent: #ff9d00; /* 밝은 오렌지 - 강조 요소 */
+  --accent-foreground: #2c2c2c; /* 강조 요소 텍스트 */
+  --destructive: #ff9d00; /* 삭제 액션 */
+  --destructive-foreground: #2c2c2c; /* 삭제 액션 텍스트 */
+  --border: #ffcf71; /* 연한 오렌지 테두리 */
+  --input: #3a3a3a; /* 입력 필드 배경 */
+  --ring: #ff9d00; /* 포커스 링 */
+  --chart-1: #7b542f; /* 차트 색상 1 */
+  --chart-2: #b6771d; /* 차트 색상 2 */
+  --chart-3: #ff9d00; /* 차트 색상 3 */
+  --chart-4: #ffcf71; /* 차트 색상 4 */
+  --chart-5: #2c2c2c; /* 차트 색상 5 */
   --radius: 0.5rem;
-  --sidebar: #3a3a3a; /* Matching sidebar background */
-  --sidebar-foreground: #faf6f1; /* Light text */
-  --sidebar-primary: #5c3a21; /* Primary brown */
-  --sidebar-primary-foreground: #faf6f1; /* Light text */
-  --sidebar-accent: #d97742; /* Orange accent */
-  --sidebar-accent-foreground: #faf6f1; /* Light text */
-  --sidebar-border: #3a3a3a; /* Sub accent */
-  --sidebar-ring: #d97742; /* Orange accent */
+  --sidebar: #3a3a3a; /* 사이드바 배경 */
+  --sidebar-foreground: #fffbf5; /* 사이드바 텍스트 */
+  --sidebar-primary: #7b542f; /* 사이드바 주요 색 */
+  --sidebar-primary-foreground: #fffbf5; /* 사이드바 주요 텍스트 */
+  --sidebar-accent: #ff9d00; /* 사이드바 강조 색 */
+  --sidebar-accent-foreground: #2c2c2c; /* 사이드바 강조 텍스트 */
+  --sidebar-border: #b6771d; /* 사이드바 테두리 */
+  --sidebar-ring: #ff9d00; /* 사이드바 포커스 링 */
   --font-sans: "GMarketSans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
 .dark {
   /* Dark mode with inverted hierarchy but maintaining warm tones */
-  --background: #2c2c2c; /* Warm black background */
-  --foreground: #faf6f1; /* Light cream text */
-  --card: #4a4a4a; /* Slightly lighter warm gray for dark mode cards */
-  --card-foreground: #faf6f1; /* Light text on cards */
-  --popover: #4a4a4a; /* Matching popover */
-  --popover-foreground: #faf6f1; /* Light text */
-  --primary: #d97742; /* Orange accent becomes primary in dark */
-  --primary-foreground: #2c2c2c; /* Dark text on bright primary */
-  --secondary: #e4cda7; /* Sub accent for secondary in dark */
-  --secondary-foreground: #2c2c2c; /* Dark text on light secondary */
-  --muted: #4a4a4a; /* Matching muted background */
-  --muted-foreground: #e4cda7; /* Sub accent text */
-  --accent: #d97742; /* Orange accent remains consistent */
-  --accent-foreground: #2c2c2c; /* Dark text on accent */
-  --destructive: #d97742; /* Consistent accent for destructive */
-  --destructive-foreground: #2c2c2c; /* Dark text */
-  --border: #5c3a21; /* Primary brown for borders */
-  --input: #4a4a4a; /* Matching input background */
-  --ring: #d97742; /* Orange accent for focus */
-  --chart-1: #d97742; /* Accent */
-  --chart-2: #e4cda7; /* Sub accent */
-  --chart-3: #faf6f1; /* Background */
-  --chart-4: #5c3a21; /* Primary */
-  --chart-5: #2c2c2c; /* Secondary */
-  --sidebar: #4a4a4a; /* Matching sidebar */
-  --sidebar-foreground: #faf6f1; /* Light text */
-  --sidebar-primary: #d97742; /* Orange accent */
-  --sidebar-primary-foreground: #2c2c2c; /* Dark text */
-  --sidebar-accent: #e4cda7; /* Sub accent */
-  --sidebar-accent-foreground: #2c2c2c; /* Dark text */
-  --sidebar-border: #4a4a4a; /* Sub accent */
-  --sidebar-ring: #d97742; /* Orange accent */
+  /* 다크 모드도 동일한 색상 팔레트 적용 */
+  --background: #2c2c2c; /* 어두운 배경 */
+  --foreground: #fffbf5; /* 밝은 텍스트 */
+  --card: #3a3a3a; /* 카드 배경 */
+  --card-foreground: #fffbf5; /* 카드 텍스트 */
+  --popover: #3a3a3a; /* 팝오버 배경 */
+  --popover-foreground: #fffbf5; /* 팝오버 텍스트 */
+  --primary: #ff9d00; /* 밝은 오렌지 - 다크모드 주요 색 */
+  --primary-foreground: #2c2c2c; /* 주요 요소 텍스트 */
+  --secondary: #b6771d; /* 중간 갈색 - 보조 요소 */
+  --secondary-foreground: #fffbf5; /* 보조 요소 텍스트 */
+  --muted: #3a3a3a; /* 음소거된 배경 */
+  --muted-foreground: #ffcf71; /* 연한 오렌지 텍스트 */
+  --accent: #ff9d00; /* 밝은 오렌지 - 강조 요소 */
+  --accent-foreground: #2c2c2c; /* 강조 요소 텍스트 */
+  --destructive: #ff9d00; /* 삭제 액션 */
+  --destructive-foreground: #2c2c2c; /* 삭제 액션 텍스트 */
+  --border: #7b542f; /* 어두운 갈색 테두리 */
+  --input: #3a3a3a; /* 입력 필드 배경 */
+  --ring: #ff9d00; /* 포커스 링 */
+  --chart-1: #ff9d00; /* 차트 색상 1 */
+  --chart-2: #ffcf71; /* 차트 색상 2 */
+  --chart-3: #b6771d; /* 차트 색상 3 */
+  --chart-4: #7b542f; /* 차트 색상 4 */
+  --chart-5: #fffbf5; /* 차트 색상 5 */
+  --sidebar: #3a3a3a; /* 사이드바 배경 */
+  --sidebar-foreground: #fffbf5; /* 사이드바 텍스트 */
+  --sidebar-primary: #ff9d00; /* 사이드바 주요 색 */
+  --sidebar-primary-foreground: #2c2c2c; /* 사이드바 주요 텍스트 */
+  --sidebar-accent: #ffcf71; /* 사이드바 강조 색 */
+  --sidebar-accent-foreground: #2c2c2c; /* 사이드바 강조 텍스트 */
+  --sidebar-border: #7b542f; /* 사이드바 테두리 */
+  --sidebar-ring: #ff9d00; /* 사이드바 포커스 링 */
   --font-sans: "GMarketSans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 }
