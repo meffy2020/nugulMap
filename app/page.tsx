@@ -36,7 +36,7 @@ export default function HomePage() {
       <MapContainer ref={mapRef} />
 
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-6 left-1/2 transform -translate-x-1/2 w-full max-w-md px-6 pointer-events-auto z-[1000]">
+        <div className="absolute top-6 left-1/2 transform -translate-x-1/2 w-full max-w-md px-6 pointer-events-auto z-10">
           <SearchBar onSearch={handleSearch} />
         </div>
 
