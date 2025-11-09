@@ -23,7 +23,6 @@ venv/
 .node_modules/
 
 firebase/
-*.json
 
 *.csv
 # IntelliJ IDE specific files

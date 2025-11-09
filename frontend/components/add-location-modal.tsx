@@ -126,6 +126,8 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
     try {
       const payload: CreateZonePayload = {
         ...values,
+        subtype: values.subtype ?? "",
+        description: values.description ?? "",
         user: "gemini-user", // 임시 사용자 이름
       };
 
