@@ -13,6 +13,10 @@ public class WebConfig implements WebMvcConfigurer {
         // 정적 리소스 핸들러 설정
         registry.addResourceHandler("/static/**")
                 .addResourceLocations("classpath:/static/");
+        
+        // favicon.ico 요청 처리
+        registry.addResourceHandler("/favicon.ico")
+                .addResourceLocations("classpath:/static/");
     }
     
     @Override

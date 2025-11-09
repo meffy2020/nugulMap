@@ -19,4 +19,10 @@ public class BusinessBaseException extends RuntimeException {
         super(message); // RuntimeException의 메시지 설정
         this.errorCode = errorCode;
     }
+    
+    // 예외 생성 시 ErrorCode와 원인 예외를 받아 설정
+    public BusinessBaseException(ErrorCode errorCode, Throwable cause) {
+        super(errorCode.getMessage(), cause); // RuntimeException의 메시지와 원인 설정
+        this.errorCode = errorCode;
+    }
 }

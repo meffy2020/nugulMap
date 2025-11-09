@@ -5,13 +5,19 @@ import lombok.Getter;
 import lombok.Setter;
 import com.neogulmap.neogul_map.dto.UserRequest;
 import jakarta.persistence.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import java.util.Collection;
+import java.util.Collections;
 
 @Getter
 @Setter
 @Builder
 @Entity
 @Table(name = "users")
-public class User {
+public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -33,13 +39,10 @@ public class User {
     
     @Column(name = "created_at")
     private String createdAt;
-    
-    @Column(name = "updated_at")
-    private String updatedAt;
 
     public User() {}
 
-    public User(Long id, String nickname, String email, String oauthId, String oauthProvider, String profileImage, String createdAt, String updatedAt) {
+    public User(Long id, String nickname, String email, String oauthId, String oauthProvider, String profileImage, String createdAt) {
         this.id = id;
         this.nickname = nickname;
         this.email = email;
@@ -47,7 +50,6 @@ public class User {
         this.oauthProvider = oauthProvider;
         this.profileImage = profileImage;
         this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
     }
 
     public void update(UserRequest userRequest) {
@@ -62,5 +64,41 @@ public class User {
                 this.profileImage = userRequest.getProfileImage();
             }
         }
+    }
+
+    // UserDetails 인터페이스 구현
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
+    }
+
+    @Override
+    public String getPassword() {
+        return null; // OAuth 사용자는 패스워드가 없음
+    }
+
+    @Override
+    public String getUsername() {
+        return email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
     }
 }

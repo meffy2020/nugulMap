@@ -1,0 +1,24 @@
+# S3 저장소 사용을 위한 설정
+app:
+  storage:
+    type: s3  # local 또는 s3
+  
+  s3:
+    bucket-name: your-bucket-name
+    access-key: your-access-key
+    secret-key: your-secret-key
+    region: ap-northeast-2
+    temp-prefix: temp/
+    zone-prefix: zones/
+
+# 로컬 저장소 사용을 위한 설정 (기본값)
+---
+spring:
+  profiles: local
+
+app:
+  storage:
+    type: local
+  
+  upload:
+    dir: uploads

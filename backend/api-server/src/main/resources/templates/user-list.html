@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사용자 목록 - NeogulMap</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .back-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .back-button:hover {
+            background-color: #2980b9;
+        }
+        .message {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .message.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .user-table th,
+        .user-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .user-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .user-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-button">← 메인으로 돌아가기</a>
+        
+        <h1>👤 사용자 목록</h1>
+        
+        <div th:if="${message}" class="message success" th:text="${message}"></div>
+        <div th:if="${error}" class="message error" th:text="${error}"></div>
+        
+        <table class="user-table" th:if="${users != null and !users.empty}">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>이메일</th>
+                    <th>닉네임</th>
+                    <th>OAuth Provider</th>
+                    <th>생성일</th>
+                    <th>프로필 이미지</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="user : ${users}">
+                    <td th:text="${user.id}"></td>
+                    <td th:text="${user.email}"></td>
+                    <td th:text="${user.nickname}"></td>
+                    <td th:text="${user.oauthProvider}"></td>
+                    <td th:text="${user.createdAt}"></td>
+                    <td th:text="${user.profileImage ?: '없음'}"></td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div th:if="${users == null or users.empty}" class="empty-state">
+            <h3>사용자가 없습니다</h3>
+            <p>아직 등록된 사용자가 없습니다.</p>
+        </div>
+    </div>
+</body>
+</html>

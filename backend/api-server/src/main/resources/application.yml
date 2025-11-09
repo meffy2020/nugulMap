@@ -1,6 +1,21 @@
 spring:
   application:
     name: neogul-map
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+    encoding: UTF-8
+    mode: HTML
+  web:
+    resources:
+      static-locations: classpath:/static/,file:uploads/
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  profiles:
+    active: dev
   datasource:
     url: jdbc:h2:mem:neogul-map-db
     driver-class-name: org.h2.Driver
@@ -10,6 +25,21 @@ spring:
     console:
       enabled: true
       path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: none
+    defer-datasource-initialization: true
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    database-platform: org.hibernate.dialect.H2Dialect
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+      continue-on-error: true
   security:
     oauth2:
       client:
@@ -17,6 +47,9 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
             client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+            client-authentication-method: post
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            authorization-grant-type: authorization_code
             scope:
               - email
               - profile
@@ -69,17 +102,26 @@ server:
     max-request-size: 10MB
     enabled: true
 
-# 이미지 업로드 경로 설정
-app:
-  image:
-    upload-path: uploads/profiles/
-    max-size: 10485760  # 10MB in bytes
-
 # 파일 업로드 디렉토리 설정
 file:
   upload-dir: uploads/profiles/
 
+# 앱 설정
+app:
+  image:
+    upload-path: uploads/profiles/
+    max-size: 10485760  # 10MB in bytes
+  storage:
+    type: local  # local 또는 s3
+  s3:
+    access-key: false  # S3 비활성화
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}
+    region: ${AWS_REGION:ap-northeast-2}
+    bucket-name: ${AWS_S3_BUCKET:neogul-map-bucket}
+
 # JWT 설정
 jwt:
-  secret: bmVvZ3VsbWFwLWp3dC1zZWNyZXQta2V5LWZvci1kZXZlbG9wbWVudC1hbmQtdGVzdGluZy1wdXJwb3Nlcw==  # Base64 encoded secret
+  secret: bmVvZ3VsbWFwLWp3dC1zZWNyZXQta2V5LWZvci1kZXZlbG9wbWVudC1hbmQtdGVzdGluZy1wdXJwb3Nlcw==
   token-validity-in-seconds: 7200  # 2시간
+  expiration: 86400000  # 24시간
+  refresh-expiration: 604800000  # 7일

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">NeogulMap 서비스 테스트</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .service-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .service-title {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .test-button:hover {
+            background-color: #2980b9;
+        }
+        .test-button.success {
+            background-color: #27ae60;
+        }
+        .test-button.danger {
+            background-color: #e74c3c;
+        }
+        .test-form {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .result.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 th:text="${title}">NeogulMap 서비스 테스트</h1>
+        
+        <div class="grid">
+            <!-- User Service 테스트 -->
+            <div class="service-section">
+                <h2 class="service-title">👤 User Service 테스트</h2>
+                
+                <a href="/test/users" class="test-button">사용자 목록 조회</a>
+                <button onclick="testUserService()" class="test-button">사용자 생성 테스트</button>
+                <button onclick="testGetUser()" class="test-button">사용자 조회 테스트</button>
+                
+                <div class="test-form">
+                    <h4>사용자 생성 테스트</h4>
+                    <div class="form-group">
+                        <label>이메일:</label>
+                        <input type="email" id="userEmail" value="test@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>닉네임:</label>
+                        <input type="text" id="userNickname" value="테스트유저">
+                    </div>
+                    <div class="form-group">
+                        <label>OAuth ID:</label>
+                        <input type="text" id="userOauthId" value="oauth123">
+                    </div>
+                    <div class="form-group">
+                        <label>OAuth Provider:</label>
+                        <select id="userOauthProvider">
+                            <option value="GOOGLE">Google</option>
+                            <option value="KAKAO">Kakao</option>
+                            <option value="NAVER">Naver</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="test-form">
+                    <h4>사용자 조회 테스트</h4>
+                    <div class="form-group">
+                        <label>사용자 ID:</label>
+                        <input type="number" id="userId" value="1">
+                    </div>
+                </div>
+                
+                <div id="userResult" class="result" style="display: none;"></div>
+            </div>
+
+            <!-- Zone Service 테스트 -->
+            <div class="service-section">
+                <h2 class="service-title">📍 Zone Service 테스트</h2>
+                
+                <a href="/test/zones" class="test-button">Zone 목록 조회</a>
+                <button onclick="testZoneService()" class="test-button">Zone 생성 테스트</button>
+                <button onclick="testGetZone()" class="test-button">Zone 조회 테스트</button>
+                <button onclick="testSearchZones()" class="test-button">Zone 검색 테스트</button>
+                <button onclick="testNearbyZones()" class="test-button success">📍 반경 검색 테스트</button>
+                
+                <div class="test-form">
+                    <h4>Zone 생성 테스트</h4>
+                    <div class="form-group">
+                        <label>Zone 이름:</label>
+                        <input type="text" id="zoneName" value="테스트 흡연구역">
+                    </div>
+                    <div class="form-group">
+                        <label>주소:</label>
+                        <input type="text" id="zoneAddress" value="서울시 강남구 테헤란로 123">
+                    </div>
+                    <div class="form-group">
+                        <label>설명:</label>
+                        <textarea id="zoneDescription">테스트용 흡연구역입니다.</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>이미지:</label>
+                        <input type="file" id="zoneImage" accept="image/*">
+                    </div>
+                </div>
+                
+                <div class="test-form">
+                    <h4>Zone 조회/검색 테스트</h4>
+                    <div class="form-group">
+                        <label>Zone ID:</label>
+                        <input type="number" id="zoneId" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>검색 키워드:</label>
+                        <input type="text" id="searchKeyword" value="강남">
+                    </div>
+                </div>
+                
+                <div class="test-form">
+                    <h4>📍 반경 검색 테스트 (위치 기반)</h4>
+                    <div class="form-group">
+                        <label>위도 (Latitude):</label>
+                        <input type="number" id="searchLat" value="37.5665" step="0.0001" placeholder="37.5665">
+                    </div>
+                    <div class="form-group">
+                        <label>경도 (Longitude):</label>
+                        <input type="number" id="searchLon" value="126.9780" step="0.0001" placeholder="126.9780">
+                    </div>
+                    <div class="form-group">
+                        <label>반경 (미터):</label>
+                        <input type="number" id="searchRadius" value="5000" placeholder="5000">
+                    </div>
+                    <div class="form-group">
+                        <small>💡 테스트 좌표: 강남역(37.4979, 127.0276), 홍대(37.5563, 126.9226), 명동(37.5636, 126.9826)</small>
+                    </div>
+                </div>
+                
+                <div id="zoneResult" class="result" style="display: none;"></div>
+            </div>
+
+            <!-- Image Service 테스트 -->
+            <div class="service-section">
+                <h2 class="service-title">🖼️ Image Service 테스트</h2>
+                
+                <button onclick="testImageUpload()" class="test-button">이미지 업로드 테스트</button>
+                <button onclick="testImageGet()" class="test-button">이미지 조회 테스트</button>
+                
+                <div class="test-form">
+                    <h4>이미지 업로드 테스트</h4>
+                    <div class="form-group">
+                        <label>이미지 파일:</label>
+                        <input type="file" id="imageFile" accept="image/*">
+                    </div>
+                    <div class="form-group">
+                        <label>이미지 타입:</label>
+                        <select id="imageType">
+                            <option value="PROFILE">Profile</option>
+                            <option value="ZONE">Zone</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="test-form">
+                    <h4>이미지 조회 테스트</h4>
+                    <div class="form-group">
+                        <label>파일명:</label>
+                        <input type="text" id="imageFileName" placeholder="예: profile_20241210_123456_abc12345.jpg">
+                    </div>
+                </div>
+                
+                <div id="imageResult" class="result" style="display: none;"></div>
+            </div>
+
+            <!-- Storage Service 테스트 -->
+            <div class="service-section">
+                <h2 class="service-title">💾 Storage Service 테스트</h2>
+                
+                <button onclick="testStorageService()" class="test-button">Storage 테스트</button>
+                
+                <div class="test-form">
+                    <h4>Storage 서비스 테스트</h4>
+                    <div class="form-group">
+                        <label>테스트 파일:</label>
+                        <input type="file" id="storageFile">
+                    </div>
+                </div>
+                
+                <div id="storageResult" class="result" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- 통합 테스트 -->
+        <div class="service-section">
+            <h2 class="service-title">🔧 통합 테스트</h2>
+            <button onclick="testHealthCheck()" class="test-button success">서비스 상태 확인</button>
+            <a href="/test/advanced" class="test-button">고급 테스트 페이지</a>
+            <div id="healthResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // User Service 테스트
+        async function testUserService() {
+            const userData = {
+                email: document.getElementById('userEmail').value,
+                nickname: document.getElementById('userNickname').value,
+                oauthId: document.getElementById('userOauthId').value,
+                oauthProvider: document.getElementById('userOauthProvider').value,
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                const response = await fetch('/test/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData)
+                });
+                const result = await response.json();
+                showResult('userResult', result, response.ok);
+            } catch (error) {
+                showResult('userResult', {error: error.message}, false);
+            }
+        }
+
+        async function testGetUser() {
+            const userId = document.getElementById('userId').value;
+            try {
+                const response = await fetch(`/test/users/${userId}`);
+                const result = await response.json();
+                showResult('userResult', result, response.ok);
+            } catch (error) {
+                showResult('userResult', {error: error.message}, false);
+            }
+        }
+
+        // Zone Service 테스트
+        async function testZoneService() {
+            const formData = new FormData();
+            formData.append('name', document.getElementById('zoneName').value);
+            formData.append('address', document.getElementById('zoneAddress').value);
+            formData.append('description', document.getElementById('zoneDescription').value);
+            
+            const imageFile = document.getElementById('zoneImage').files[0];
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+
+            try {
+                const response = await fetch('/test/zones', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                showResult('zoneResult', result, response.ok);
+            } catch (error) {
+                showResult('zoneResult', {error: error.message}, false);
+            }
+        }
+
+        async function testGetZone() {
+            const zoneId = document.getElementById('zoneId').value;
+            try {
+                const response = await fetch(`/test/zones/${zoneId}`);
+                const result = await response.json();
+                showResult('zoneResult', result, response.ok);
+            } catch (error) {
+                showResult('zoneResult', {error: error.message}, false);
+            }
+        }
+
+        async function testSearchZones() {
+            const keyword = document.getElementById('searchKeyword').value;
+            try {
+                const response = await fetch(`/test/zones/search?keyword=${encodeURIComponent(keyword)}`);
+                const result = await response.json();
+                showResult('zoneResult', result, response.ok);
+            } catch (error) {
+                showResult('zoneResult', {error: error.message}, false);
+            }
+        }
+
+        async function testNearbyZones() {
+            const lat = document.getElementById('searchLat').value;
+            const lon = document.getElementById('searchLon').value;
+            const radius = document.getElementById('searchRadius').value;
+            
+            if (!lat || !lon) {
+                showResult('zoneResult', {error: '위도와 경도를 입력해주세요'}, false);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/test/zones/nearby?lat=${lat}&lon=${lon}&radius=${radius}`);
+                const result = await response.json();
+                showResult('zoneResult', result, response.ok);
+            } catch (error) {
+                showResult('zoneResult', {error: error.message}, false);
+            }
+        }
+
+        // Image Service 테스트
+        async function testImageUpload() {
+            const imageFile = document.getElementById('imageFile').files[0];
+            const imageType = document.getElementById('imageType').value;
+
+            if (!imageFile) {
+                showResult('imageResult', {error: '이미지 파일을 선택해주세요'}, false);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', imageFile);
+            formData.append('type', imageType);
+
+            try {
+                const response = await fetch('/test/images/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                showResult('imageResult', result, response.ok);
+            } catch (error) {
+                showResult('imageResult', {error: error.message}, false);
+            }
+        }
+
+        async function testImageGet() {
+            const fileName = document.getElementById('imageFileName').value;
+            if (!fileName) {
+                showResult('imageResult', {error: '파일명을 입력해주세요'}, false);
+                return;
+            }
+
+            try {
+                const response = await fetch(`/test/images/${fileName}`);
+                if (response.ok) {
+                    showResult('imageResult', {message: '이미지 조회 성공', fileName: fileName}, true);
+                } else {
+                    showResult('imageResult', {error: '이미지를 찾을 수 없습니다'}, false);
+                }
+            } catch (error) {
+                showResult('imageResult', {error: error.message}, false);
+            }
+        }
+
+        // Storage Service 테스트
+        async function testStorageService() {
+            const file = document.getElementById('storageFile').files[0];
+            if (!file) {
+                showResult('storageResult', {error: '파일을 선택해주세요'}, false);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/storage/test', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                showResult('storageResult', result, response.ok);
+            } catch (error) {
+                showResult('storageResult', {error: error.message}, false);
+            }
+        }
+
+        // 통합 테스트
+        async function testHealthCheck() {
+            try {
+                const response = await fetch('/test/health');
+                const result = await response.json();
+                showResult('healthResult', result, response.ok);
+            } catch (error) {
+                showResult('healthResult', {error: error.message}, false);
+            }
+        }
+
+        // 결과 표시 함수
+        function showResult(elementId, data, isSuccess) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isSuccess ? 'success' : 'error'}`;
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>

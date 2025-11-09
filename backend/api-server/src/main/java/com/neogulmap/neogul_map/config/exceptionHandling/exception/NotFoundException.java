@@ -14,4 +14,9 @@ public class NotFoundException extends BusinessBaseException {
     public NotFoundException(ErrorCode errorCode) {
         super(errorCode);
     }
+    
+    // 원인 예외를 포함한 생성자
+    public NotFoundException(ErrorCode errorCode, Throwable cause) {
+        super(errorCode, cause);
+    }
 }

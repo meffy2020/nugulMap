@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Check } from "lucide-react"
+
+import { Loader2, Check, Search } from "lucide-react" // Search 아이콘 추가
 import { createZone, type SmokingZone, type CreateZonePayload } from "@/lib/api"
 
 // Zod를 사용한 폼 유효성 검사 스키마 정의
@@ -24,8 +25,7 @@ const formSchema = z.object({
   subtype: z.string().optional(),
   latitude: z.number(),
   longitude: z.number(),
-
-  size: z.string().min(1, { message: "크기를 선택해주세요." }), // size 필드 추가
+  size: z.string().min(1, { message: "크기를 선택해주세요." }),
 });
 
 interface AddLocationModalProps {
@@ -39,6 +39,7 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false); // 지오코딩 로딩 상태
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -86,13 +87,43 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
     );
   };
 
+  // 주소 검색 (지오코딩) 핸들러
+  const handleSearchAddress = async () => {
+    const addressToSearch = form.getValues("address");
+    if (!addressToSearch) {
+      setError("주소를 입력해주세요.");
+      return;
+    }
+
+    setIsGeocoding(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressToSearch)}&limit=1&accept-language=ko`);
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        form.setValue("latitude", parseFloat(lat));
+        form.setValue("longitude", parseFloat(lon));
+        setError(null);
+      } else {
+        setError("입력하신 주소를 찾을 수 없습니다.");
+      }
+    } catch (err) {
+      console.error("Geocoding failed:", err);
+      setError("주소 검색 중 오류가 발생했습니다.");
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
   // 폼 제출 핸들러
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // ‼️‼️‼️ 수정된 부분: DTO에 맞는 필드만 전송, date 필드 제거 ‼️‼️‼️
       const payload: CreateZonePayload = {
         ...values,
         user: "gemini-user", // 임시 사용자 이름
@@ -127,7 +158,12 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <Label htmlFor="address">주소</Label>
-            <Input id="address" {...form.register("address")} placeholder="상세 주소를 입력하세요" />
+            <div className="flex gap-2">
+              <Input id="address" {...form.register("address")} placeholder="상세 주소를 입력하세요" />
+              <Button type="button" onClick={handleSearchAddress} disabled={isGeocoding || isLoading} variant="outline" size="icon">
+                {isGeocoding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              </Button>
+            </div>
             {form.formState.errors.address && <p className="text-red-500 text-xs mt-1">{form.formState.errors.address.message}</p>}
           </div>
 
@@ -168,6 +204,31 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
             <Textarea id="description" {...form.register("description")} placeholder="상세 설명을 입력하세요" />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="latitude" className="text-card-foreground">
+                위도
+              </Label>
+              <Input
+                id="latitude"
+                {...form.register("latitude", { valueAsNumber: true })}
+                disabled
+                className="bg-muted border-border text-muted-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="longitude" className="text-card-foreground">
+                경도
+              </Label>
+              <Input
+                id="longitude"
+                {...form.register("longitude", { valueAsNumber: true })}
+                disabled
+                className="bg-muted border-border text-muted-foreground"
+              />
+            </div>
+          </div>
+
           <div>
             <Label htmlFor="image">이미지</Label>
             <Input id="image" type="file" onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)} />
@@ -180,8 +241,8 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
           )}
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onClose()} disabled={isLoading}>취소</Button>
-            <Button type="submit" disabled={isLoading} className="min-w-[80px]">
+            <Button type="button" variant="outline" onClick={() => onClose()} disabled={isLoading || isGeocoding}>취소</Button>
+            <Button type="submit" disabled={isLoading || isGeocoding} className="min-w-[80px]">
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : showSuccess ? <Check className="h-4 w-4" /> : "저장"}
             </Button>
           </div>

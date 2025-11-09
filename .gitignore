@@ -28,3 +28,6 @@ firebase/
 *.csv
 # IntelliJ IDE specific files
 .idea/
+.cursor/rules/command.mdc
+uploads/profiles/profile20251011_203926_603187ee.png
+/uploads
