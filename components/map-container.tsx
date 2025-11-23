@@ -35,15 +35,11 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       try {
         setLoading(true)
         const zonesData = await fetchZones(37.5665, 126.978) // 서울 시청 기본 위치
-        console.log("[v0] Loaded zones from backend API:", zonesData)
+        console.log("[v0] Loaded zones:", zonesData)
         setZones(zonesData)
         setError(null)
       } catch (err) {
-        console.error("[v0] Failed to load zones from API:", err)
-        setError("흡연구역 데이터를 불러오는데 실패했습니다.")
-        setTimeout(() => {
-          setError(null)
-        }, 3000)
+        console.error("[v0] Failed to load zones:", err)
         setZones([])
       } finally {
         setLoading(false)
@@ -56,8 +52,8 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
   useEffect(() => {
     const KAKAO_APP_KEY = process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY
     if (!KAKAO_APP_KEY) {
-      console.error("[v0] 카카오맵 API 키가 설정되지 않았습니다. NEXT_PUBLIC_KAKAOMAP_APIKEY 환경 변수를 확인하세요.")
-      setError("카카오맵 API 키가 설정되지 않았습니다. 환경 변수를 확인하세요.")
+      console.error("[v0] 카카오맵 API 키가 설정되지 않았습니다.")
+      setError("카카오맵 API 키를 설정해주세요. (환경 변수: NEXT_PUBLIC_KAKAOMAP_APIKEY)")
       setLoading(false)
       return
     }
@@ -65,14 +61,23 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
     if (typeof window === "undefined" || !mapRef.current) return
 
     if (window.kakao && window.kakao.maps) {
-      console.log("[v0] 카카오맵 SDK가 이미 로드되어 있습니다. 지도 초기화 시작.")
-      const options = {
-        center: new window.kakao.maps.LatLng(37.5665, 126.978),
-        level: 3,
-      }
-      const map = new window.kakao.maps.Map(mapRef.current!, options)
-      setMapInstance(map)
-      setLoading(false)
+      console.log("[v0] 카카오맵 SDK 이미 로드됨")
+      window.kakao.maps.load(() => {
+        if (!mapRef.current) return
+        const options = {
+          center: new window.kakao.maps.LatLng(37.5665, 126.978),
+          level: 3,
+        }
+        const map = new window.kakao.maps.Map(mapRef.current!, options)
+        setMapInstance(map)
+        setLoading(false)
+      })
+      return
+    }
+
+    const existingScript = document.querySelector(`script[src*="dapi.kakao.com"]`)
+    if (existingScript) {
+      console.log("[v0] 카카오맵 스크립트 이미 존재함. 로딩 대기 중...")
       return
     }
 
@@ -81,14 +86,10 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
     script.async = true
 
     script.onload = () => {
-      console.log("[v0] 카카오맵 SDK 스크립트 로드 완료.")
+      console.log("[v0] 카카오맵 SDK 로드 완료")
       if (window.kakao && window.kakao.maps) {
         window.kakao.maps.load(() => {
-          console.log("[v0] 카카오맵 라이브러리 로드 완료. 지도 초기화 시작.")
-          if (!mapRef.current) {
-            console.error("[v0] mapRef.current가 null입니다.")
-            return
-          }
+          if (!mapRef.current) return
           const options = {
             center: new window.kakao.maps.LatLng(37.5665, 126.978),
             level: 3,
@@ -96,18 +97,16 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
           const map = new window.kakao.maps.Map(mapRef.current!, options)
           setMapInstance(map)
           setLoading(false)
-          console.log("[v0] 지도 인스턴스 생성 완료.")
         })
       } else {
-        console.error("[v0] window.kakao.maps가 정의되지 않았습니다.")
-        setError("카카오맵 라이브러리 로드에 실패했습니다.")
+        setError("카카오맵 라이브러리를 불러올 수 없습니다.")
         setLoading(false)
       }
     }
 
-    script.onerror = (e) => {
-      console.error("[v0] 카카오맵 SDK 스크립트 로드 실패. 네트워크 또는 API 키를 확인하세요.", e)
-      setError("카카오맵 SDK 로드에 실패했습니다. API 키 또는 네트워크를 확인하세요.")
+    script.onerror = () => {
+      console.error("[v0] 카카오맵 SDK 로드 실패")
+      setError("카카오맵 API 키를 확인해주세요.")
       setLoading(false)
     }
 

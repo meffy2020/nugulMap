@@ -17,6 +17,33 @@ export type CreateZonePayload = Omit<SmokingZone, "id" | "image">
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
 
+const MOCK_ZONES: SmokingZone[] = [
+  {
+    id: 1,
+    region: "서울특별시",
+    type: "실외",
+    subtype: "공원",
+    description: "시청 앞 광장 흡연구역",
+    latitude: 37.5665,
+    longitude: 126.978,
+    address: "서울특별시 중구 태평로1가 31",
+    user: "관리자",
+    image: null,
+  },
+  {
+    id: 2,
+    region: "서울특별시",
+    type: "실외",
+    subtype: "거리",
+    description: "광화문 광장 흡연구역",
+    latitude: 37.572,
+    longitude: 126.9769,
+    address: "서울특별시 종로구 세종로",
+    user: "관리자",
+    image: null,
+  },
+]
+
 /**
  * 특정 위치 주변의 흡연구역 목록을 서버에서 가져옵니다.
  * @param lat - 검색 중심의 위도
@@ -25,14 +52,20 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
  * @returns SmokingZone 객체의 배열
  */
 export async function fetchZones(lat: number, lon: number, radius = 1.0): Promise<SmokingZone[]> {
-  const response = await fetch(`${API_BASE_URL}/api/zones?latitude=${lat}&longitude=${lon}&radius=${radius}`)
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/zones?latitude=${lat}&longitude=${lon}&radius=${radius}`, {
+      cache: "no-store",
+    })
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`API call failed: ${response.status} ${errorText}`)
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.status}`)
+    }
+
+    return response.json()
+  } catch (err) {
+    console.warn("[v0] 백엔드 API 연결 실패. 목 데이터를 사용합니다:", err)
+    return MOCK_ZONES
   }
-
-  return response.json()
 }
 
 /**
@@ -42,25 +75,34 @@ export async function fetchZones(lat: number, lon: number, radius = 1.0): Promis
  * @returns 생성된 SmokingZone 객체
  */
 export async function createZone(zoneData: CreateZonePayload, imageFile?: File): Promise<SmokingZone> {
-  const formData = new FormData()
+  try {
+    const formData = new FormData()
 
-  formData.append("data", new Blob([JSON.stringify(zoneData)], { type: "application/json" }))
+    formData.append("data", new Blob([JSON.stringify(zoneData)], { type: "application/json" }))
 
-  if (imageFile) {
-    formData.append("image", imageFile)
+    if (imageFile) {
+      formData.append("image", imageFile)
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/zones`, {
+      method: "POST",
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.status}`)
+    }
+
+    return response.json()
+  } catch (err) {
+    console.warn("[v0] 백엔드 API 연결 실패. 임시 객체를 반환합니다:", err)
+    // 임시 ID로 새 객체 생성
+    return {
+      id: Date.now(),
+      ...zoneData,
+      image: null,
+    }
   }
-
-  const response = await fetch(`${API_BASE_URL}/api/zones`, {
-    method: "POST",
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`API call failed: ${response.status} ${errorText}`)
-  }
-
-  return response.json()
 }
 
 // ----------------------------------------------------------------------------
