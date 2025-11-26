@@ -3530,7 +3530,7 @@ snapshots:
 
   react-kakao-maps-sdk@1.2.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:
-      '@babel/runtime': 7.28.3
+      '@babel/runtime': 7.28.4
       kakao.maps.d.ts: 0.1.40
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
