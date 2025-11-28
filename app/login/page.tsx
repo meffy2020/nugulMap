@@ -26,8 +26,8 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-lg border-2">
         <CardHeader className="text-center space-y-6 pb-8">
           <div className="flex justify-center">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-              <Image src="/main-logo.jpg" alt="너굴맵 로고" width={64} height={64} className="object-contain" />
+            <div className="w-24 h-24 flex items-center justify-center">
+              <Image src="/images/logodesign.png" alt="너굴맵 로고" width={96} height={96} className="object-contain" />
             </div>
           </div>
           <div className="space-y-2">
