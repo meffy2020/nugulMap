@@ -20,7 +20,6 @@ interface AddLocationModalProps {
 
 export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocationModalProps) {
   const [formData, setFormData] = useState({
-    region: "",
     type: "",
     subtype: "",
     description: "",
@@ -28,7 +27,7 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
     longitude: "126.9780",
     size: "소형",
     address: "",
-    user: "익명", // Default user for now
+    user: "익명",
     image: "",
   })
 
@@ -96,7 +95,6 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
 
     try {
       const zoneRequest: ZoneRequest = {
-        region: formData.region,
         type: formData.type,
         subtype: formData.subtype,
         description: formData.description,
@@ -129,7 +127,6 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
 
   const handleCancel = () => {
     setFormData({
-      region: "",
       type: "",
       subtype: "",
       description: "",
@@ -153,30 +150,6 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="relative space-y-2">
-            <Label
-              htmlFor="region"
-              className={`text-card-foreground transition-all duration-200 ${
-                focusedField === "region" || formData.region ? "text-primary text-sm" : "text-muted-foreground"
-              }`}
-            >
-              지역
-            </Label>
-            <Input
-              id="region"
-              value={formData.region}
-              onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-              onFocus={() => setFocusedField("region")}
-              onBlur={() => setFocusedField(null)}
-              placeholder="지역을 입력하세요 (예: 서울시 강남구)"
-              className={`bg-input border-border text-foreground transition-all duration-300 ${
-                focusedField === "region"
-                  ? "border-primary ring-2 ring-primary/20 shadow-lg"
-                  : "hover:border-primary/50"
-              }`}
-            />
-          </div>
-
           <div className="relative space-y-2">
             <Label
               htmlFor="address"

@@ -11,13 +11,13 @@ export default function LoginPage() {
   const handleSocialLogin = async (provider: "kakao" | "naver" | "google") => {
     setIsLoading(provider)
 
-    // TODO: Implement actual social login logic
     console.log(`[v0] ${provider} login initiated`)
 
-    // Simulate API call
     setTimeout(() => {
       setIsLoading(null)
       console.log(`[v0] ${provider} login completed`)
+      // 약관 동의 페이지로 이동
+      window.location.href = "/terms"
     }, 2000)
   }
 
