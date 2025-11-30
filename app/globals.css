@@ -18,83 +18,44 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Updated to refined color palette with proper usage hierarchy */
-  /* 제공된 색상 팔레트로 업데이트: #7b542f, #b6771d, #ff9d00, #ffcf71 */
-  --background: #fffbf5; /* 매우 연한 크림색 배경 */
-  --foreground: #2c2c2c; /* 텍스트용 어두운 색 */
-  --card: #3a3a3a; /* 카드 배경 */
-  --card-foreground: #fffbf5; /* 카드 텍스트 */
-  --popover: #3a3a3a; /* 팝오버 배경 */
-  --popover-foreground: #fffbf5; /* 팝오버 텍스트 */
-  --primary: #7b542f; /* 어두운 갈색 - 주요 요소 */
-  --primary-foreground: #fffbf5; /* 주요 요소 텍스트 */
-  --secondary: #b6771d; /* 중간 갈색 - 보조 요소 */
-  --secondary-foreground: #fffbf5; /* 보조 요소 텍스트 */
-  --muted: #3a3a3a; /* 음소거된 배경 */
-  --muted-foreground: #ffcf71; /* 연한 오렌지 텍스트 */
-  --accent: #ff9d00; /* 밝은 오렌지 - 강조 요소 */
-  --accent-foreground: #2c2c2c; /* 강조 요소 텍스트 */
-  --destructive: #ff9d00; /* 삭제 액션 */
-  --destructive-foreground: #2c2c2c; /* 삭제 액션 텍스트 */
-  --border: #ffcf71; /* 연한 오렌지 테두리 */
-  --input: #3a3a3a; /* 입력 필드 배경 */
-  --ring: #ff9d00; /* 포커스 링 */
-  --chart-1: #7b542f; /* 차트 색상 1 */
-  --chart-2: #b6771d; /* 차트 색상 2 */
-  --chart-3: #ff9d00; /* 차트 색상 3 */
-  --chart-4: #ffcf71; /* 차트 색상 4 */
-  --chart-5: #2c2c2c; /* 차트 색상 5 */
+  --background: #ffffff; /* 순백색 배경 */
+  --foreground: #1a1a1a; /* 진한 검은색 텍스트 */
+  --card: #f5f5f5; /* 연한 회색 카드 배경 */
+  --card-foreground: #1a1a1a; /* 카드 텍스트 */
+  --popover: #ffffff; /* 팝오버 배경 */
+  --popover-foreground: #1a1a1a; /* 팝오버 텍스트 */
+  --primary: #2c2c2c; /* 어두운 회색 - 주요 요소 */
+  --primary-foreground: #ffffff; /* 주요 요소 텍스트 */
+  --secondary: #6b6b6b; /* 중간 회색 - 보조 요소 */
+  --secondary-foreground: #ffffff; /* 보조 요소 텍스트 */
+  --muted: #f5f5f5; /* 음소거된 배경 */
+  --muted-foreground: #6b6b6b; /* 음소거된 텍스트 */
+  --accent: #3a3a3a; /* 강조 요소 */
+  --accent-foreground: #ffffff; /* 강조 요소 텍스트 */
+  --destructive: #4a4a4a; /* 삭제 액션 */
+  --destructive-foreground: #ffffff; /* 삭제 액션 텍스트 */
+  --border: #e0e0e0; /* 연한 회색 테두리 */
+  --input: #f5f5f5; /* 입력 필드 배경 */
+  --ring: #2c2c2c; /* 포커스 링 */
+  --chart-1: #1a1a1a; /* 차트 색상 1 */
+  --chart-2: #2c2c2c; /* 차트 색상 2 */
+  --chart-3: #3a3a3a; /* 차트 색상 3 */
+  --chart-4: #6b6b6b; /* 차트 색상 4 */
+  --chart-5: #9b9b9b; /* 차트 색상 5 */
   --radius: 0.5rem;
-  --sidebar: #3a3a3a; /* 사이드바 배경 */
-  --sidebar-foreground: #fffbf5; /* 사이드바 텍스트 */
-  --sidebar-primary: #7b542f; /* 사이드바 주요 색 */
-  --sidebar-primary-foreground: #fffbf5; /* 사이드바 주요 텍스트 */
-  --sidebar-accent: #ff9d00; /* 사이드바 강조 색 */
-  --sidebar-accent-foreground: #2c2c2c; /* 사이드바 강조 텍스트 */
-  --sidebar-border: #b6771d; /* 사이드바 테두리 */
-  --sidebar-ring: #ff9d00; /* 사이드바 포커스 링 */
+  --sidebar: #f5f5f5; /* 사이드바 배경 */
+  --sidebar-foreground: #1a1a1a; /* 사이드바 텍스트 */
+  --sidebar-primary: #2c2c2c; /* 사이드바 주요 색 */
+  --sidebar-primary-foreground: #ffffff; /* 사이드바 주요 텍스트 */
+  --sidebar-accent: #3a3a3a; /* 사이드바 강조 색 */
+  --sidebar-accent-foreground: #ffffff; /* 사이드바 강조 텍스트 */
+  --sidebar-border: #e0e0e0; /* 사이드바 테두리 */
+  --sidebar-ring: #2c2c2c; /* 사이드바 포커스 링 */
   --font-sans: "Kakao", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
-.dark {
-  /* Dark mode with inverted hierarchy but maintaining warm tones */
-  /* 다크 모드도 동일한 색상 팔레트 적용 */
-  --background: #2c2c2c; /* 어두운 배경 */
-  --foreground: #fffbf5; /* 밝은 텍스트 */
-  --card: #3a3a3a; /* 카드 배경 */
-  --card-foreground: #fffbf5; /* 카드 텍스트 */
-  --popover: #3a3a3a; /* 팝오버 배경 */
-  --popover-foreground: #fffbf5; /* 팝오버 텍스트 */
-  --primary: #ff9d00; /* 밝은 오렌지 - 다크모드 주요 색 */
-  --primary-foreground: #2c2c2c; /* 주요 요소 텍스트 */
-  --secondary: #b6771d; /* 중간 갈색 - 보조 요소 */
-  --secondary-foreground: #fffbf5; /* 보조 요소 텍스트 */
-  --muted: #3a3a3a; /* 음소거된 배경 */
-  --muted-foreground: #ffcf71; /* 연한 오렌지 텍스트 */
-  --accent: #ff9d00; /* 밝은 오렌지 - 강조 요소 */
-  --accent-foreground: #2c2c2c; /* 강조 요소 텍스트 */
-  --destructive: #ff9d00; /* 삭제 액션 */
-  --destructive-foreground: #2c2c2c; /* 삭제 액션 텍스트 */
-  --border: #7b542f; /* 어두운 갈색 테두리 */
-  --input: #3a3a3a; /* 입력 필드 배경 */
-  --ring: #ff9d00; /* 포커스 링 */
-  --chart-1: #ff9d00; /* 차트 색상 1 */
-  --chart-2: #ffcf71; /* 차트 색상 2 */
-  --chart-3: #b6771d; /* 차트 색상 3 */
-  --chart-4: #7b542f; /* 차트 색상 4 */
-  --chart-5: #fffbf5; /* 차트 색상 5 */
-  --sidebar: #3a3a3a; /* 사이드바 배경 */
-  --sidebar-foreground: #fffbf5; /* 사이드바 텍스트 */
-  --sidebar-primary: #ff9d00; /* 사이드바 주요 색 */
-  --sidebar-primary-foreground: #2c2c2c; /* 사이드바 주요 텍스트 */
-  --sidebar-accent: #ffcf71; /* 사이드바 강조 색 */
-  --sidebar-accent-foreground: #2c2c2c; /* 사이드바 강조 텍스트 */
-  --sidebar-border: #7b542f; /* 사이드바 테두리 */
-  --sidebar-ring: #ff9d00; /* 사이드바 포커스 링 */
-  --font-sans: "Kakao", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-}
+/* .dark 스타일 완전 제거 */
 
 @theme inline {
   --color-background: var(--background);
