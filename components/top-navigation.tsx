@@ -4,9 +4,19 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { User, LogOut, LogIn } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 export function TopNavigation() {
-  const isLoggedIn = false
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const router = useRouter()
+
+  const handleLogout = () => {
+    console.log("[v0] 로그아웃 실행")
+    setIsLoggedIn(false)
+    // 추후 실제 로그아웃 API 호출 및 토큰 제거 로직 추가
+    router.push("/")
+  }
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 h-16 bg-background/95 backdrop-blur-sm border-b border-border px-4 flex items-center justify-between transition-all duration-300">
@@ -40,7 +50,10 @@ export function TopNavigation() {
               <User className="mr-2 h-4 w-4 transition-colors duration-200" />
               <span>내 정보</span>
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer transition-all duration-200 hover:bg-secondary/80 hover:scale-[1.02]">
+            <DropdownMenuItem
+              className="cursor-pointer transition-all duration-200 hover:bg-secondary/80 hover:scale-[1.02]"
+              onClick={handleLogout}
+            >
               <LogOut className="mr-2 h-4 w-4 transition-colors duration-200" />
               <span>로그아웃</span>
             </DropdownMenuItem>
