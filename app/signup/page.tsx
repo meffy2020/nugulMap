@@ -54,7 +54,7 @@ export default function SignupPage() {
       <Card className="w-full max-w-md shadow-lg border-2">
         <CardHeader className="text-center space-y-4">
           <div className="flex justify-center">
-            <Image src="/images/logodesign.png" alt="너굴맵 로고" width={80} height={80} className="object-contain" />
+            <Image src="/images/pin.png" alt="NugulMap Logo" width={80} height={80} className="object-contain" />
           </div>
           <div className="space-y-2">
             <CardTitle className="text-2xl font-bold text-foreground">프로필 설정</CardTitle>

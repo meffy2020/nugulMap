@@ -15,6 +15,9 @@
   font-display: swap;
 }
 
+/* Righteous 폰트 추가 - 로고 영문 텍스트용 */
+@import url("https://fonts.googleapis.com/css2?family=Righteous&display=swap");
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
