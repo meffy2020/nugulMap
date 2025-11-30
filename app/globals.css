@@ -2,22 +2,15 @@
 @import "tw-animate-css";
 
 @font-face {
-  font-family: "GMarketSans";
-  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansLight.woff") format("woff");
-  font-weight: 300;
+  font-family: "Kakao";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2304-01@1.0/Kakao.woff2") format("woff2");
+  font-weight: 400;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "GMarketSans";
-  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff") format("woff");
-  font-weight: 500;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "GMarketSans";
-  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff") format("woff");
+  font-family: "Kakao";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2304-01@1.0/KakaoBold.woff2") format("woff2");
   font-weight: 700;
   font-display: swap;
 }
@@ -60,7 +53,7 @@
   --sidebar-accent-foreground: #2c2c2c; /* 사이드바 강조 텍스트 */
   --sidebar-border: #b6771d; /* 사이드바 테두리 */
   --sidebar-ring: #ff9d00; /* 사이드바 포커스 링 */
-  --font-sans: "GMarketSans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Kakao", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
@@ -99,7 +92,7 @@
   --sidebar-accent-foreground: #2c2c2c; /* 사이드바 강조 텍스트 */
   --sidebar-border: #7b542f; /* 사이드바 테두리 */
   --sidebar-ring: #ff9d00; /* 사이드바 포커스 링 */
-  --font-sans: "GMarketSans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Kakao", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 }
 

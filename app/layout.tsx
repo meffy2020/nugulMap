@@ -18,7 +18,7 @@ export default function RootLayout({
       <head>
         <style>{`
 html {
-  font-family: 'GMarketSans', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Kakao', ui-sans-serif, system-ui, sans-serif;
 }
         `}</style>
       </head>
