@@ -124,11 +124,12 @@ public class ZoneController {
     public ResponseEntity<?> getZonesByRadius(
             @RequestParam("latitude") double latitude,
             @RequestParam("longitude") double longitude,
-            @RequestParam("radius") int radius) {
-        List<ZoneResponse> response = zoneService.searchZonesByRadius(latitude, longitude, radius);
+            @RequestParam("radius") double radius) {
+		int radiusInMeters = (int) (radius * 1000);
+        List<ZoneResponse> response = zoneService.searchZonesByRadius(latitude, longitude, radiusInMeters);
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "message", String.format("반경 %dm 내 흡연구역 조회 성공", radius),
+            "message", String.format("반경 %.1fkm 내 흡연구역 조회 성공", radius),
             "data", Map.of(
                 "zones", response,
                 "count", response.size()
