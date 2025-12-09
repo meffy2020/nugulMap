@@ -32,7 +32,7 @@ export default function LoginPage() {
           </div>
           <div className="space-y-2">
             <CardTitle className="text-4xl font-bold text-foreground" style={{ fontFamily: "'Righteous', sans-serif" }}>
-              NugulMap
+              NeogulMap
             </CardTitle>
             <CardDescription className="text-base text-muted-foreground">흡연구역을 쉽게 찾아보세요</CardDescription>
           </div>
