@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Check, Camera, X } from "lucide-react"
+import { Loader2, Check, Camera, X, ImageIcon } from "lucide-react"
 import { createZone, type CreateZonePayload } from "@/lib/api"
 
 interface AddLocationModalProps {
@@ -262,14 +262,14 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
       />
 
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
+        <DialogContent className="w-full max-w-md max-h-[95vh] overflow-y-auto bg-card border-border p-4">
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">신규 흡연구역 등록</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-card-foreground">신규 흡연구역 등록</DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="address" className="text-card-foreground">
+              <Label htmlFor="address" className="text-sm font-medium text-card-foreground">
                 주소
               </Label>
               <Input
@@ -277,123 +277,120 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 placeholder="주소를 입력하세요"
-                className="bg-input border-border text-foreground"
+                className="bg-input border-border text-foreground h-11"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-card-foreground">위치</Label>
-              <div ref={mapContainerRef} className="w-full h-48 bg-muted rounded-lg border border-border" />
+              <Label className="text-sm font-medium text-card-foreground">위치</Label>
+              <div ref={mapContainerRef} className="w-full h-40 bg-muted rounded-lg border border-border" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* 왼쪽: 유형 선택 */}
-              <div className="space-y-2">
-                <Label className="text-card-foreground">유형</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {ZONE_TYPES.map((type) => (
-                    <Button
-                      key={type.value}
-                      type="button"
-                      variant={formData.type === type.value ? "default" : "outline"}
-                      className={`${
-                        formData.type === type.value
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-background text-foreground border-border"
-                      } transition-all`}
-                      onClick={() => setFormData({ ...formData, type: type.value })}
-                    >
-                      {type.label}
-                    </Button>
-                  ))}
-                </div>
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-card-foreground">유형 선택</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {ZONE_TYPES.map((type) => (
+                  <Button
+                    key={type.value}
+                    type="button"
+                    variant={formData.type === type.value ? "default" : "outline"}
+                    className={`h-12 text-sm font-medium ${
+                      formData.type === type.value
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground border-border hover:bg-accent"
+                    } transition-all`}
+                    onClick={() => setFormData({ ...formData, type: type.value })}
+                  >
+                    {type.label}
+                  </Button>
+                ))}
               </div>
+            </div>
 
-              {/* 오른쪽: 사진 추가 */}
-              <div className="space-y-2">
-                <Label className="text-card-foreground">사진</Label>
-                {!imagePreview ? (
-                  <div className="space-y-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full h-20 border-2 border-dashed border-border hover:border-primary transition-all bg-transparent"
-                      onClick={startCamera}
-                    >
-                      <div className="flex flex-col items-center gap-1">
-                        <Camera className="h-6 w-6" />
-                        <span className="text-sm">사진 추가</span>
-                      </div>
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileSelect}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full bg-transparent"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      파일 선택
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <img
-                      src={imagePreview || "/placeholder.svg"}
-                      alt="Preview"
-                      className="w-full h-32 object-cover rounded-lg border border-border"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-6 w-6"
-                      onClick={removeImage}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-card-foreground">사진 추가</Label>
+              {!imagePreview ? (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-24 border-2 border-dashed border-border hover:border-primary transition-all bg-transparent"
+                    onClick={startCamera}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <Camera className="h-7 w-7" />
+                      <span className="text-sm font-medium">사진 촬영</span>
+                    </div>
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-12 bg-transparent border-border hover:bg-accent font-medium"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <ImageIcon className="h-5 w-5 mr-2" />
+                    갤러리에서 선택
+                  </Button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <img
+                    src={imagePreview || "/placeholder.svg"}
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded-lg border border-border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8"
+                    onClick={removeImage}
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+              )}
             </div>
 
             {error && (
               <div className="text-red-500 text-sm bg-red-50 p-3 rounded-md border border-red-200">{error}</div>
             )}
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    저장 중...
+                  </div>
+                ) : showSuccess ? (
+                  <div className="flex items-center gap-2">
+                    <Check className="h-5 w-5" />
+                    완료!
+                  </div>
+                ) : (
+                  "저장하기"
+                )}
+              </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleCancel}
                 disabled={isLoading}
-                className="border-border text-foreground bg-transparent"
+                className="w-full h-12 border-border text-foreground bg-transparent hover:bg-accent font-medium"
               >
                 취소
-              </Button>
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[80px]"
-              >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    저장 중...
-                  </div>
-                ) : showSuccess ? (
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4" />
-                    완료!
-                  </div>
-                ) : (
-                  "저장"
-                )}
               </Button>
             </div>
           </form>
@@ -402,17 +399,17 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
 
       {showCamera && (
         <Dialog open={showCamera} onOpenChange={stopCamera}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="w-full max-w-md">
             <DialogHeader>
               <DialogTitle>사진 촬영</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <video ref={videoRef} autoPlay playsInline className="w-full rounded-lg border border-border" />
-              <div className="flex gap-2">
-                <Button type="button" onClick={capturePhoto} className="flex-1">
+              <div className="flex flex-col gap-2">
+                <Button type="button" onClick={capturePhoto} className="w-full h-12">
                   사진 촬영
                 </Button>
-                <Button type="button" variant="outline" onClick={stopCamera} className="flex-1 bg-transparent">
+                <Button type="button" variant="outline" onClick={stopCamera} className="w-full h-12 bg-transparent">
                   취소
                 </Button>
               </div>
