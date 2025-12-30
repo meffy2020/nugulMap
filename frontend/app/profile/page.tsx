@@ -1,5 +1,3 @@
-// frontend/app/profile/page.tsx
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -21,7 +19,7 @@ import Image from "next/image"
 
 import { fetchUserProfile, updateUserNickname, updateUserProfileImage, type UserProfile, type SmokingZone } from "@/lib/api"
 
-// 닉네임 업데이트 폼 유효성 검사 스키마
+
 const nicknameSchema = z.object({
   nickname: z.string().min(2, { message: "닉네임은 2자 이상이어야 합니다." }).max(20, { message: "닉네임은 20자 이하여야 합니다." }),
 });
@@ -52,6 +50,7 @@ export default function ProfilePage() {
     resolver: zodResolver(nicknameSchema),
     defaultValues: { nickname: "" },
   });
+
 
   // 사용자 프로필 불러오기
   useEffect(() => {
