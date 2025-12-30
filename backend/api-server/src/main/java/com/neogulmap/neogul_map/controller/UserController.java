@@ -7,14 +7,14 @@ import com.neogulmap.neogul_map.service.UserService;
 import com.neogulmap.neogul_map.service.ImageService;
 import com.neogulmap.neogul_map.domain.enums.ImageType;
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.ProfileImageRequiredException;
-import com.neogulmap.neogul_map.config.exceptionHandling.exception.ProfileImageProcessingException;
-import com.neogulmap.neogul_map.config.exceptionHandling.exception.ImageUploadException;
-import com.neogulmap.neogul_map.util.ValidationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -124,6 +124,99 @@ public class UserController {
                 "userId", id
             )
         ));
+    }
+
+    /**
+     * 프로필 완료 API (회원가입 완료)
+     * OAuth2 로그인 후 프로필이 완료되지 않은 경우, 닉네임과 프로필 이미지를 설정하여 회원가입을 완료함
+     * 
+     * @param nickname 닉네임 (필수)
+     * @param profileImage 프로필 이미지 (선택)
+     * @return 완료된 사용자 정보
+     */
+    @Transactional
+    @PostMapping(value = "/profile-setup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> completeProfile(
+            @RequestParam("nickname") String nickname,
+            @RequestParam(value = "profileImage", required = false) MultipartFile profileImage) {
+        
+        try {
+            // 인증된 사용자 정보 가져오기
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || authentication.getPrincipal() == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "success", false,
+                    "message", "인증이 필요합니다."
+                ));
+            }
+            
+            // 사용자 조회
+            User user = userService.getUserFromAuthentication(authentication.getPrincipal());
+            
+            // 이미 프로필이 완료된 경우
+            if (user.isProfileComplete()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "이미 회원가입이 완료된 사용자입니다."
+                ));
+            }
+            
+            // 닉네임 검증
+            if (nickname == null || nickname.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "닉네임은 필수입니다."
+                ));
+            }
+            
+            if (nickname.length() < 2 || nickname.length() > 20) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "닉네임은 2자 이상 20자 이하여야 합니다."
+                ));
+            }
+            
+            // 프로필 이미지 처리
+            String profileImagePath = null;
+            if (profileImage != null && !profileImage.isEmpty()) {
+                profileImagePath = imageService.processImage(profileImage, ImageType.PROFILE);
+            }
+            
+            // 사용자 정보 업데이트
+            UserRequest userRequest = UserRequest.builder()
+                    .email(user.getEmail())
+                    .oauthId(user.getOauthId())
+                    .oauthProvider(user.getOauthProvider())
+                    .nickname(nickname.trim())
+                    .profileImage(profileImagePath)
+                    .build();
+            
+            // 사용자 정보 업데이트
+            userService.updateUser(user.getId(), userRequest);
+            
+            // 프로필 이미지가 있으면 별도로 업데이트
+            if (profileImagePath != null) {
+                userService.updateProfileImage(user.getId(), profileImagePath);
+            }
+            
+            // 업데이트된 사용자 정보 조회
+            User updatedUser = userService.getUser(user.getId());
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "회원가입이 완료되었습니다.",
+                "data", Map.of(
+                    "user", UserResponse.from(updatedUser)
+                )
+            ));
+            
+        } catch (Exception e) {
+            log.error("프로필 완료 처리 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "success", false,
+                "message", "프로필 완료 처리 중 오류가 발생했습니다: " + e.getMessage()
+            ));
+        }
     }
 
     @DeleteMapping("/{id}")

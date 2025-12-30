@@ -1,5 +1,5 @@
 # Stage 1: Build the application using Gradle
-FROM eclipse-temurin:17-jdk-jammy as builder
+FROM eclipse-temurin:21-jdk-jammy as builder
 
 WORKDIR /workspace/app
 
@@ -17,7 +17,7 @@ RUN chmod +x ./gradlew
 RUN ./gradlew build -x test
 
 # Stage 2: Create the final, smaller image
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 

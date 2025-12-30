@@ -1,0 +1,49 @@
+# MySQL 데이터베이스 설정
+# 사용법: spring.profiles.active=mysql 또는 --spring.profiles.active=mysql
+
+spring:
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:mydb}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:password}
+  jpa:
+    hibernate:
+      # 테스트용: 매번 시작할 때 테이블 생성, 종료할 때 삭제
+      # 프로덕션에서는 'none' 또는 'validate' 사용 권장
+      ddl-auto: ${MYSQL_DDL_AUTO:create-drop}
+    defer-datasource-initialization: true
+    show-sql: ${MYSQL_SHOW_SQL:true}
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+        hbm2ddl:
+          # ddl-auto와 동일하게 설정
+          auto: ${MYSQL_DDL_AUTO:create-drop}
+    database-platform: org.hibernate.dialect.MySQLDialect
+  sql:
+    init:
+      # ddl-auto가 create-drop이면 schema.sql은 실행하지 않음 (JPA가 자동 생성)
+      # 하지만 초기 데이터는 필요하므로 mode를 always로 유지
+      mode: ${MYSQL_SQL_INIT_MODE:always}
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+      continue-on-error: true
+
+# 로깅 설정 (도커 환경에서 로그 확인용)
+logging:
+  level:
+    root: INFO
+    com.neogulmap.neogul_map: DEBUG  # 프로젝트 패키지는 DEBUG 레벨로 상세 로그 출력
+    org.springframework.security: DEBUG  # Spring Security 로그
+    org.springframework.web: DEBUG  # HTTP 요청/응답 로그
+    org.hibernate.SQL: DEBUG  # SQL 쿼리 로그
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE  # SQL 파라미터 바인딩 로그
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  # 도커 환경에서는 콘솔 출력이 중요하므로 파일 로깅은 선택사항
+  # file:
+  #   name: /app/logs/application.log
+

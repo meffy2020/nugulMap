@@ -4,27 +4,26 @@ import org.springframework.stereotype.Service;
 import com.neogulmap.neogul_map.domain.User;
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.NotFoundException;
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.BusinessBaseException;
-import com.neogulmap.neogul_map.config.exceptionHandling.exception.ProfileImageProcessingException;
 import com.neogulmap.neogul_map.config.security.jwt.TokenProvider;
+import com.neogulmap.neogul_map.config.security.oauth.OAuth2UserCustomService;
 import com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode;
 import com.neogulmap.neogul_map.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.neogulmap.neogul_map.dto.UserRequest;
 import com.neogulmap.neogul_map.dto.UserResponse;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -151,6 +150,80 @@ public class UserService {
      */
     public Optional<User> getUserByEmail(String email) {
         return userRepository.findByEmail(email);
+    }
+    
+    /**
+     * OAuth2 사용자 처리 (생성 또는 업데이트)
+     * OAuth2SuccessHandler에서 호출됨
+     * 
+     * @param customOAuth2User OAuth2 사용자 정보
+     * @return 생성 또는 업데이트된 User 객체
+     */
+    @Transactional
+    public User processOAuth2User(OAuth2UserCustomService.CustomOAuth2User customOAuth2User) {
+        String email = customOAuth2User.getEmail();
+        String profileImage = customOAuth2User.getProfileImage();
+        String oauthId = customOAuth2User.getName();
+        String oauthProvider = customOAuth2User.getRegistrationId();
+        
+        log.info("processOAuth2User 시작 - Email: {}, OAuthId: {}, Provider: {}", email, oauthId, oauthProvider);
+        
+        if (email == null) {
+            throw new RuntimeException("OAuth2에서 이메일을 가져올 수 없습니다.");
+        }
+        
+        // 기존 사용자 조회
+        Optional<User> existingUserOpt = getUserByEmail(email);
+        log.info("기존 사용자 조회 결과 - 존재 여부: {}", existingUserOpt.isPresent());
+        
+        return existingUserOpt
+                .map(existingUser -> {
+                    // 기존 사용자 정보 업데이트 (OAuth 정보만 업데이트, 닉네임은 회원가입에서 설정)
+                    log.info("기존 사용자 업데이트 - User ID: {}, 기존 Nickname: {}", existingUser.getId(), existingUser.getNickname());
+                    existingUser.setOauthId(oauthId);
+                    existingUser.setOauthProvider(oauthProvider);
+                    // 프로필 이미지는 OAuth에서 제공된 경우에만 업데이트 (회원가입에서 설정하지 않은 경우)
+                    if (profileImage != null && existingUser.getProfileImage() == null) {
+                        existingUser.setProfileImage(profileImage);
+                    }
+                    // 직접 저장 (순환 참조 방지)
+                    User savedUser = userRepository.save(existingUser);
+                    log.info("기존 사용자 저장 완료 - User ID: {}, Nickname: {}, isProfileComplete: {}", 
+                        savedUser.getId(), savedUser.getNickname(), savedUser.isProfileComplete());
+                    
+                    // 저장 후 DB에서 다시 조회하여 확인
+                    User verifiedUser = userRepository.findById(savedUser.getId())
+                        .orElseThrow(() -> new RuntimeException("저장된 사용자를 DB에서 찾을 수 없습니다."));
+                    log.info("DB 재조회 확인 - User ID: {}, Email: {}, Nickname: {}, isProfileComplete: {}", 
+                        verifiedUser.getId(), verifiedUser.getEmail(), verifiedUser.getNickname(), verifiedUser.isProfileComplete());
+                    
+                    return verifiedUser;
+                })
+                .orElseGet(() -> {
+                    // 첫 로그인: OAuth 정보만 저장하고 닉네임은 null로 설정 (회원가입에서 설정)
+                    log.info("신규 사용자 생성 시작 - Email: {}", email);
+                    User newUser = User.builder()
+                            .email(email)
+                            .nickname(null) // 회원가입에서 설정하도록 null로 설정
+                            .profileImage(null) // 회원가입에서 설정하도록 null로 설정
+                            .oauthId(oauthId)
+                            .oauthProvider(oauthProvider)
+                            .createdAt(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                            .build();
+                    
+                    // 직접 저장 (순환 참조 방지)
+                    User savedUser = userRepository.save(newUser);
+                    log.info("신규 사용자 저장 완료 - User ID: {}, Email: {}, Nickname: {}", 
+                        savedUser.getId(), savedUser.getEmail(), savedUser.getNickname());
+                    
+                    // 저장 후 DB에서 다시 조회하여 확인
+                    User verifiedUser = userRepository.findById(savedUser.getId())
+                        .orElseThrow(() -> new RuntimeException("저장된 사용자를 DB에서 찾을 수 없습니다."));
+                    log.info("DB 재조회 확인 - User ID: {}, Email: {}, Nickname: {}, isProfileComplete: {}", 
+                        verifiedUser.getId(), verifiedUser.getEmail(), verifiedUser.getNickname(), verifiedUser.isProfileComplete());
+                    
+                    return verifiedUser;
+                });
     }
     
     // 이미지 처리 관련 메서드들은 ImageService로 이동됨

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth2 로그인 성공</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 90%;
+        }
+        .success-icon {
+            font-size: 4rem;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #27ae60;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .message {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .user-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #333;
+        }
+        .info-value {
+            color: #666;
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        .timestamp {
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+        .error-box {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .result {
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .result.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div th:if="${success}" class="success-icon">✅</div>
+        <div th:if="${!success}" class="success-icon">❌</div>
+        
+        <h1 th:text="${success ? '로그인 성공!' : '오류 발생'}">로그인 성공!</h1>
+        <p class="message" th:text="${message}">OAuth2 로그인이 성공적으로 완료되었습니다.</p>
+        
+        <div th:if="${!success}" class="error-box">
+            <strong>오류:</strong> <span th:text="${message}"></span>
+        </div>
+        
+        <div th:if="${success and userInfo}" class="user-info">
+            <h3 style="margin-top: 0; color: #333;">사용자 정보</h3>
+            
+            <div th:if="${name}" class="info-row">
+                <span class="info-label">이름:</span>
+                <span class="info-value" th:text="${name}"></span>
+            </div>
+            
+            <div th:if="${userInfo.email}" class="info-row">
+                <span class="info-label">이메일:</span>
+                <span class="info-value" th:text="${userInfo.email}"></span>
+            </div>
+            
+            <div th:if="${userInfo.picture}" class="info-row">
+                <span class="info-label">프로필 이미지:</span>
+                <span class="info-value">
+                    <img th:src="${userInfo.picture}" alt="Profile" style="max-width: 50px; border-radius: 50%;">
+                </span>
+            </div>
+            
+            <div th:if="${userInfo.sub}" class="info-row">
+                <span class="info-label">OAuth ID:</span>
+                <span class="info-value" th:text="${userInfo.sub}"></span>
+            </div>
+            
+            <div th:if="${authorities}" class="info-row">
+                <span class="info-label">권한:</span>
+                <span class="info-value" th:text="${authorities}"></span>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <a href="/test/oauth2" class="btn btn-secondary">OAuth2 테스트 페이지로</a>
+            <button onclick="checkUserInfo()" class="btn btn-primary">사용자 정보 확인</button>
+            <a href="/test" class="btn btn-secondary">메인 테스트 페이지로</a>
+        </div>
+        
+        <div id="userInfoResult" class="result" style="display: none; margin-top: 20px;"></div>
+        
+        <div class="timestamp">
+            <span th:text="${timestamp}"></span>
+        </div>
+    </div>
+    
+    <script>
+        async function checkUserInfo() {
+            try {
+                const response = await fetch('/test/auth/me');
+                const result = await response.json();
+                const resultDiv = document.getElementById('userInfoResult');
+                resultDiv.style.display = 'block';
+                resultDiv.className = `result ${response.ok ? 'success' : 'error'}`;
+                resultDiv.textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                const resultDiv = document.getElementById('userInfoResult');
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.textContent = JSON.stringify({error: error.message}, null, 2);
+            }
+        }
+    </script>
+</body>
+</html>
+

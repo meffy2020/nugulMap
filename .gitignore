@@ -18,7 +18,16 @@
 __pycache__/
 *.pyc
 venv/
+
+# Environment variables
 .env
+.env.local
+.env.*.local
+.env.production
+.env.development
+.env.test
+.env.staging
+# .env.sample은 예제 파일이므로 커밋 가능 (필요시 주석 해제)
 
 .node_modules/
 
@@ -26,8 +35,13 @@ firebase/
 *.json
 
 *.csv
+
 # IntelliJ IDE specific files
 .idea/
 .cursor/rules/command.mdc
-uploads/profiles/profile20251011_203926_603187ee.png
-/uploads
+
+# 업로드 파일 디렉토리 (코드와 분리된 데이터)
+uploads/
+backend/api-server/uploads/  # 백엔드 내부 uploads 폴더도 무시
+backend/uploads/profiles/  # 프로필 이미지 업로드 폴더
+backend/uploads/zones/  # Zone 이미지 업로드 폴더

@@ -83,8 +83,31 @@ public class ZoneController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getAllZones() {
-        List<ZoneResponse> response = zoneService.getAllZones();
+    public ResponseEntity<?> getAllZones(
+            @RequestParam(value = "latitude", required = false) Double latitude,
+            @RequestParam(value = "longitude", required = false) Double longitude,
+            @RequestParam(value = "radius", required = false) Double radius) {
+        
+        List<ZoneResponse> response;
+        
+        // 반경 검색 파라미터가 모두 있으면 반경 검색 수행
+        if (latitude != null && longitude != null && radius != null) {
+            // radius는 km 단위로 받지만, 서비스는 미터 단위를 기대함
+            int radiusMeters = (int) (radius * 1000); // km를 미터로 변환
+            response = zoneService.searchZonesByRadius(latitude, longitude, radiusMeters);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", String.format("반경 %.2fkm 내 흡연구역 조회 성공", radius),
+                "data", Map.of(
+                    "zones", response,
+                    "count", response.size()
+                )
+            ));
+        }
+        
+        // 파라미터가 없으면 모든 zones 반환
+        response = zoneService.getAllZones();
         return ResponseEntity.ok(Map.of(
             "success", true,
             "message", "모든 흡연구역 조회 성공",

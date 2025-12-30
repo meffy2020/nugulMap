@@ -3,22 +3,20 @@ package com.neogulmap.neogul_map.config.security;
 import com.neogulmap.neogul_map.config.security.jwt.JwtAuthenticationEntryPoint;
 import com.neogulmap.neogul_map.config.security.jwt.JwtAuthenticationFilter;
 import com.neogulmap.neogul_map.config.security.oauth.OAuth2SuccessHandler;
+import com.neogulmap.neogul_map.config.security.oauth.OAuth2FailureHandler;
 import com.neogulmap.neogul_map.config.security.oauth.OAuth2UserCustomService;
 import com.neogulmap.neogul_map.config.security.oauth.OAuth2AuthorizationRequestBasedOnCookieRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -34,7 +32,7 @@ import org.springframework.context.annotation.Profile;
  * - CORS 보안 강화
  * - CSRF 보호
  */
-@Profile("prod")
+@Profile({"prod", "mysql"})  // mysql 프로파일에서도 활성화
 @Configuration 
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -43,6 +41,7 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
     private final OAuth2UserCustomService oAuth2UserCustomService;
     private final OAuth2AuthorizationRequestBasedOnCookieRepository oAuth2AuthorizationRequestBasedOnCookieRepository;
 
@@ -58,47 +57,66 @@ public class SecurityConfig {
     @Value("${app.security.csrf.enabled:true}")
     private boolean csrfEnabled;
 
+    /**
+     * 통합 보안 필터 체인
+     * - OAuth2 로그인 플로우와 JWT 인증을 하나의 필터 체인에서 관리
+     * - 세션 정책: IF_REQUIRED (OAuth2 로그인 시에만 세션 사용, 이후 JWT로 통신)
+     */
     @Bean
-    @Order(1)
-    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-            .securityMatcher("/zones/**", "/users/**", "/admin/**")
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // OAuth2 로그인 플로우를 위해 세션 필요 (IF_REQUIRED: 필요할 때만 세션 생성)
+            // 로그인 성공 후 JWT 토큰 발급하여 이후 요청은 Stateless로 처리
             .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             )
             .authorizeHttpRequests(authz -> authz
-                // 인증이 필요한 엔드포인트
-                .requestMatchers("/zones/**").hasAnyRole("USER", "ADMIN")
-                .requestMatchers("/users/**").hasAnyRole("USER", "ADMIN")
+                // 공개 엔드포인트 (인증 불필요)
+                .requestMatchers("/login").permitAll() // 로그인 선택 페이지
+                .requestMatchers("/login/**").permitAll()
+                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll() // OAuth2 인증 시작/콜백
+                .requestMatchers("/auth/refresh", "/auth/validate").permitAll()
+                .requestMatchers("/public/**").permitAll()
+                .requestMatchers("/health").permitAll()
+                
+                // 공개 조회 엔드포인트 (GET 요청만 허용)
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/zones/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/images/**").permitAll()
+                
+                // 정적 리소스 허용
+                .requestMatchers("/static/**", "/css/**", "/js/**", "/favicon.ico").permitAll()
+                
+                // Swagger UI 허용 (개발용)
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                
+                // Actuator 엔드포인트
+                .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/actuator/**").hasRole("ADMIN")
+                
+                // 회원가입 페이지 (GET은 공개, POST는 인증 필요)
+                // OAuth2 로그인 후 프로필 미완료 사용자가 접근하는 페이지
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/auth/signup").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/auth/signup").authenticated()
+                
+                // 인증이 필요한 API 엔드포인트
+                .requestMatchers("/test/**").authenticated() // 테스트 페이지는 인증 필요
+                // /zones/**는 위에서 GET만 permitAll()로 설정했으므로, 나머지 메서드는 여기서 authenticated() 처리
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/zones/**").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.PUT, "/zones/**").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/zones/**").authenticated()
+                .requestMatchers("/users/**").authenticated()
+                // /images/**는 위에서 GET만 permitAll()로 설정했으므로, 나머지 메서드는 여기서 authenticated() 처리
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/images/**").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.PUT, "/images/**").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/images/**").authenticated()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 
-                // 나머지 API는 인증 필요
+                // 나머지는 인증 필요
                 .anyRequest().authenticated()
             )
-            .exceptionHandling(ex -> ex
-                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-            )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            .build();
-    }
-
-    @Bean
-    @Order(2)
-    public SecurityFilterChain oauth2SecurityFilterChain(HttpSecurity http) throws Exception {
-        return http
-            .securityMatcher("/oauth2/**", "/login/oauth2/**", "/oauth2/success")
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-            .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                .requestMatchers("/oauth2/success").permitAll()
-                .anyRequest().authenticated()
-            )
+            // OAuth2 로그인 설정
             .oauth2Login(oauth2 -> oauth2
                 .authorizationEndpoint(authorization -> authorization
                     .authorizationRequestRepository(oAuth2AuthorizationRequestBasedOnCookieRepository)
@@ -107,40 +125,18 @@ public class SecurityConfig {
                     .userService(oAuth2UserCustomService)
                 )
                 .successHandler(oAuth2SuccessHandler)
-                .defaultSuccessUrl("/oauth2/success", true)
+                .failureHandler(oAuth2FailureHandler)
+                // defaultSuccessUrl 제거: successHandler가 리다이렉트를 처리함
             )
-            .build();
-    }
-
-    @Bean
-    @Order(3)
-    public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
-        return http
-            .securityMatcher("/**")
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            // 예외 처리: 인증 실패 시 JWT EntryPoint 사용
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
             )
-            .authorizeHttpRequests(authz -> authz
-                // 공개 엔드포인트
-                .requestMatchers("/").permitAll()
-                .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/public/**").permitAll()
-                .requestMatchers("/health").permitAll()
-                .requestMatchers("/login/**").permitAll()
-                // 정적 리소스 허용
-                .requestMatchers("/static/**", "/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
-                // Swagger UI 허용 (개발용)
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                // Actuator 엔드포인트 (인증 필요)
-                .requestMatchers("/actuator/health").permitAll()
-                .requestMatchers("/actuator/**").hasRole("ADMIN")
-                // 나머지는 인증 필요
-                .anyRequest().authenticated()
-            )
+            // JWT 인증 필터 추가 (OAuth2 로그인 이후 JWT 토큰으로 인증)
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .headers(headers -> headers
-            .frameOptions(frame -> frame.deny()))
+                .frameOptions(frame -> frame.deny())
+            )
             .build();
     }
 

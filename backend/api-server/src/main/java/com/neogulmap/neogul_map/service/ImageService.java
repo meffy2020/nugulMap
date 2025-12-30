@@ -8,11 +8,12 @@ import com.neogulmap.neogul_map.config.exceptionHandling.exception.ImageUploadEx
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.ValidationException;
 import com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
-import java.io.File;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.File;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,6 +28,13 @@ import java.util.UUID;
 public class ImageService {
     
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    
+    /**
+     * 업로드 디렉토리 경로 (기본값: uploads)
+     * 환경 변수 UPLOAD_DIR 또는 설정 파일 app.image.upload-base-path로 오버라이드 가능
+     */
+    @Value("${app.image.upload-base-path:uploads}")
+    private String uploadBasePath;
     
     /**
      * 이미지 파일을 처리하고 저장합니다.
@@ -83,12 +91,12 @@ public class ImageService {
         
         try {
             // profiles 디렉토리에서 먼저 찾기
-            Path imagePath = Paths.get(System.getProperty("user.dir"), "uploads", "profiles", fileName);
+            Path imagePath = getUploadPath("profiles", fileName);
             File imageFile = imagePath.toFile();
             
             if (!imageFile.exists()) {
                 // zones 디렉토리에서 찾기
-                imagePath = Paths.get(System.getProperty("user.dir"), "uploads", "zones", fileName);
+                imagePath = getUploadPath("zones", fileName);
                 imageFile = imagePath.toFile();
             }
             
@@ -122,7 +130,7 @@ public class ImageService {
         }
         
         try {
-            Path imagePath = Paths.get(System.getProperty("user.dir"), "uploads", type.getDirectory(), fileName);
+            Path imagePath = getUploadPath(type.getDirectory(), fileName);
             if (Files.exists(imagePath)) {
                 Files.delete(imagePath);
                 log.info("{} 이미지 삭제 성공: {}", type.name(), fileName);
@@ -210,12 +218,40 @@ public class ImageService {
      * 이미지 파일을 저장합니다.
      */
     private void saveImage(MultipartFile image, String fileName, ImageType type) throws IOException {
-        Path uploadPath = Paths.get(System.getProperty("user.dir"), "uploads", type.getDirectory());
+        Path uploadPath = getUploadPath(type.getDirectory(), null);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
+            log.info("업로드 디렉토리 생성: {}", uploadPath);
         }
         
         Path filePath = uploadPath.resolve(fileName);
         image.transferTo(filePath.toFile());
+        log.debug("이미지 저장 완료: {}", filePath);
+    }
+    
+    /**
+     * 업로드 경로를 반환합니다.
+     * 
+     * @param subDirectory 하위 디렉토리 (profiles, zones 등)
+     * @param fileName 파일명 (null이면 디렉토리 경로만 반환)
+     * @return 업로드 경로
+     */
+    private Path getUploadPath(String subDirectory, String fileName) {
+        // uploadBasePath가 절대 경로인지 확인
+        Path basePath;
+        if (Paths.get(uploadBasePath).isAbsolute()) {
+            // 절대 경로인 경우 그대로 사용
+            basePath = Paths.get(uploadBasePath);
+        } else {
+            // 상대 경로인 경우 현재 작업 디렉토리 기준
+            basePath = Paths.get(System.getProperty("user.dir"), uploadBasePath);
+        }
+        
+        Path fullPath = basePath.resolve(subDirectory);
+        if (fileName != null) {
+            fullPath = fullPath.resolve(fileName);
+        }
+        
+        return fullPath;
     }
 }

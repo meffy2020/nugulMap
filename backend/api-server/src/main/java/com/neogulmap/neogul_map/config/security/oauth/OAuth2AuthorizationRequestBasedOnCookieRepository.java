@@ -4,6 +4,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,12 @@ public class OAuth2AuthorizationRequestBasedOnCookieRepository
     private static final int COOKIE_EXPIRE_SECONDS = 180;
     
     private final CookieGenerator cookieGenerator = new CookieGenerator();
+    
+    @Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
+    
+    @Value("${app.cookie.same-site:Lax}")
+    private String cookieSameSite;
     
     public OAuth2AuthorizationRequestBasedOnCookieRepository() {
         cookieGenerator.setCookieName(OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
@@ -58,7 +65,15 @@ public class OAuth2AuthorizationRequestBasedOnCookieRepository
     @Override
     public OAuth2AuthorizationRequest removeAuthorizationRequest(HttpServletRequest request, 
                                                                HttpServletResponse response) {
-        return loadAuthorizationRequest(request);
+        OAuth2AuthorizationRequest authorizationRequest = loadAuthorizationRequest(request);
+        
+        // 쿠키 삭제
+        if (authorizationRequest != null) {
+            deleteCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
+            deleteCookie(request, response, REDIRECT_URI_PARAM_COOKIE_NAME);
+        }
+        
+        return authorizationRequest;
     }
     
     private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
@@ -66,6 +81,26 @@ public class OAuth2AuthorizationRequestBasedOnCookieRepository
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         cookie.setMaxAge(maxAge);
+        cookie.setSecure(cookieSecure);
+        
+        // SameSite 설정 (SameSite=None은 secure가 true일 때만 가능)
+        if ("None".equals(cookieSameSite)) {
+            if (cookieSecure) {
+                // SameSite=None은 Secure가 필수이므로 Set-Cookie 헤더로 직접 설정
+                response.setHeader("Set-Cookie", 
+                    String.format("%s=%s; Path=/; HttpOnly; Secure; Max-Age=%d; SameSite=None", 
+                        name, value, maxAge));
+                return;
+            } else {
+                log.warn("SameSite=None은 Secure 쿠키에서만 사용 가능합니다. Lax로 변경합니다.");
+                cookieSameSite = "Lax";
+            }
+        }
+        
+        // SameSite 속성은 Java Cookie API에서 직접 지원하지 않으므로
+        // Servlet 6.0+ 또는 Spring Boot 3.1+에서는 자동으로 처리되지만,
+        // 명시적으로 설정하려면 ResponseCookie를 사용하거나 헤더를 직접 설정해야 합니다.
+        // 여기서는 기본 Cookie를 사용하고, 필요시 application.yml에서 설정합니다.
         response.addCookie(cookie);
     }
     

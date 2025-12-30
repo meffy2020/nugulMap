@@ -18,3 +18,7 @@ firebase/
 
 # 기타 파일
 *.csv
+
+# 업로드 파일 디렉토리
+backend/uploads/profiles/
+backend/uploads/zones/

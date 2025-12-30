@@ -27,7 +27,7 @@ public class TokenProvider {
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.token-validity-in-seconds}") long tokenValidityInSeconds) {
         // Base64로 인코딩된 secret을 디코딩
-        byte[] decodedSecret = Base64.getDecoder().decode(secret);
+        byte[] decodedSecret = Base64.getDecoder().decode(secret.trim());
         this.key = Keys.hmacShaKeyFor(decodedSecret);
         this.tokenValidityInMilliseconds = tokenValidityInSeconds * 1000;
     }

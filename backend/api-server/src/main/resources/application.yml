@@ -14,32 +14,9 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
-  profiles:
-    active: dev
-  datasource:
-    url: jdbc:h2:mem:neogul-map-db
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: password
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-  jpa:
-    hibernate:
-      ddl-auto: none
-    defer-datasource-initialization: true
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-    database-platform: org.hibernate.dialect.H2Dialect
-  sql:
-    init:
-      mode: always
-      schema-locations: classpath:schema.sql
-      data-locations: classpath:data.sql
-      continue-on-error: true
+  # profiles:
+    # active: dev  # Docker Compose에서 환경 변수로 설정 (SPRING_PROFILES_ACTIVE=mysql)
+  # datasource 설정은 프로파일별 설정 파일에서 관리 (application-mysql.yml, application-dev.yml 등)
   security:
     oauth2:
       client:
@@ -47,7 +24,7 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
             client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
-            client-authentication-method: post
+            client-authentication-method: "client_secret_post"
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             authorization-grant-type: authorization_code
             scope:
@@ -56,7 +33,7 @@ spring:
           kakao:
             client-id: ${KAKAO_CLIENT_ID:your-kakao-client-id}
             client-secret: ${KAKAO_CLIENT_SECRET:your-kakao-client-secret}
-            client-authentication-method: post
+            client-authentication-method: "client_secret_post"
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             authorization-grant-type: authorization_code
             scope:
@@ -66,7 +43,7 @@ spring:
           naver:
             client-id: ${NAVER_CLIENT_ID:your-naver-client-id}
             client-secret: ${NAVER_CLIENT_SECRET:your-naver-client-secret}
-            client-authentication-method: post
+            client-authentication-method: "client_secret_post"
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             authorization-grant-type: authorization_code
             scope:
@@ -102,14 +79,10 @@ server:
     max-request-size: 10MB
     enabled: true
 
-# 파일 업로드 디렉토리 설정
-file:
-  upload-dir: uploads/profiles/
-
 # 앱 설정
 app:
   image:
-    upload-path: uploads/profiles/
+    upload-base-path: ${UPLOAD_DIR:uploads}  # 업로드 기본 경로 (환경 변수로 오버라이드 가능)
     max-size: 10485760  # 10MB in bytes
   storage:
     type: local  # local 또는 s3
@@ -118,10 +91,22 @@ app:
     secret-key: ${AWS_SECRET_ACCESS_KEY:}
     region: ${AWS_REGION:ap-northeast-2}
     bucket-name: ${AWS_S3_BUCKET:neogul-map-bucket}
+  cookie:
+    secure: ${APP_COOKIE_SECURE:false}  # HTTPS 환경에서는 true로 설정
+    same-site: ${APP_COOKIE_SAME_SITE:Lax}  # Lax, Strict, None 중 선택
+  oauth2:
+    success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:http://localhost:3000}  # 프런트엔드 리다이렉트 URL
+    failure-redirect-url: ${OAUTH2_FAILURE_REDIRECT_URL:http://localhost:3000/login?error=oauth_failed}  # 프런트엔드 실패 리다이렉트 URL
+    google:
+      url: /oauth2/authorization/google
+    kakao:
+      url: /oauth2/authorization/kakao
+    naver:
+      url: /oauth2/authorization/naver
 
 # JWT 설정
 jwt:
-  secret: bmVvZ3VsbWFwLWp3dC1zZWNyZXQta2V5LWZvci1kZXZlbG9wbWVudC1hbmQtdGVzdGluZy1wdXJwb3Nlcw==
+  secret: ${JWT_SECRET:bmVvZ3VsbWFwLWp3dC1zZWNyZXQta2V5LWZvci1kZXZlbG9wbWVudC1hbmQtdGVzdGluZy1wdXJwb3Nlcw==}
   token-validity-in-seconds: 7200  # 2시간
   expiration: 86400000  # 24시간
   refresh-expiration: 604800000  # 7일

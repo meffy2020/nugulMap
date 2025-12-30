@@ -101,4 +101,12 @@ public class User implements UserDetails {
     public boolean isEnabled() {
         return true;
     }
+    
+    /**
+     * 프로필 완료 여부 확인 (닉네임이 설정되어 있으면 완료된 것으로 간주)
+     * @return 프로필이 완료되었으면 true, 아니면 false
+     */
+    public boolean isProfileComplete() {
+        return nickname != null && !nickname.trim().isEmpty();
+    }
 }

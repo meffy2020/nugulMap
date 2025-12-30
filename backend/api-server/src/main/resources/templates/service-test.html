@@ -263,6 +263,24 @@
                 
                 <div id="storageResult" class="result" style="display: none;"></div>
             </div>
+
+            <!-- OAuth2 테스트 -->
+            <div class="service-section">
+                <h2 class="service-title">🔐 OAuth2 환경 변수 테스트</h2>
+                
+                <a href="/test/oauth2" class="test-button success">OAuth2 테스트 페이지</a>
+                <button onclick="testOAuth2Env()" class="test-button">환경 변수 확인</button>
+                <button onclick="testOAuth2LoginUrls()" class="test-button">로그인 URL 조회</button>
+                
+                <div class="test-form">
+                    <h4>OAuth2 환경 변수 확인</h4>
+                    <p style="color: #666; font-size: 0.9em;">
+                        docker-compose.yml의 env_file: .env.local에서 환경 변수가 제대로 주입되었는지 확인합니다.
+                    </p>
+                </div>
+                
+                <div id="oauth2Result" class="result" style="display: none;"></div>
+            </div>
         </div>
 
         <!-- 통합 테스트 -->
@@ -441,6 +459,27 @@
                 showResult('storageResult', result, response.ok);
             } catch (error) {
                 showResult('storageResult', {error: error.message}, false);
+            }
+        }
+
+        // OAuth2 테스트
+        async function testOAuth2Env() {
+            try {
+                const response = await fetch('/test/oauth2/env-check');
+                const result = await response.json();
+                showResult('oauth2Result', result, response.ok);
+            } catch (error) {
+                showResult('oauth2Result', {error: error.message}, false);
+            }
+        }
+
+        async function testOAuth2LoginUrls() {
+            try {
+                const response = await fetch('/test/oauth2/login-urls');
+                const result = await response.json();
+                showResult('oauth2Result', result, response.ok);
+            } catch (error) {
+                showResult('oauth2Result', {error: error.message}, false);
             }
         }
 

@@ -1,17 +1,18 @@
 -- 테스트용 Mock 데이터
 -- 위치 기반 반경 검색 테스트를 위한 더미 데이터
+-- MySQL 호환 버전
 
 -- 사용자 테스트 데이터 (중복 방지)
 INSERT INTO users (oauth_id, oauth_provider, nickname, email, profile_image_url, created_at) 
-SELECT 'google_123456789', 'GOOGLE', '테스트유저1', 'test1@example.com', 'https://via.placeholder.com/150', CURRENT_TIMESTAMP
+SELECT 'google_123456789', 'GOOGLE', '테스트유저1', 'test1@example.com', 'https://via.placeholder.com/150', NOW()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'test1@example.com');
 
 INSERT INTO users (oauth_id, oauth_provider, nickname, email, profile_image_url, created_at) 
-SELECT 'kakao_987654321', 'KAKAO', '테스트유저2', 'test2@example.com', 'https://via.placeholder.com/150', CURRENT_TIMESTAMP
+SELECT 'kakao_987654321', 'KAKAO', '테스트유저2', 'test2@example.com', 'https://via.placeholder.com/150', NOW()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'test2@example.com');
 
 INSERT INTO users (oauth_id, oauth_provider, nickname, email, profile_image_url, created_at) 
-SELECT 'naver_555666777', 'NAVER', '테스트유저3', 'test3@example.com', 'https://via.placeholder.com/150', CURRENT_TIMESTAMP
+SELECT 'naver_555666777', 'NAVER', '테스트유저3', 'test3@example.com', 'https://via.placeholder.com/150', NOW()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'test3@example.com');
 
 -- Zone 테스트 데이터 (서울 시내 실제 좌표 기반) - 중복 방지
