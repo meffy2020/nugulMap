@@ -51,6 +51,9 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
 
   useEffect(() => {
     const KAKAO_APP_KEY = process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY
+
+    console.log("[v0] 카카오맵 API 키 확인:", KAKAO_APP_KEY ? `설정됨 (${KAKAO_APP_KEY.substring(0, 5)}...)` : "없음")
+
     if (!KAKAO_APP_KEY) {
       console.error("[v0] 카카오맵 API 키가 설정되지 않았습니다.")
       setError("카카오맵 API 키를 설정해주세요. (환경 변수: NEXT_PUBLIC_KAKAOMAP_APIKEY)")
@@ -81,14 +84,24 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       return
     }
 
+    const scriptUrl = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`
+    console.log(
+      "[v0] 카카오맵 스크립트 로드 시도:",
+      scriptUrl.replace(KAKAO_APP_KEY, KAKAO_APP_KEY.substring(0, 5) + "..."),
+    )
+
     const script = document.createElement("script")
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`
+    script.src = scriptUrl
     script.async = true
 
     script.onload = () => {
-      console.log("[v0] 카카오맵 SDK 로드 완료")
+      console.log("[v0] 카카오맵 SDK 스크립트 로드 완료")
+      console.log("[v0] window.kakao 존재:", !!window.kakao)
+      console.log("[v0] window.kakao.maps 존재:", !!(window.kakao && window.kakao.maps))
+
       if (window.kakao && window.kakao.maps) {
         window.kakao.maps.load(() => {
+          console.log("[v0] 카카오맵 초기화 완료")
           if (!mapRef.current) return
           const options = {
             center: new window.kakao.maps.LatLng(37.5665, 126.978),
@@ -99,14 +112,16 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
           setLoading(false)
         })
       } else {
+        console.error("[v0] 카카오맵 라이브러리가 window 객체에 없습니다.")
         setError("카카오맵 라이브러리를 불러올 수 없습니다.")
         setLoading(false)
       }
     }
 
-    script.onerror = () => {
-      console.error("[v0] 카카오맵 SDK 로드 실패")
-      setError("카카오맵 API 키를 확인해주세요.")
+    script.onerror = (error) => {
+      console.error("[v0] 카카오맵 SDK 로드 실패 - 상세 정보:", error)
+      console.error("[v0] 스크립트 URL:", scriptUrl.replace(KAKAO_APP_KEY, "***"))
+      setError("카카오맵 API 키를 확인해주세요. API 키가 올바른지, 도메인이 등록되었는지 확인하세요.")
       setLoading(false)
     }
 
