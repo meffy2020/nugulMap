@@ -283,7 +283,7 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
 
             <div className="space-y-2">
               <Label className="text-card-foreground">위치</Label>
-              <div ref={mapContainerRef} className="w-full h-64 bg-muted rounded-lg border border-border" />
+              <div ref={mapContainerRef} className="w-full h-48 bg-muted rounded-lg border border-border" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
