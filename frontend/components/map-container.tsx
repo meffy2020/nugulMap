@@ -13,6 +13,20 @@ import Image from "next/image"
 // 카카오맵 관련 import (react-kakao-maps-sdk 컴포넌트는 더 이상 사용하지 않음)
 // import { Map, MapMarker, CustomOverlayMap } from "react-kakao-maps-sdk"
 
+// Debounce 유틸리티 함수
+function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+  let timeout: NodeJS.Timeout;
+
+  return (...args: Parameters<F>): Promise<ReturnType<F>> =>
+    new Promise(resolve => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+
+      timeout = setTimeout(() => resolve(func(...args)), waitFor);
+    });
+}
+
 // 컴포넌트 내부에서 사용할 데이터 타입
 interface LocationMarker extends SmokingZone {}
 
@@ -30,26 +44,60 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
   const [mapInstance, setMapInstance] = useState<kakao.maps.Map | null>(null) // 카카오맵 인스턴스
   const currentMarkers = useRef<kakao.maps.Marker[]>([]); // 현재 지도에 표시된 마커들을 관리
 
-  // 컴포넌트가 마운트될 때 API를 호출하는 useEffect
+  // 지도 인스턴스가 준비되면 idle 이벤트 리스너를 등록합니다.
   useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        setLoading(true);
-        const zonesData = await fetchZones(37.5665, 126.9780); // 서울 시청 기본 위치
-        console.log("Loaded zones from backend API:", zonesData);
-        setZones(zonesData);
-        setError(null);
-      } catch (err) {
-        console.error("Failed to load zones from API:", err);
-        setError("흡연구역 데이터를 불러오는데 실패했습니다.");
-        setZones([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!mapInstance) return;
 
-    loadInitialData();
-  }, []);
+    // Debounce를 적용하여 onMapIdle 함수가 너무 자주 호출되지 않도록 합니다.
+    const debouncedOnMapIdle = debounce(() => {
+      setLoading(true);
+      console.log("지도가 멈췄습니다 (Debounced). 중앙 좌표와 반경으로 새 데이터를 요청합니다.");
+
+      const center = mapInstance.getCenter();
+      const bounds = mapInstance.getBounds();
+      const sw = bounds.getSouthWest();
+
+      const lat1 = center.getLat();
+      const lon1 = center.getLng();
+      const lat2 = sw.getLat();
+      const lon2 = sw.getLng();
+
+      const R = 6371e3; // metres
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const radiusInMeters = R * c;
+
+      fetchZones(center.getLat(), center.getLng(), radiusInMeters)
+        .then(zonesData => {
+          console.log("새로운 구역 데이터 (Debounced):", zonesData);
+          setZones(zonesData);
+          setError(null);
+        })
+        .catch(err => {
+          console.error("새로운 구역 데이터를 불러오는 데 실패했습니다:", err);
+          setError("데이터를 갱신하는 데 실패했습니다.");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }, 500); // 500ms(0.5초) 후에 실행
+
+    // 초기 로딩을 위해 한번 호출
+    debouncedOnMapIdle();
+
+    // idle 이벤트에 디바운스된 함수를 연결
+    window.kakao.maps.event.addListener(mapInstance, 'idle', debouncedOnMapIdle);
+
+    return () => {
+      window.kakao.maps.event.removeListener(mapInstance, 'idle', debouncedOnMapIdle);
+    };
+  }, [mapInstance]); // mapInstance가 준비되면 이 useEffect를 실행
 
   // ‼️‼️‼️ 카카오맵 스크립트 직접 로드 및 지도 초기화 로직 ‼️‼️‼️
   useEffect(() => {

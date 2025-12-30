@@ -70,12 +70,7 @@ export function CurrentLocationButton({ onLocationFound }: CurrentLocationButton
       onClick={handleCurrentLocation}
       disabled={isLoading}
       size="icon"
-      className="h-10 w-10 rounded-full shadow-2xl hover:scale-110 transition-all duration-200 z-[9999]"
-      style={{
-        backgroundColor: "#D97742",
-        color: "white",
-        position: "relative",
-      }}
+      className="h-10 w-10 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl hover:scale-110 transition-all duration-200 z-[9999]"
     >
       {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Target className="h-5 w-5" />}
     </Button>

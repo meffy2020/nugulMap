@@ -142,6 +142,24 @@ public class ZoneController {
         ));
     }
 
+    // 반경 검색 (위치 기반)
+    @GetMapping(params = {"latitude", "longitude", "radius"})
+    public ResponseEntity<?> getZonesByRadius(
+            @RequestParam("latitude") double latitude,
+            @RequestParam("longitude") double longitude,
+            @RequestParam("radius") double radius) {
+		int radiusInMeters = (int) (radius * 1000);
+        List<ZoneResponse> response = zoneService.searchZonesByRadius(latitude, longitude, radiusInMeters);
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", String.format("반경 %.1fkm 내 흡연구역 조회 성공", radius),
+            "data", Map.of(
+                "zones", response,
+                "count", response.size()
+            )
+        ));
+    }
+    
     @PutMapping("/{id}")
     public ResponseEntity<?> updateZone(@PathVariable("id") Integer id,
                                        @RequestPart(value = "image", required = false) MultipartFile image,

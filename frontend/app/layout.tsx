@@ -14,11 +14,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className="dark">
+    <html lang="ko">
       <head>
         <style>{`
 html {
-  font-family: 'GMarketSans', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Kakao', ui-sans-serif, system-ui, sans-serif;
 }
         `}</style>
       </head>

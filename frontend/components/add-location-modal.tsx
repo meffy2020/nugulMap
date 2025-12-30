@@ -126,6 +126,8 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
     try {
       const payload: CreateZonePayload = {
         ...values,
+        subtype: values.subtype ?? "",
+        description: values.description ?? "",
         user: "gemini-user", // 임시 사용자 이름
       };
 
@@ -157,7 +159,7 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <Label htmlFor="address">주소</Label>
+            <Label htmlFor="address" className="mb-2">주소</Label>
             <div className="flex gap-2">
               <Input id="address" {...form.register("address")} placeholder="상세 주소를 입력하세요" />
               <Button type="button" onClick={handleSearchAddress} disabled={isGeocoding || isLoading} variant="outline" size="icon">
@@ -168,7 +170,7 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
           </div>
 
           <div>
-            <Label htmlFor="region">지역</Label>
+            <Label htmlFor="region" className="mb-2">지역</Label>
             <Input id="region" {...form.register("region")} placeholder="지역을 입력하세요 (예: 서울시 강남구)" />
             {form.formState.errors.region && <p className="text-red-500 text-xs mt-1">{form.formState.errors.region.message}</p>}
           </div>
@@ -200,7 +202,7 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
           </div>
 
           <div>
-            <Label htmlFor="description">상세 설명</Label>
+            <Label htmlFor="description" className="mb-2">상세 설명</Label>
             <Textarea id="description" {...form.register("description")} placeholder="상세 설명을 입력하세요" />
           </div>
 
@@ -230,8 +232,24 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
           </div>
 
           <div>
-            <Label htmlFor="image">이미지</Label>
-            <Input id="image" type="file" onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)} />
+            <Label htmlFor="image" className="mb-2">이미지</Label>
+            <div className="flex items-center gap-4">
+              <Label
+                htmlFor="image-upload"
+                className="cursor-pointer rounded-md bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-colors hover:bg-gray-300"
+              >
+                파일 선택
+              </Label>
+              <Input
+                id="image-upload"
+                type="file"
+                className="sr-only"
+                onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
+              />
+              <span className="text-sm text-muted-foreground">
+                {imageFile ? imageFile.name : "선택된 파일 없음"}
+              </span>
+            </div>
           </div>
 
           {error && (
