@@ -8,9 +8,7 @@ import java.util.Map;
  * Google 응답 구조:
  * {
  *   "sub": "123456789",
- *   "email": "user@example.com",
- *   "name": "홍길동",
- *   "picture": "https://..."
+ *   "email": "user@example.com"
  * }
  */
 public class GoogleOAuth2UserInfo implements OAuth2UserInfo {
@@ -29,16 +27,6 @@ public class GoogleOAuth2UserInfo implements OAuth2UserInfo {
     @Override
     public String getEmail() {
         return (String) attributes.get("email");
-    }
-    
-    @Override
-    public String getNickname() {
-        return (String) attributes.get("name");
-    }
-    
-    @Override
-    public String getProfileImage() {
-        return (String) attributes.get("picture");
     }
     
     @Override

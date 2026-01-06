@@ -7,7 +7,7 @@ import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
-import { fetchZones, type SmokingZone } from "@/lib/api"
+import { fetchZones, getImageUrl, type SmokingZone } from "@/lib/api"
 import Image from "next/image"
 
 // 카카오맵 관련 import (react-kakao-maps-sdk 컴포넌트는 더 이상 사용하지 않음)
@@ -212,7 +212,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
               {selectedMarker.image && (
                 <div className="mb-2 rounded-md overflow-hidden">
                   <Image
-                    src={selectedMarker.image}
+                    src={getImageUrl(selectedMarker.image) || "/placeholder.svg"}
                     alt={`${selectedMarker.address} 흡연구역 사진`}
                     width={200}
                     height={120}

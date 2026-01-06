@@ -41,17 +41,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 log.debug("JWT 토큰 발견 - URI: {}", request.getRequestURI());
                 
                 if (tokenProvider.validToken(jwt)) {
-                    String email = tokenProvider.getEmailFromToken(jwt);
+                String email = tokenProvider.getEmailFromToken(jwt);
                     log.debug("JWT 토큰 유효 - Email: {}, URI: {}", email, request.getRequestURI());
+                
+                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                
+                if (userDetails != null) {
+                    UsernamePasswordAuthenticationToken authentication = 
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-                    
-                    if (userDetails != null) {
-                        UsernamePasswordAuthenticationToken authentication = 
-                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                         log.debug("인증 설정 완료 - Email: {}, URI: {}", email, request.getRequestURI());
                     }
                 } else {

@@ -13,12 +13,8 @@ export default function LoginPage() {
 
     console.log(`[v0] ${provider} login initiated`)
 
-    setTimeout(() => {
-      setIsLoading(null)
-      console.log(`[v0] ${provider} login completed`)
-      // 약관 동의 페이지로 이동
-      window.location.href = "/terms"
-    }, 2000)
+    // 백엔드 OAuth2 인증 URL로 리다이렉트
+    window.location.href = `/api/oauth2/authorization/${provider}`
   }
 
   return (

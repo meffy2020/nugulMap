@@ -28,6 +28,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${app.oauth2.success-redirect-url:http://localhost:3000}")
     private String successRedirectUrl;
     
+    @Value("${app.oauth2.signup-redirect-url:http://localhost:3000/signup}")
+    private String signupRedirectUrl;
+    
     @Value("${app.cookie.secure:false}")
     private boolean cookieSecure;
     
@@ -69,7 +72,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             log.info("닉네임 null 여부: {}", user.getNickname() == null);
             log.info("닉네임 빈 문자열 여부: {}", user.getNickname() != null && user.getNickname().trim().isEmpty());
             log.info("프로필 완료 여부(isProfileComplete): {}", isProfileComplete);
-            log.info("최종 이동할 URL: {}", isProfileComplete ? successRedirectUrl : "/auth/signup?email=" + user.getEmail());
+            log.info("최종 이동할 URL: {}", isProfileComplete ? successRedirectUrl : signupRedirectUrl + "?email=" + user.getEmail());
             log.info("=== 디버깅 종료 ===");
             
             log.info("프로필 완료 여부 확인 - isProfileComplete: {}, Nickname: {}", 
@@ -110,17 +113,39 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             // 브라우저 요청: 리다이렉트 처리
             String redirectUrl;
             
+            // 요청 출처 확인 (Referer 헤더 또는 Origin 헤더)
+            String referer = request.getHeader("Referer");
+            String origin = request.getHeader("Origin");
+            boolean isFromBackendLogin = (referer != null && referer.contains("localhost:8080/login")) ||
+                                       (origin != null && origin.contains("localhost:8080"));
+            
+            log.info("요청 출처 확인 - Referer: {}, Origin: {}, isFromBackendLogin: {}", 
+                referer, origin, isFromBackendLogin);
+            
             if (!isProfileComplete) {
-                // 프로필이 완료되지 않은 경우 회원가입 페이지로 리다이렉트
-                redirectUrl = "/auth/signup?email=" + java.net.URLEncoder.encode(user.getEmail(), "UTF-8");
+                // 프로필이 완료되지 않은 경우
+                if (isFromBackendLogin) {
+                    // 백엔드 /login에서 온 경우 → 백엔드 /signup (Thymeleaf 템플릿)
+                    redirectUrl = "/auth/signup?email=" + java.net.URLEncoder.encode(user.getEmail(), "UTF-8");
+                    log.info("프로필 미완료 - 백엔드 회원가입 페이지로 리다이렉트: {}", redirectUrl);
+                } else {
+                    // 프론트엔드에서 온 경우 → 프론트엔드 /signup (Next.js)
+                    redirectUrl = signupRedirectUrl + "?email=" + java.net.URLEncoder.encode(user.getEmail(), "UTF-8");
+                    log.info("프로필 미완료 - 프론트엔드 회원가입 페이지로 리다이렉트: {}", redirectUrl);
+                }
             } else {
                 // 프로필이 완료된 경우 성공 페이지로 리다이렉트
-                redirectUrl = successRedirectUrl;
-                // successRedirectUrl이 기본값이거나 localhost:3000이면 테스트 모드로 간주하고 TestController로 리다이렉트
-                if (successRedirectUrl == null || 
-                    successRedirectUrl.equals("http://localhost:3000") || 
-                    successRedirectUrl.contains("/test")) {
-                    redirectUrl = "/test/oauth2/success";
+                if (isFromBackendLogin) {
+                    // 백엔드에서 온 경우 → 테스트 페이지 또는 메인
+                    redirectUrl = "/test";
+                } else {
+                    // 프론트엔드에서 온 경우 → 프론트엔드 메인 페이지
+                    redirectUrl = successRedirectUrl;
+                    if (successRedirectUrl == null || successRedirectUrl.equals("http://localhost:3000")) {
+                        redirectUrl = "http://localhost:3000";
+                    } else if (successRedirectUrl.contains("/test")) {
+                        redirectUrl = "/test/oauth2/success";
+                    }
                 }
             }
             

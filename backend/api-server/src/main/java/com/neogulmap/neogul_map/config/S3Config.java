@@ -8,31 +8,44 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
+
+import java.net.URI;
 
 /**
- * AWS S3 설정 클래스
- * S3 설정이 있을 때만 활성화
+ * AWS S3 / MinIO 설정 클래스
+ * endpoint가 설정되어 있으면 MinIO, 없으면 AWS S3 사용
  */
 @Configuration
-@ConditionalOnProperty(name = "app.s3.access-key", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "cloud.aws.s3.endpoint", matchIfMissing = false)
 public class S3Config {
     
-    @Value("${app.s3.access-key}")
+    @Value("${cloud.aws.credentials.access-key}")
     private String accessKey;
     
-    @Value("${app.s3.secret-key}")
+    @Value("${cloud.aws.credentials.secret-key}")
     private String secretKey;
     
-    @Value("${app.s3.region:ap-northeast-2}")
+    @Value("${cloud.aws.region.static:us-east-1}")
     private String region;
+    
+    @Value("${cloud.aws.s3.endpoint:#{null}}")
+    private String endpoint;
     
     @Bean
     public S3Client s3Client() {
         AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKey, secretKey);
         
-        return S3Client.builder()
+        S3ClientBuilder builder = S3Client.builder()
                 .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
-                .build();
+                .credentialsProvider(StaticCredentialsProvider.create(awsCredentials));
+        
+        // MinIO 사용 시 endpoint 설정 및 path-style 활성화
+        if (endpoint != null && !endpoint.isEmpty()) {
+            builder.endpointOverride(URI.create(endpoint))
+                   .forcePathStyle(true); // MinIO 사용 시 필수
+        }
+        
+        return builder.build();
     }
 }

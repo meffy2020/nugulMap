@@ -39,3 +39,16 @@ out/
 ### Environment Variables ###
 .env.local
 .env.*.local
+
+# 빌드 결과물 무시
+target/
+out/
+build/
+bin/
+
+# OS 자동 생성 파일 무시
+.DS_Store
+Thumbs.db
+
+# MinIO 데이터 폴더 (만약 프로젝트 안에 있다면)
+minio_data/

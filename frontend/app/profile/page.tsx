@@ -16,8 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Camera, MapPin, Calendar, Edit3, Save, X, Loader2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 
-import { fetchUserProfile, updateUserNickname, updateUserProfileImage, type UserProfile, type SmokingZone } from "@/lib/api"
+import { fetchUserProfile, updateUserNickname, updateUserProfileImage, getCurrentUser, getImageUrl, type UserProfile, type SmokingZone } from "@/lib/api"
 
 
 const nicknameSchema = z.object({
@@ -36,8 +37,8 @@ interface UserZone {
 }
 
 export default function ProfilePage() {
-  const USER_ID = 1; // ‼️‼️‼️ 임시 사용자 ID: 실제 로그인 구현 시 동적으로 변경해야 합니다. ‼️‼️‼️
-
+  const router = useRouter()
+  const [userId, setUserId] = useState<number | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -51,13 +52,23 @@ export default function ProfilePage() {
     defaultValues: { nickname: "" },
   });
 
-
-  // 사용자 프로필 불러오기
+  // 현재 사용자 정보 가져오기 및 프로필 불러오기
   useEffect(() => {
     const loadUserProfile = async () => {
       setIsLoadingProfile(true);
       try {
-        const profile = await fetchUserProfile(USER_ID);
+        // 1. 현재 인증된 사용자 정보 가져오기
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+          setProfileError("로그인이 필요합니다.");
+          router.push("/login");
+          return;
+        }
+        
+        setUserId(currentUser.id);
+        
+        // 2. 사용자 프로필 상세 정보 가져오기
+        const profile = await fetchUserProfile(currentUser.id);
         setUserProfile(profile);
         nicknameForm.reset({ nickname: profile.nickname }); // 폼 초기값 설정
       } catch (err) {
@@ -68,19 +79,19 @@ export default function ProfilePage() {
       }
     };
     loadUserProfile();
-  }, [USER_ID, nicknameForm]);
+  }, [nicknameForm]);
 
   // 닉네임 저장 핸들러
   const handleNicknameSave = async (values: z.infer<typeof nicknameSchema>) => {
-    if (!userProfile) return;
+    if (!userProfile || !userId) return;
     setIsUpdatingNickname(true);
     try {
-      const updatedProfile = await updateUserNickname(USER_ID, values.nickname);
+      const updatedProfile = await updateUserNickname(userId, values.nickname);
       setUserProfile(updatedProfile);
       setIsEditingNickname(false);
     } catch (err) {
       console.error("Failed to update nickname:", err);
-      // TODO: 사용자에게 에러 메시지 표시
+      alert("닉네임 업데이트에 실패했습니다.");
     } finally {
       setIsUpdatingNickname(false);
     }
@@ -88,18 +99,18 @@ export default function ProfilePage() {
 
   // 프로필 이미지 변경 핸들러
   const handleProfileImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!userProfile || !event.target.files || event.target.files.length === 0) return;
+    if (!userProfile || !userId || !event.target.files || event.target.files.length === 0) return;
 
     const file = event.target.files[0];
     setIsUpdatingProfileImage(true);
     try {
-      await updateUserProfileImage(USER_ID, file);
+      await updateUserProfileImage(userId, file);
       // 이미지 업데이트 후 프로필 정보 다시 불러오기
-      const updatedProfile = await fetchUserProfile(USER_ID);
+      const updatedProfile = await fetchUserProfile(userId);
       setUserProfile(updatedProfile);
     } catch (err) {
       console.error("Failed to update profile image:", err);
-      // TODO: 사용자에게 에러 메시지 표시
+      alert("프로필 이미지 업데이트에 실패했습니다.");
     } finally {
       setIsUpdatingProfileImage(false);
     }
@@ -210,7 +221,7 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-6">
                   <div className="relative">
                     <Avatar className="h-24 w-24">
-                      <AvatarImage src={userProfile.profileImage || "/placeholder.svg"} alt={userProfile.nickname} />
+                      <AvatarImage src={getImageUrl(userProfile.profileImage) || "/placeholder.svg"} alt={userProfile.nickname} />
                       <AvatarFallback className="text-2xl">{userProfile.nickname[0]}</AvatarFallback>
                     </Avatar>
                     {isEditingNickname && (
@@ -314,7 +325,7 @@ export default function ProfilePage() {
                           {zone.image && (
                             <div className="flex-shrink-0">
                               <Image
-                                src={zone.image || "/placeholder.svg"}
+                                src={getImageUrl(zone.image) || "/placeholder.svg"}
                                 alt={zone.address}
                                 width={120}
                                 height={80}

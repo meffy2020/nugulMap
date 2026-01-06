@@ -162,7 +162,6 @@ public class UserService {
     @Transactional
     public User processOAuth2User(OAuth2UserCustomService.CustomOAuth2User customOAuth2User) {
         String email = customOAuth2User.getEmail();
-        String profileImage = customOAuth2User.getProfileImage();
         String oauthId = customOAuth2User.getName();
         String oauthProvider = customOAuth2User.getRegistrationId();
         
@@ -178,14 +177,10 @@ public class UserService {
         
         return existingUserOpt
                 .map(existingUser -> {
-                    // 기존 사용자 정보 업데이트 (OAuth 정보만 업데이트, 닉네임은 회원가입에서 설정)
+                    // 기존 사용자 정보 업데이트 (OAuth 정보만 업데이트, 닉네임과 프로필 이미지는 회원가입에서 설정)
                     log.info("기존 사용자 업데이트 - User ID: {}, 기존 Nickname: {}", existingUser.getId(), existingUser.getNickname());
                     existingUser.setOauthId(oauthId);
                     existingUser.setOauthProvider(oauthProvider);
-                    // 프로필 이미지는 OAuth에서 제공된 경우에만 업데이트 (회원가입에서 설정하지 않은 경우)
-                    if (profileImage != null && existingUser.getProfileImage() == null) {
-                        existingUser.setProfileImage(profileImage);
-                    }
                     // 직접 저장 (순환 참조 방지)
                     User savedUser = userRepository.save(existingUser);
                     log.info("기존 사용자 저장 완료 - User ID: {}, Nickname: {}, isProfileComplete: {}", 
@@ -200,7 +195,7 @@ public class UserService {
                     return verifiedUser;
                 })
                 .orElseGet(() -> {
-                    // 첫 로그인: OAuth 정보만 저장하고 닉네임은 null로 설정 (회원가입에서 설정)
+                    // 첫 로그인: OAuth 정보만 저장하고 닉네임과 프로필 이미지는 null로 설정 (회원가입에서 설정)
                     log.info("신규 사용자 생성 시작 - Email: {}", email);
                     User newUser = User.builder()
                             .email(email)

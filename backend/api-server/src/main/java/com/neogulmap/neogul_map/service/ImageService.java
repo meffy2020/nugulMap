@@ -7,14 +7,19 @@ import com.neogulmap.neogul_map.config.exceptionHandling.exception.ImageNotFound
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.ImageUploadException;
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.ValidationException;
 import com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode;
+import com.neogulmap.neogul_map.service.impl.S3StorageServiceImpl;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import java.io.File;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,9 +30,15 @@ import java.util.UUID;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ImageService {
     
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    
+    private final StorageService storageService;
+    
+    @Value("${app.storage.type:local}")
+    private String storageType;
     
     /**
      * 업로드 디렉토리 경로 (기본값: uploads)
@@ -49,13 +60,20 @@ public class ImageService {
             // 파일 유효성 검사
             validateImage(image);
             
-            // 파일명 생성
-            String fileName = generateFileName(image, type);
+            // S3 저장소인 경우
+            if ("s3".equalsIgnoreCase(storageType) && storageService instanceof S3StorageServiceImpl) {
+                S3StorageServiceImpl s3StorageService = (S3StorageServiceImpl) storageService;
+                String fileName = s3StorageService.saveImage(image, type);
+                log.info("{} 이미지 업로드 성공 (S3): {} (크기: {} bytes)", 
+                        type.name(), fileName, image.getSize());
+                return fileName;
+            }
             
-            // 파일 저장
+            // 로컬 저장소인 경우
+            String fileName = generateFileName(image, type);
             saveImage(image, fileName, type);
             
-            log.info("{} 이미지 업로드 성공: {} (크기: {} bytes)", 
+            log.info("{} 이미지 업로드 성공 (로컬): {} (크기: {} bytes)", 
                     type.name(), fileName, image.getSize());
             return fileName;
             
@@ -89,6 +107,45 @@ public class ImageService {
             throw new ImageNotFoundException("파일명이 제공되지 않았습니다");
         }
         
+        // S3 저장소인 경우
+        if ("s3".equalsIgnoreCase(storageType) && storageService instanceof S3StorageServiceImpl) {
+            S3StorageServiceImpl s3StorageService = (S3StorageServiceImpl) storageService;
+            
+            // 파일명에서 타입 추론 (profile 또는 zone으로 시작하는지 확인)
+            ImageType imageType = fileName.startsWith("profile") ? ImageType.PROFILE : ImageType.ZONE;
+            
+            // 파일 존재 확인
+            if (!s3StorageService.exists(fileName, imageType)) {
+                // 다른 타입으로도 확인
+                ImageType otherType = imageType == ImageType.PROFILE ? ImageType.ZONE : ImageType.PROFILE;
+                if (!s3StorageService.exists(fileName, otherType)) {
+                    log.warn("S3에서 이미지 파일을 찾을 수 없습니다: {}", fileName);
+                    throw new ImageNotFoundException("이미지 파일을 찾을 수 없습니다: " + fileName);
+                }
+                imageType = otherType;
+            }
+            
+            try {
+                // S3에서 파일 다운로드
+                String s3Key = imageType == ImageType.PROFILE ? 
+                    s3StorageService.profilePrefix + fileName : 
+                    s3StorageService.zonePrefix + fileName;
+                
+                ResponseInputStream<GetObjectResponse> s3Object = s3StorageService.s3Client.getObject(
+                    software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
+                        .bucket(s3StorageService.bucketName)
+                        .key(s3Key)
+                        .build()
+                );
+                
+                return new InputStreamResource(s3Object);
+            } catch (Exception e) {
+                log.error("S3 이미지 조회 실패: {}", fileName, e);
+                throw new ImageNotFoundException("이미지 파일을 조회할 수 없습니다: " + fileName);
+            }
+        }
+        
+        // 로컬 저장소인 경우
         try {
             // profiles 디렉토리에서 먼저 찾기
             Path imagePath = getUploadPath("profiles", fileName);
@@ -129,6 +186,14 @@ public class ImageService {
             return;
         }
         
+        // S3 저장소인 경우
+        if ("s3".equalsIgnoreCase(storageType) && storageService instanceof S3StorageServiceImpl) {
+            S3StorageServiceImpl s3StorageService = (S3StorageServiceImpl) storageService;
+            s3StorageService.deleteImage(fileName, type);
+            return;
+        }
+        
+        // 로컬 저장소인 경우
         try {
             Path imagePath = getUploadPath(type.getDirectory(), fileName);
             if (Files.exists(imagePath)) {
@@ -174,13 +239,20 @@ public class ImageService {
             throw new ProfileImageProcessingException("이미지 크기는 10MB 이하여야 합니다");
         }
         
-        // 파일 타입 검사
+        // 파일 타입 검사 (PNG, JPG만 허용)
         String contentType = image.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
             throw new ProfileImageProcessingException("이미지 파일만 업로드 가능합니다");
         }
         
-        // 파일 확장자 검사
+        // PNG, JPG만 허용
+        if (!contentType.equals("image/png") && 
+            !contentType.equals("image/jpeg") && 
+            !contentType.equals("image/jpg")) {
+            throw new ProfileImageProcessingException("PNG 또는 JPG(JPEG) 형식의 이미지만 업로드 가능합니다");
+        }
+        
+        // 파일 확장자 검사 (PNG, JPG만 허용)
         String originalFilename = image.getOriginalFilename();
         if (originalFilename != null) {
             String extension = originalFilename.toLowerCase();
@@ -188,8 +260,8 @@ public class ImageService {
                 throw new ProfileImageProcessingException("파일 확장자가 필요합니다");
             }
             
-            if (!extension.matches(".*\\.(jpg|jpeg|png|gif|webp)$")) {
-                throw new ProfileImageProcessingException("지원하지 않는 이미지 형식입니다. (.jpg, .jpeg, .png, .gif, .webp만 가능)");
+            if (!extension.matches(".*\\.(jpg|jpeg|png)$")) {
+                throw new ProfileImageProcessingException("지원하지 않는 이미지 형식입니다. PNG 또는 JPG(JPEG) 형식만 가능합니다.");
             }
         } else {
             throw new ProfileImageProcessingException("파일명이 필요합니다");

@@ -16,7 +16,30 @@ spring:
       max-request-size: 10MB
   # profiles:
     # active: dev  # Docker Compose에서 환경 변수로 설정 (SPRING_PROFILES_ACTIVE=mysql)
-  # datasource 설정은 프로파일별 설정 파일에서 관리 (application-mysql.yml, application-dev.yml 등)
+  datasource:
+    url: jdbc:h2:mem:neogul-map-db
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: none
+    defer-datasource-initialization: true
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    database-platform: org.hibernate.dialect.H2Dialect
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+      continue-on-error: true
   security:
     oauth2:
       client:
@@ -69,6 +92,7 @@ spring:
 
 server:
   servlet:
+    context-path: /api
     encoding:
       charset: UTF-8
       enabled: true

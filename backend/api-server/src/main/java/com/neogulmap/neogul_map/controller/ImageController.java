@@ -37,7 +37,7 @@ public class ImageController {
         String contentType = imageService.getContentType(filename);
         
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
+                .contentType(MediaType.parseMediaType(contentType))  
                 .header(HttpHeaders.CACHE_CONTROL, "max-age=3600")
                 .header("X-Image-Filename", filename)
                 .body(resource);

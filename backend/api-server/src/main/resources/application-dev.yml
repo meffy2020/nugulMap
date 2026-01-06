@@ -1,0 +1,29 @@
+# 개발 환경 설정 (MinIO 사용)
+cloud:
+  aws:
+    s3:
+      endpoint: http://minio:9000  # 도커 컨테이너 서비스 이름
+      bucket: my-bucket
+    credentials:
+      access-key: ${MINIO_ROOT_USER:-admin}
+      secret-key: ${MINIO_ROOT_PASSWORD:-password}
+    region:
+      static: us-east-1
+    stack:
+      auto: false
+
+# 앱 설정
+app:
+  storage:
+    type: s3  # S3 저장소 사용
+  s3:
+    temp-prefix: temp/
+    profile-prefix: profiles/
+    zone-prefix: zones/
+
+
+
+
+
+
+

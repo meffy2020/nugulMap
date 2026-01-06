@@ -21,18 +21,6 @@ public interface OAuth2UserInfo {
     String getEmail();
     
     /**
-     * 사용자 닉네임/이름
-     * @return 닉네임 또는 이름
-     */
-    String getNickname();
-    
-    /**
-     * 프로필 이미지 URL
-     * @return 프로필 이미지 URL
-     */
-    String getProfileImage();
-    
-    /**
      * 원본 attributes 반환
      * @return 원본 attributes Map
      */

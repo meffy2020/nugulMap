@@ -84,14 +84,6 @@ public class OAuth2UserCustomService extends DefaultOAuth2UserService {
             return oAuth2UserInfo.getEmail();
         }
         
-        public String getNickname() {
-            return oAuth2UserInfo.getNickname();
-        }
-        
-        public String getProfileImage() {
-            return oAuth2UserInfo.getProfileImage();
-        }
-        
         // OAuth2UserInfo 직접 접근 (필요한 경우)
         public OAuth2UserInfo getOAuth2UserInfo() {
             return oAuth2UserInfo;

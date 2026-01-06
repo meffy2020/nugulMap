@@ -13,7 +13,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8080/api/:path*', // Proxy to Backend
+        destination: 'http://localhost:8080/api/:path*', // Proxy to Backend (백엔드는 context-path: /api로 설정됨)
       },
     ]
   }
