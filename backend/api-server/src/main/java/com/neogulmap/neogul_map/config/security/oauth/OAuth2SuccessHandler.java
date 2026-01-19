@@ -17,15 +17,16 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
-    
+
     private final TokenProvider tokenProvider;
     private final UserService userService;
-    
+
     @Value("${app.frontend-url}")
     private String frontendUrl; // 예: http://localhost
 
@@ -37,7 +38,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private static final String ACCESS_TOKEN_COOKIE_NAME = "accessToken";
     private static final String REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
-    
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
@@ -70,31 +71,27 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         }
     }
 
-    private String determineTargetUrl(HttpServletRequest request, User user) {
-        String referer = request.getHeader("Referer");
-        String requestUrl = request.getRequestURL().toString();
-        
-        // 백엔드 직접 접근(8080)인지 확인 (테스트용)
-        boolean isBackendTest = (requestUrl != null && requestUrl.contains(":8080")) || 
-                               (referer != null && referer.contains(":8080"));
-
-        // 기본 베이스 URL 설정
-        String baseUrl = isBackendTest ? "http://localhost:8080/api" : frontendUrl;
-
-        if (!user.isProfileComplete()) {
-            // 회원가입 미완료 시: /signup 으로 리다이렉트 (이메일 포함)
-            // UriComponentsBuilder를 쓰면 인코딩이 안전하고 깔끔합니다.
-            return UriComponentsBuilder.fromUriString(baseUrl + "/signup")
-                    .queryParam("email", user.getEmail())
-                    .build()
-                    .encode()
-                    .toUriString();
-        }
-
-        // 회원가입 완료 시: 메인으로 이동
-        return isBackendTest ? baseUrl + "/test" : baseUrl;
-    }
+   private String determineTargetUrl(HttpServletRequest request, User user) {
+    String referer = request.getHeader("Referer");
+    String requestUrl = request.getRequestURL().toString();
     
+    boolean isBackendTest = (requestUrl != null && requestUrl.contains(":8080")) || 
+                           (referer != null && referer.contains(":8080"));
+
+    String baseUrl = isBackendTest ? "http://localhost:8080/api" : frontendUrl;
+
+    if (!user.isProfileComplete()) {
+        // fromHttpUrl 대신 fromUriString 사용
+        return UriComponentsBuilder.fromUriString(baseUrl + "/signup")
+                .queryParam("email", user.getEmail())
+                .build()
+                .encode(StandardCharsets.UTF_8)
+                .toUriString();
+    }
+
+    return isBackendTest ? baseUrl + "/test" : baseUrl;
+}
+
     private void addHttpOnlyCookie(HttpServletResponse response, String name, String value, int maxAge) {
         String cookieHeader = String.format("%s=%s; Path=/; HttpOnly; %sMax-Age=%d; SameSite=%s",
                 name, value, cookieSecure ? "Secure; " : "", maxAge, cookieSameSite);

@@ -9,33 +9,27 @@ import org.springframework.security.oauth2.client.web.AuthorizationRequestReposi
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.util.SerializationUtils;
-import org.springframework.web.util.CookieGenerator;
+import org.springframework.web.util.WebUtils;
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
 
 import java.util.Base64;
-import java.util.Optional;
 
 @Slf4j
 @Component
 public class OAuth2AuthorizationRequestBasedOnCookieRepository 
         implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
     
-    private static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
-    private static final String REDIRECT_URI_PARAM_COOKIE_NAME = "redirect_uri";
+    public static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
+    public static final String REDIRECT_URI_PARAM_COOKIE_NAME = "redirect_uri";
     private static final int COOKIE_EXPIRE_SECONDS = 180;
-    
-    private final CookieGenerator cookieGenerator = new CookieGenerator();
     
     @Value("${app.cookie.secure:false}")
     private boolean cookieSecure;
     
     @Value("${app.cookie.same-site:Lax}")
     private String cookieSameSite;
-    
-    public OAuth2AuthorizationRequestBasedOnCookieRepository() {
-        cookieGenerator.setCookieName(OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
-        cookieGenerator.setCookieMaxAge(COOKIE_EXPIRE_SECONDS);
-    }
-    
+
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
         return getCookie(request, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME)
@@ -48,14 +42,15 @@ public class OAuth2AuthorizationRequestBasedOnCookieRepository
                                        HttpServletRequest request, 
                                        HttpServletResponse response) {
         if (authorizationRequest == null) {
-            deleteCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
-            deleteCookie(request, response, REDIRECT_URI_PARAM_COOKIE_NAME);
+            removeAuthorizationRequestCookies(request, response);
             return;
         }
         
+        // 1. 인가 요청 정보 저장
         addCookie(response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME, 
                  serialize(authorizationRequest), COOKIE_EXPIRE_SECONDS);
         
+        // 2. 로그인 후 돌아갈 리다이렉트 URI 저장 (프론트엔드 주소 등)
         String redirectUriAfterLogin = request.getParameter(REDIRECT_URI_PARAM_COOKIE_NAME);
         if (redirectUriAfterLogin != null && !redirectUriAfterLogin.isEmpty()) {
             addCookie(response, REDIRECT_URI_PARAM_COOKIE_NAME, redirectUriAfterLogin, COOKIE_EXPIRE_SECONDS);
@@ -66,76 +61,47 @@ public class OAuth2AuthorizationRequestBasedOnCookieRepository
     public OAuth2AuthorizationRequest removeAuthorizationRequest(HttpServletRequest request, 
                                                                HttpServletResponse response) {
         OAuth2AuthorizationRequest authorizationRequest = loadAuthorizationRequest(request);
-        
-        // 쿠키 삭제
-        if (authorizationRequest != null) {
-            deleteCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
-            deleteCookie(request, response, REDIRECT_URI_PARAM_COOKIE_NAME);
-        }
-        
+        removeAuthorizationRequestCookies(request, response);
         return authorizationRequest;
+    }
+
+    public void removeAuthorizationRequestCookies(HttpServletRequest request, HttpServletResponse response) {
+        deleteCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
+        deleteCookie(request, response, REDIRECT_URI_PARAM_COOKIE_NAME);
     }
     
     private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setPath("/");
-        cookie.setHttpOnly(true);
-        cookie.setMaxAge(maxAge);
-        cookie.setSecure(cookieSecure);
-        
-        // SameSite 설정 (SameSite=None은 secure가 true일 때만 가능)
-        if ("None".equals(cookieSameSite)) {
-            if (cookieSecure) {
-                // SameSite=None은 Secure가 필수이므로 Set-Cookie 헤더로 직접 설정
-                response.setHeader("Set-Cookie", 
-                    String.format("%s=%s; Path=/; HttpOnly; Secure; Max-Age=%d; SameSite=None", 
-                        name, value, maxAge));
-                return;
-            } else {
-                log.warn("SameSite=None은 Secure 쿠키에서만 사용 가능합니다. Lax로 변경합니다.");
-                cookieSameSite = "Lax";
-            }
-        }
-        
-        // SameSite 속성은 Java Cookie API에서 직접 지원하지 않으므로
-        // Servlet 6.0+ 또는 Spring Boot 3.1+에서는 자동으로 처리되지만,
-        // 명시적으로 설정하려면 ResponseCookie를 사용하거나 헤더를 직접 설정해야 합니다.
-        // 여기서는 기본 Cookie를 사용하고, 필요시 application.yml에서 설정합니다.
-        response.addCookie(cookie);
+        // SameSite 설정을 위해 SuccessHandler와 동일하게 헤더 방식으로 통일
+        String cookieHeader = String.format("%s=%s; Path=/; HttpOnly; %sMax-Age=%d; SameSite=%s", 
+                name, value, cookieSecure ? "Secure; " : "", maxAge, cookieSameSite);
+        response.addHeader("Set-Cookie", cookieHeader);
     }
     
     private void deleteCookie(HttpServletRequest request, HttpServletResponse response, String name) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (cookie.getName().equals(name)) {
-                    cookie.setValue("");
-                    cookie.setPath("/");
-                    cookie.setMaxAge(0);
-                    response.addCookie(cookie);
-                }
-            }
-        }
+        // 쿠키를 삭제할 때도 헤더 방식으로 확실하게 처리
+        String cookieHeader = String.format("%s=; Path=/; HttpOnly; %sMax-Age=0; SameSite=%s", 
+                name, cookieSecure ? "Secure; " : "", cookieSameSite);
+        response.addHeader("Set-Cookie", cookieHeader);
     }
-    
-    private Optional<Cookie> getCookie(HttpServletRequest request, String name) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (cookie.getName().equals(name)) {
-                    return Optional.of(cookie);
-                }
-            }
-        }
-        return Optional.empty();
+
+    private java.util.Optional<Cookie> getCookie(HttpServletRequest request, String name) {
+        // WebUtils를 사용하면 지저분한 for문 없이 한 줄로 쿠키를 찾을 수 있습니다.
+        return java.util.Optional.ofNullable(WebUtils.getCookie(request, name));
     }
     
     private String serialize(Object object) {
+        // Spring의 SerializationUtils는 기본적으로 바이트 배열을 반환합니다.
         return Base64.getUrlEncoder().encodeToString(SerializationUtils.serialize(object));
     }
     
     private OAuth2AuthorizationRequest deserialize(Cookie cookie) {
-        return (OAuth2AuthorizationRequest) SerializationUtils.deserialize(
-                Base64.getUrlDecoder().decode(cookie.getValue()));
-    }
+        // 역직렬화 시 바이트 배열로 변환 후 캐스팅
+        byte[] decoded = Base64.getUrlDecoder().decode(cookie.getValue());
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(decoded);
+         ObjectInputStream ois = new ObjectInputStream(bis)) {
+        return (OAuth2AuthorizationRequest) ois.readObject();
+    } catch (Exception e) {
+        log.error("OAuth2 요청 역직렬화 중 에러 발생: {}", e.getMessage());
+        return null;
+    } }
 }
