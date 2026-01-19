@@ -18,7 +18,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 
-import { fetchUserProfile, updateUserNickname, updateUserProfileImage, getCurrentUser, getImageUrl, type UserProfile, type SmokingZone } from "@/lib/api"
+import { fetchUserProfile, updateUserNickname, updateUserProfileImage, getCurrentUser, getImageUrl, fetchUserZones, type UserProfile, type SmokingZone } from "@/lib/api"
 
 
 const nicknameSchema = z.object({
@@ -71,6 +71,29 @@ export default function ProfilePage() {
         const profile = await fetchUserProfile(currentUser.id);
         setUserProfile(profile);
         nicknameForm.reset({ nickname: profile.nickname }); // 폼 초기값 설정
+
+        // 3. 사용자가 등록한 장소 목록 가져오기
+        setIsLoadingZones(true);
+        try {
+          const zones = await fetchUserZones();
+          const formattedZones: UserZone[] = zones.map(zone => ({
+            id: zone.id,
+            address: zone.address,
+            description: zone.description || "",
+            type: zone.type || "",
+            subtype: zone.subtype || "",
+            size: zone.size || "",
+            date: new Date().toISOString().split('T')[0], // ZoneResponse에 date 필드가 없으므로 현재 날짜 사용
+            image: zone.image || undefined,
+          }));
+          setUserZones(formattedZones);
+        } catch (err) {
+          console.error("Failed to fetch user zones:", err);
+          // 장소 목록 로딩 실패해도 프로필은 표시
+          setUserZones([]);
+        } finally {
+          setIsLoadingZones(false);
+        }
       } catch (err) {
         console.error("Failed to fetch user profile:", err);
         setProfileError("프로필 정보를 불러오는데 실패했습니다.");
@@ -79,7 +102,7 @@ export default function ProfilePage() {
       }
     };
     loadUserProfile();
-  }, [nicknameForm]);
+  }, [nicknameForm, router]);
 
   // 닉네임 저장 핸들러
   const handleNicknameSave = async (values: z.infer<typeof nicknameSchema>) => {
@@ -116,29 +139,9 @@ export default function ProfilePage() {
     }
   };
 
-  // 내 등록 장소 (현재는 하드코딩)
-  const [userZones] = useState<UserZone[]>([
-    {
-      id: 1,
-      address: "서울특별시 중구 명동길 26",
-      description: "명동역 근처 지정 흡연구역입니다. 실외 공간으로 환기가 잘 됩니다.",
-      type: "지정구역",
-      subtype: "흡연부스",
-      size: "중형",
-      date: "2024-01-15",
-      image: "/modern-outdoor-smoking-booth.png",
-    },
-    {
-      id: 2,
-      address: "서울특별시 중구 을지로 281",
-      description: "동대문디자인플라자 인근 흡연 공간입니다.",
-      type: "일반구역",
-      subtype: "야외공간",
-      size: "대형",
-      date: "2024-01-16",
-      image: "/modern-building-smoking-area.png",
-    },
-  ]);
+  // 내 등록 장소
+  const [userZones, setUserZones] = useState<UserZone[]>([]);
+  const [isLoadingZones, setIsLoadingZones] = useState(false);
 
   if (isLoadingProfile) {
     return (
@@ -258,11 +261,15 @@ export default function ProfilePage() {
                     ) : (
                       <>
                         <h2 className="text-2xl font-bold">{userProfile.nickname}</h2>
-                        <p className="text-muted-foreground">{userProfile.email}</p>
+                        <p className="text-muted-foreground">@{userProfile.nickname}</p>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
                             {userProfile.createdAt} 가입
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            {userZones.length}개 장소 등록
                           </div>
                         </div>
                       </>
@@ -281,33 +288,48 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                {/* TODO: 소개 (bio) 필드는 백엔드 UserResponse에 없으므로 임시로 제거하거나 백엔드 구현 후 추가 */}
-                {/* TODO: 활동 통계 필드도 백엔드 UserResponse에 없으므로 임시로 제거하거나 백엔드 구현 후 추가 */}
+                {/* 바이오(bio) 필드 제거 - 다운로드 버전과 일치하도록 제거 */}
+                {/* <div>
+                  <Label htmlFor="bio">소개</Label>
+                  <Textarea
+                    id="bio"
+                    value={""}
+                    disabled={!isEditingNickname}
+                    placeholder="소개를 입력하세요"
+                    className={!isEditingNickname ? "bg-muted" : ""}
+                    rows={3}
+                  />
+                  {isEditingNickname && (
+                    <p className="text-xs text-muted-foreground mt-1">소개 기능은 준비 중입니다. (저장되지 않습니다)</p>
+                  )}
+                </div> */}
               </CardContent>
             </Card>
 
-            {/* Statistics Card (임시 제거) */}
-            {/* <Card>
+            {/* Statistics Card - 백엔드에 없으므로 하드코딩된 값 표시 */}
+            <Card>
               <CardHeader>
                 <CardTitle>활동 통계</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div className="space-y-2">
-                    <div className="text-2xl font-bold text-primary">{userProfile.totalZones}</div>
+                    <div className="text-2xl font-bold text-primary">{userZones.length}</div>
                     <div className="text-sm text-muted-foreground">등록한 장소</div>
                   </div>
                   <div className="space-y-2">
-                    <div className="text-2xl font-bold text-accent">24</div>
+                    <div className="text-2xl font-bold text-accent">0</div>
                     <div className="text-sm text-muted-foreground">도움이 된 리뷰</div>
                   </div>
                   <div className="space-y-2">
-                    <div className="text-2xl font-bold text-secondary">7</div>
+                    <div className="text-2xl font-bold text-secondary">
+                      {userProfile.createdAt ? Math.floor((new Date().getTime() - new Date(userProfile.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0}
+                    </div>
                     <div className="text-sm text-muted-foreground">활동 일수</div>
                   </div>
                 </div>
               </CardContent>
-            </Card> */}
+            </Card>
           </TabsContent>
 
           <TabsContent value="zones" className="space-y-6">
@@ -317,8 +339,18 @@ export default function ProfilePage() {
                 <CardDescription>총 {userZones.length}개의 장소를 등록했습니다.</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4">
-                  {userZones.map((zone) => (
+                {isLoadingZones ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="ml-2 text-muted-foreground">장소 목록 불러오는 중...</span>
+                  </div>
+                ) : userZones.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    등록한 장소가 없습니다.
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {userZones.map((zone) => (
                     <Card key={zone.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <div className="flex gap-4">
@@ -350,8 +382,9 @@ export default function ProfilePage() {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

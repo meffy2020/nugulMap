@@ -1,5 +1,5 @@
 services:
-  # 1. Nginx: 외부 요청의 대문 역할
+  # 1. Nginx
   nginx:
     image: nginx:latest
     container_name: neogul-map-nginx
@@ -14,15 +14,16 @@ services:
     networks:
       - neogul-map-network
 
-  # 2. MinIO: 로컬 S3 저장소
+  # 2. MinIO
   minio:
     image: minio/minio:latest
     container_name: neogul-map-minio
     ports:
-      - "9001:9001" # 관리자 UI (브라우저 접속용)
+      - "9000:9000"  # S3 API 포트
+      - "9001:9001"  # 콘솔 포트
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
+      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-admin}
+      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-password}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -31,11 +32,32 @@ services:
       - neogul-map-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # 3. MySQL: 데이터베이스
+  # 2-1. MinIO 버킷 자동 생성 (한 번 실행 후 종료)
+  minio-init:
+    image: minio/mc
+    container_name: neogul-map-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 $${AWS_ACCESS_KEY_ID} $${AWS_SECRET_ACCESS_KEY};
+      /usr/bin/mc mb myminio/$${AWS_S3_BUCKET} || true;
+      /usr/bin/mc anonymous set public myminio/$${AWS_S3_BUCKET};
+      exit 0;
+      "
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-admin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-password}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-my-bucket}
+    networks:
+      - neogul-map-network
+
+  # 3. MySQL
   mysql:
     image: mysql:8.0
     container_name: neogul-map-mysql
@@ -59,46 +81,58 @@ services:
       context: ./backend/api-server
       dockerfile: Dockerfile
     container_name: neogul-map-api
-    expose:
-      - "8080"
+    ports:
+      - "8080:8080"
     env_file:
-      - ./backend/api-server/.env.local
+      - ./backend/api-server/.env.local  # 파일 존재 여부 꼭 확인!
     environment:
-      # Spring Boot 프로파일 (dev 프로필 활성화 - MinIO 사용)
-      SPRING_PROFILES_ACTIVE: dev,mysql
-      # MySQL 연결 정보 (Docker Compose 서비스 이름 'mysql' 사용)
+      SPRING_PROFILES_ACTIVE: dev,mysql,s3
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_DATABASE: ${MYSQL_DATABASE:-mydb}
       MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
-      # DDL 자동 생성 모드 (테스트용)
       MYSQL_DDL_AUTO: create-drop
       MYSQL_SHOW_SQL: "true"
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}  # 프런트엔드 URL (.env 파일에서 읽어옴)
+      # S3/MinIO 설정
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-admin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-password}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-my-bucket}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-http://minio:9000}  # Docker 네트워크 내부에서는 minio 사용
+      AWS_REGION: ${AWS_REGION:-us-east-1}
     depends_on:
       mysql:
         condition: service_healthy
       minio:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - neogul-map-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   # 5. Next.js (Frontend)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # 빌드 타임 주입 (매우 중요)
+        # 루트에 있는 .env 파일의 값을 빌드 단계로 넘깁니다.
+        # NEXT_PUBLIC_API_BASE_URL은 상대 경로 '/api'를 사용 (Nginx를 통해 프록시됨)
+        NEXT_PUBLIC_KAKAOMAP_APIKEY: ${NEXT_PUBLIC_KAKAOMAP_APIKEY}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
     container_name: neogul-map-frontend
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
+    # 실행 시점 주입 (환경 변수 파일 경로 명시)
+    env_file:
+      - ./frontend/.env.local
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_KAKAOMAP_APIKEY=${NEXT_PUBLIC_KAKAOMAP_APIKEY}
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
     restart: unless-stopped
     networks:
       - neogul-map-network
@@ -110,7 +144,3 @@ networks:
 volumes:
   minio_data:
     driver: local
-
-
-
-

@@ -45,9 +45,17 @@ public interface ZoneRepository extends JpaRepository<Zone, Integer>, JpaSpecifi
     List<Zone> findBySizeContainingIgnoreCase(String size);
     Page<Zone> findBySizeContainingIgnoreCase(String size, Pageable pageable);
     
-    // 사용자별 검색
+    // 사용자별 검색 (이메일 기반 - 하위 호환성)
     List<Zone> findByUserContainingIgnoreCase(String user);
     Page<Zone> findByUserContainingIgnoreCase(String user, Pageable pageable);
+    
+    // 사용자별 검색 (PK 기반 - 권장)
+    List<Zone> findByCreatorId(Long creatorId);
+    Page<Zone> findByCreatorId(Long creatorId, Pageable pageable);
+    
+    // 사용자별 검색 (JOIN FETCH로 N+1 문제 방지)
+    @Query("SELECT z FROM Zone z JOIN FETCH z.creator WHERE z.creator.id = :creatorId")
+    List<Zone> findByCreatorIdWithCreator(@Param("creatorId") Long creatorId);
     
     // 복합 검색 (지역 + 타입)
     List<Zone> findByRegionContainingIgnoreCaseAndTypeContainingIgnoreCase(String region, String type);

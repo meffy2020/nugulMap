@@ -1,53 +1,24 @@
-# Stage 1: Build the Next.js application
-FROM node:20-alpine AS builder
+# 1. 반드시 FROM이 제일 먼저 나와야 합니다!
+FROM node:18-alpine AS builder
 
+# 2. 작업 디렉토리 설정
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
+# 3. 그 다음 ARG와 ENV를 적습니다
+ARG NEXT_PUBLIC_KAKAOMAP_APIKEY
+ARG NEXT_PUBLIC_API_BASE_URL
 
-# Install pnpm if not available
-RUN npm install -g pnpm
+ENV NEXT_PUBLIC_KAKAOMAP_APIKEY=$NEXT_PUBLIC_KAKAOMAP_APIKEY
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
-
-# Copy source code
+# 4. 소스 복사 및 빌드
+COPY package*.json ./
+RUN npm install --legacy-peer-deps
 COPY . .
+RUN npm run build
 
-# Build the application
-RUN pnpm build
-
-# Stage 2: Create the production image
-FROM node:20-alpine AS runner
-
+# 5. 실행 단계 (가벼운 이미지를 위해)
+FROM node:18-alpine AS runner
 WORKDIR /app
-
-ENV NODE_ENV=production
-
-# Install pnpm
-RUN npm install -g pnpm
-
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
-
-# Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
-
-# Copy built application from builder
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.mjs ./
-
-# Expose the port
-EXPOSE 3000
-
-# Start the application
-CMD ["pnpm", "start"]
-
-
-
-
-
-
-
+COPY --from=builder /app ./
+CMD ["npm", "start"]

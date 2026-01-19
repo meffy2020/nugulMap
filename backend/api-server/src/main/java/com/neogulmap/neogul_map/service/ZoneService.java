@@ -5,6 +5,7 @@ import com.neogulmap.neogul_map.config.exceptionHandling.exception.BusinessBaseE
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.NotFoundException;
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.ValidationException;
 import com.neogulmap.neogul_map.domain.Zone;
+import com.neogulmap.neogul_map.domain.User;
 import com.neogulmap.neogul_map.dto.ZoneRequest;
 import com.neogulmap.neogul_map.dto.ZoneResponse;
 import com.neogulmap.neogul_map.repository.ZoneRepository;
@@ -33,7 +34,7 @@ public class ZoneService {
     private final ImageService imageService;
 
     @Transactional
-    public ZoneResponse createZone(ZoneRequest request, MultipartFile image) {
+    public ZoneResponse createZone(ZoneRequest request, MultipartFile image, User creator) {
         try {
             // 이미지 처리 (ImageService 사용)
             if (image != null && !image.isEmpty()) {
@@ -42,6 +43,13 @@ public class ZoneService {
             }
 
             Zone zone = request.toEntity();
+            // creator 설정 (User FK 관계)
+            zone.setCreator(creator);
+            // 하위 호환성을 위해 user 필드도 설정 (deprecated)
+            if (creator != null && creator.getEmail() != null) {
+                zone.setUser(creator.getEmail());
+            }
+            
             Zone savedZone = zoneRepository.save(zone);
             
             return ZoneResponse.from(savedZone);
@@ -88,8 +96,48 @@ public class ZoneService {
             return getAllZones();
         }
         
-        // 간단한 주소 검색
-        return zoneRepository.findByAddressContainingIgnoreCase(keyword)
+        // 키워드로 검색 (지역, 주소, 타입, 서브타입에서 검색)
+        return zoneRepository.findByKeyword(keyword)
+                .stream()
+                .map(ZoneResponse::from)
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    /**
+     * 특정 사용자가 등록한 Zone 목록 조회 (이메일 기반 - 하위 호환성)
+     * @param userEmail 사용자 이메일
+     * @return 해당 사용자가 등록한 Zone 목록
+     * @deprecated 이메일 기반 조회는 하위 호환성을 위해 유지
+     * 새로운 코드에서는 getZonesByUserId(Long userId)를 사용하세요.
+     */
+    @Deprecated
+    @Transactional(readOnly = true)
+    public List<ZoneResponse> getZonesByUser(String userEmail) {
+        if (userEmail == null || userEmail.trim().isEmpty()) {
+            return List.of();
+        }
+        
+        return zoneRepository.findByUserContainingIgnoreCase(userEmail)
+                .stream()
+                .map(ZoneResponse::from)
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    /**
+     * 특정 사용자가 등록한 Zone 목록 조회 (PK 기반 - 권장)
+     * JOIN FETCH를 사용하여 N+1 문제를 방지합니다.
+     * 
+     * @param userId 사용자 ID
+     * @return 해당 사용자가 등록한 Zone 목록
+     */
+    @Transactional(readOnly = true)
+    public List<ZoneResponse> getZonesByUserId(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        
+        // JOIN FETCH를 사용하여 creator 정보를 함께 가져옴 (N+1 문제 방지)
+        return zoneRepository.findByCreatorIdWithCreator(userId)
                 .stream()
                 .map(ZoneResponse::from)
                 .collect(Collectors.toUnmodifiableList());
@@ -168,6 +216,7 @@ public class ZoneService {
         }
 
         zone.update(request);
+        // creator는 변경하지 않음 (생성자 변경 불가)
         
         try {
             return ZoneResponse.from(zone);

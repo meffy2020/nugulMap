@@ -26,6 +26,11 @@ public class ZoneResponse {
     private String image;
 
     public static ZoneResponse from(Zone zone) {
+        // creator가 있으면 creator의 이메일 사용, 없으면 기존 user 필드 사용 (하위 호환성)
+        String userEmail = zone.getCreator() != null && zone.getCreator().getEmail() != null
+                ? zone.getCreator().getEmail()
+                : zone.getUser();
+        
         return ZoneResponse.builder()
                 .id(zone.getId())
                 .region(zone.getRegion())
@@ -37,7 +42,7 @@ public class ZoneResponse {
                 .size(zone.getSize())
                 .date(zone.getDate())
                 .address(zone.getAddress())
-                .user(zone.getUser())
+                .user(userEmail)
                 .image(zone.getImage())
                 .build();
     }

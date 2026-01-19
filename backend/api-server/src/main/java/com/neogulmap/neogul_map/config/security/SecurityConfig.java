@@ -45,7 +45,7 @@ public class SecurityConfig {
     private final OAuth2UserCustomService oAuth2UserCustomService;
     private final OAuth2AuthorizationRequestBasedOnCookieRepository oAuth2AuthorizationRequestBasedOnCookieRepository;
 
-    @Value("${app.cors.allowed-origins:http://localhost:3000}")
+    @Value("${app.cors.allowed-origins:http://localhost,http://localhost:3000}")
     private String[] allowedOrigins;
 
     @Value("${app.cors.allowed-methods:GET,POST,PUT,DELETE,OPTIONS}")
@@ -67,10 +67,10 @@ public class SecurityConfig {
         return http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            // OAuth2 로그인 플로우를 위해 세션 필요 (IF_REQUIRED: 필요할 때만 세션 생성)
-            // 로그인 성공 후 JWT 토큰 발급하여 이후 요청은 Stateless로 처리
+            // Stateless 설정: OAuth2 인증 정보는 쿠키 레포지토리(OAuth2AuthorizationRequestBasedOnCookieRepository)에서 관리
+            // 서버 세션 불필요 - 브라우저 쿠키만으로 OAuth2 state 관리 가능
             .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(authz -> authz
                 // 공개 엔드포인트 (인증 불필요)
@@ -95,10 +95,10 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 
-                // 회원가입 페이지 (GET은 공개, POST는 인증 필요)
-                // OAuth2 로그인 후 프로필 미완료 사용자가 접근하는 페이지
+                // 회원가입 페이지 (GET, POST 모두 공개)
+                // OAuth2 로그인 후 프로필 미완료 사용자가 닉네임 등록을 위해 접근
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/auth/signup").permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.POST, "/auth/signup").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/auth/signup").permitAll()
                 
                 // 인증이 필요한 API 엔드포인트
                 .requestMatchers("/test/**").authenticated() // 테스트 페이지는 인증 필요
@@ -119,6 +119,7 @@ public class SecurityConfig {
             // OAuth2 로그인 설정
             .oauth2Login(oauth2 -> oauth2
                 .authorizationEndpoint(authorization -> authorization
+                    .baseUri("/oauth2/authorization")
                     .authorizationRequestRepository(oAuth2AuthorizationRequestBasedOnCookieRepository)
                 )
                 .userInfoEndpoint(userInfo -> userInfo

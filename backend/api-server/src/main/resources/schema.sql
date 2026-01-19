@@ -4,10 +4,27 @@
 -- CREATE DATABASE와 USE는 필요 없습니다 (JDBC URL에 데이터베이스가 이미 지정됨).
 
 -- -----------------------------------------------------
+-- Table `users`
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `zone`;  -- FK 때문에 zone을 먼저 삭제
+DROP TABLE IF EXISTS `users`;
+
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `oauth_id` VARCHAR(255) NOT NULL,
+  `oauth_provider` VARCHAR(50) NOT NULL,
+  `nickname` VARCHAR(100) NULL,
+  `email` VARCHAR(255) NOT NULL,
+  `profile_image_url` VARCHAR(255) NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_users_email` (`email`),
+  UNIQUE KEY `uk_users_oauth_id` (`oauth_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
 -- Table `zone`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `zone`;
-
 CREATE TABLE IF NOT EXISTS `zone` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `region` VARCHAR(100) NOT NULL,
@@ -20,25 +37,17 @@ CREATE TABLE IF NOT EXISTS `zone` (
   `date` DATE NOT NULL DEFAULT (CURRENT_DATE),
   `address` VARCHAR(100) NOT NULL,
   `creator` VARCHAR(100) NULL,
+  `creator_id` BIGINT NULL,
   `image` VARCHAR(255) NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_zone_address` (`address`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- -----------------------------------------------------
--- Table `users`
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `users`;
-
-CREATE TABLE IF NOT EXISTS `users` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `oauth_id` VARCHAR(255) NOT NULL,
-  `oauth_provider` VARCHAR(50) NOT NULL,
-  `nickname` VARCHAR(100) NULL,
-  `email` VARCHAR(255) NOT NULL,
-  `profile_image_url` VARCHAR(255) NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_users_email` (`email`),
-  UNIQUE KEY `uk_users_oauth_id` (`oauth_id`)
+  UNIQUE KEY `uk_zone_address` (`address`),
+  INDEX `idx_zone_creator_id` (`creator_id`),
+  INDEX `idx_zone_creator` (`creator`),
+  INDEX `idx_zone_region` (`region`),
+  INDEX `idx_zone_type` (`type`),
+  CONSTRAINT `fk_zone_creator` 
+    FOREIGN KEY (`creator_id`) 
+    REFERENCES `users` (`id`) 
+    ON DELETE SET NULL 
+    ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,6 +1,7 @@
 package com.neogulmap.neogul_map.controller;
 
 import com.neogulmap.neogul_map.config.security.jwt.TokenProvider;
+import com.neogulmap.neogul_map.config.annotation.CurrentUser;
 import com.neogulmap.neogul_map.domain.User;
 import com.neogulmap.neogul_map.domain.enums.ImageType;
 import com.neogulmap.neogul_map.dto.UserRequest;
@@ -12,9 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -147,65 +145,19 @@ public class AuthController {
     /**
      * 현재 인증된 사용자 정보 조회
      * 
+     * @param user 현재 인증된 사용자 (@CurrentUser로 자동 주입)
      * @return 현재 사용자 정보
      */
     @GetMapping("/me")
     @ResponseBody
-    public ResponseEntity<?> getCurrentUser(HttpServletRequest request) {
-        try {
-            // SecurityContext에서 인증 정보 가져오기
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            
-            if (authentication == null || !authentication.isAuthenticated() || 
-                "anonymousUser".equals(authentication.getPrincipal().toString())) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                    "success", false,
-                    "message", "인증되지 않은 사용자입니다.",
-                    "hint", "OAuth2 로그인 후 쿠키에 저장된 토큰으로 자동 인증됩니다."
-                ));
-            }
-            
-            User user = null;
-            String email = null;
-            
-            // UserDetails에서 이메일 추출
-            if (authentication.getPrincipal() instanceof UserDetails userDetails) {
-                email = userDetails.getUsername();
-                user = userService.getUserByEmail(email).orElse(null);
-            } else if (authentication.getPrincipal() instanceof String) {
-                email = (String) authentication.getPrincipal();
-                user = userService.getUserByEmail(email).orElse(null);
-            } else {
-                // UserService의 getUserFromAuthentication 사용
-                try {
-                    user = userService.getUserFromAuthentication(authentication.getPrincipal());
-                } catch (Exception e) {
-                    log.debug("사용자 정보 조회 실패: {}", e.getMessage());
-                }
-            }
-            
-            if (user == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                    "success", false,
-                    "message", "사용자 정보를 찾을 수 없습니다."
-                ));
-            }
-            
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "현재 인증된 사용자 정보",
-                "data", Map.of(
-                    "user", UserResponse.from(user)
-                )
-            ));
-            
-        } catch (Exception e) {
-            log.error("현재 사용자 정보 조회 중 오류 발생", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                "success", false,
-                "message", "사용자 정보 조회 중 오류가 발생했습니다: " + e.getMessage()
-            ));
-        }
+    public ResponseEntity<?> getCurrentUser(@CurrentUser User user) {
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "현재 인증된 사용자 정보",
+            "data", Map.of(
+                "user", UserResponse.from(user)
+            )
+        ));
     }
     
     /**
@@ -214,14 +166,16 @@ public class AuthController {
      * Thymeleaf 템플릿을 반환합니다.
      */
     @GetMapping("/signup")
-    public String signupPage(Model model, @RequestParam(value = "email", required = false) String email) {
+    public String signupPage(Model model, 
+                             @RequestParam(value = "email", required = false) String email,
+                             @CurrentUser(required = false) User currentUser) {
         log.info("회원가입 페이지 접근 - Email: {}", email);
         
-        // 인증 정보 확인
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            log.info("인증된 사용자 - Principal: {}", authentication.getPrincipal().getClass().getSimpleName());
-        } else {
+        // 인증된 사용자가 있으면 이메일 사용
+        if (currentUser != null && (email == null || email.isEmpty())) {
+            email = currentUser.getEmail();
+            log.info("인증된 사용자 - Email: {}", email);
+        } else if (currentUser == null) {
             log.warn("인증되지 않은 사용자가 회원가입 페이지 접근 시도");
         }
         
@@ -245,20 +199,10 @@ public class AuthController {
     @PostMapping(value = "/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseBody
     public ResponseEntity<?> completeSignup(
+            @CurrentUser User user,
             @RequestParam("nickname") String nickname,
             @RequestParam(value = "profileImage", required = false) MultipartFile profileImage) {
         try {
-            // 인증된 사용자 정보 가져오기
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || authentication.getPrincipal() == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                    "success", false,
-                    "message", "인증이 필요합니다."
-                ));
-            }
-            
-            // 사용자 조회
-            User user = userService.getUserFromAuthentication(authentication.getPrincipal());
             
             // 이미 프로필이 완료된 경우
             if (user.isProfileComplete()) {

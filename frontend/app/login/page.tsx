@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Image from "next/image"
+import { API_ENDPOINTS } from "@/lib/config"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<string | null>(null)
@@ -14,7 +15,7 @@ export default function LoginPage() {
     console.log(`[v0] ${provider} login initiated`)
 
     // 백엔드 OAuth2 인증 URL로 리다이렉트
-    window.location.href = `/api/oauth2/authorization/${provider}`
+    window.location.href = API_ENDPOINTS.OAUTH2.AUTHORIZATION(provider)
   }
 
   return (
@@ -28,7 +29,7 @@ export default function LoginPage() {
           </div>
           <div className="space-y-2">
             <CardTitle className="text-4xl font-bold text-foreground" style={{ fontFamily: "'Righteous', sans-serif" }}>
-              NeogulMap
+              NugulMap
             </CardTitle>
             <CardDescription className="text-base text-muted-foreground">흡연구역을 쉽게 찾아보세요</CardDescription>
           </div>
@@ -51,9 +52,10 @@ export default function LoginPage() {
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                {/* 카카오 아이콘 주석처리 */}
+                {/* <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.8 6.7L6 21.5c-.1.4.3.7.6.5l3.6-2.5c.6.1 1.2.2 1.8.2 5.5 0 10-3.6 10-8S17.5 3 12 3z" />
-                </svg>
+                </svg> */}
                 카카오로 시작하기
               </div>
             )}

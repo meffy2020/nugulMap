@@ -76,6 +76,7 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
+    @Transactional(readOnly = true)
     public User getUser(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
@@ -84,6 +85,7 @@ public class UserService {
     /**
      * 모든 사용자 조회 (테스트용)
      */
+    @Transactional(readOnly = true)
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
@@ -121,6 +123,7 @@ public class UserService {
     /**
      * 인증된 사용자 정보 조회
      */
+    @Transactional(readOnly = true)
     public User getUserFromAuthentication(Object principal) {
         if (principal == null) {
             throw new NotFoundException(ErrorCode.USER_NOT_FOUND);
@@ -148,6 +151,7 @@ public class UserService {
     /**
      * 이메일로 사용자 조회
      */
+    @Transactional(readOnly = true)
     public Optional<User> getUserByEmail(String email) {
         return userRepository.findByEmail(email);
     }

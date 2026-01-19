@@ -38,7 +38,7 @@ out/
 
 ### Environment Variables ###
 .env.local
-.env.*.local
+.env.*.localdoc
 
 # 빌드 결과물 무시
 target/

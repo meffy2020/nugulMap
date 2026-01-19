@@ -12,8 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.neogulmap.neogul_map.config.annotation.CurrentUser;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -137,21 +136,11 @@ public class UserController {
     @Transactional
     @PostMapping(value = "/profile-setup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> completeProfile(
+            @CurrentUser User user,
             @RequestParam("nickname") String nickname,
             @RequestParam(value = "profileImage", required = false) MultipartFile profileImage) {
         
         try {
-            // 인증된 사용자 정보 가져오기
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || authentication.getPrincipal() == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                    "success", false,
-                    "message", "인증이 필요합니다."
-                ));
-            }
-            
-            // 사용자 조회
-            User user = userService.getUserFromAuthentication(authentication.getPrincipal());
             
             // 이미 프로필이 완료된 경우
             if (user.isProfileComplete()) {

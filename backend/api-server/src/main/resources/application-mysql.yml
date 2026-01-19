@@ -9,9 +9,9 @@ spring:
     password: ${MYSQL_PASSWORD:password}
   jpa:
     hibernate:
-      # 테스트용: 매번 시작할 때 테이블 생성, 종료할 때 삭제
-      # 프로덕션에서는 'none' 또는 'validate' 사용 권장
-      ddl-auto: ${MYSQL_DDL_AUTO:create-drop}
+      # schema.sql을 사용하므로 ddl-auto는 none 또는 update 사용
+      # none: schema.sql만 사용, update: schema.sql + JPA 자동 업데이트
+      ddl-auto: ${MYSQL_DDL_AUTO:none}
     defer-datasource-initialization: true
     show-sql: ${MYSQL_SHOW_SQL:true}
     properties:
@@ -19,13 +19,11 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
         hbm2ddl:
-          # ddl-auto와 동일하게 설정
-          auto: ${MYSQL_DDL_AUTO:create-drop}
+          auto: ${MYSQL_DDL_AUTO:none}
     database-platform: org.hibernate.dialect.MySQLDialect
   sql:
     init:
-      # ddl-auto가 create-drop이면 schema.sql은 실행하지 않음 (JPA가 자동 생성)
-      # 하지만 초기 데이터는 필요하므로 mode를 always로 유지
+      # schema.sql로 스키마 생성, data.sql로 초기 데이터 삽입
       mode: ${MYSQL_SQL_INIT_MODE:always}
       schema-locations: classpath:schema.sql
       data-locations: classpath:data.sql

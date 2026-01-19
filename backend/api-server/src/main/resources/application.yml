@@ -91,6 +91,7 @@ spring:
             user-name-attribute: response
 
 server:
+  forward-headers-strategy: native
   servlet:
     context-path: /api
     encoding:
@@ -118,15 +119,24 @@ app:
   cookie:
     secure: ${APP_COOKIE_SECURE:false}  # HTTPS 환경에서는 true로 설정
     same-site: ${APP_COOKIE_SAME_SITE:Lax}  # Lax, Strict, None 중 선택
+  frontend-url: ${FRONTEND_URL:http://localhost}  # 프런트엔드 기본 URL (로컬: Nginx 80포트, 배포: https://domain.com)
   oauth2:
-    success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:http://localhost:3000}  # 프런트엔드 리다이렉트 URL
-    failure-redirect-url: ${OAUTH2_FAILURE_REDIRECT_URL:http://localhost:3000/login?error=oauth_failed}  # 프런트엔드 실패 리다이렉트 URL
+    success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:}  # 비어있으면 상대 경로 사용 (Nginx 헤더 기반)
+    signup-redirect-url: ${OAUTH2_SIGNUP_REDIRECT_URL:}  # 비어있으면 상대 경로 사용 (Nginx 헤더 기반)
+    failure-redirect-url: ${OAUTH2_FAILURE_REDIRECT_URL:}  # 비어있으면 상대 경로 사용 (Nginx 헤더 기반)
     google:
       url: /oauth2/authorization/google
     kakao:
       url: /oauth2/authorization/kakao
     naver:
       url: /oauth2/authorization/naver
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:3000}  # Nginx(80포트)와 프론트엔드(3000포트) 모두 허용
+    allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}
+    allowed-headers: ${APP_CORS_ALLOWED_HEADERS:*}
+  security:
+    csrf:
+      enabled: ${APP_SECURITY_CSRF_ENABLED:false}  # OAuth2와 JWT 사용 시 CSRF 비활성화
 
 # JWT 설정
 jwt:

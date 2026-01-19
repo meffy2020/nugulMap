@@ -4,6 +4,8 @@ import com.neogulmap.neogul_map.dto.ZoneRequest;
 import com.neogulmap.neogul_map.dto.ZoneResponse;
 import com.neogulmap.neogul_map.service.ZoneService;
 import com.neogulmap.neogul_map.service.ImageService;
+import com.neogulmap.neogul_map.domain.User;
+import com.neogulmap.neogul_map.config.annotation.CurrentUser;
 import com.neogulmap.neogul_map.domain.enums.ImageType;
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.ProfileImageProcessingException;
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.ProfileImageRequiredException;
@@ -35,7 +37,8 @@ public class ZoneController {
     private final ImageService imageService;
 
     @PostMapping
-    public ResponseEntity<?> createZone(@RequestPart(value = "image", required = false) MultipartFile image,
+    public ResponseEntity<?> createZone(@CurrentUser User creator,
+                                       @RequestPart(value = "image", required = false) MultipartFile image,
                                        @RequestPart("data") String zoneData) {
         // 1차 검증: Zone 데이터 검증
         if (zoneData == null || zoneData.trim().isEmpty()) {
@@ -59,7 +62,7 @@ public class ZoneController {
         }
         
         // 서비스에서 이미지 처리와 함께 Zone 생성
-        ZoneResponse response = zoneService.createZone(request, image);
+        ZoneResponse response = zoneService.createZone(request, image, creator);
         
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of(
@@ -153,6 +156,45 @@ public class ZoneController {
         return ResponseEntity.ok(Map.of(
             "success", true,
             "message", String.format("반경 %.1fkm 내 흡연구역 조회 성공", radius),
+            "data", Map.of(
+                "zones", response,
+                "count", response.size()
+            )
+        ));
+    }
+
+    /**
+     * 키워드로 흡연구역 검색
+     * @param keyword 검색 키워드 (지역, 주소, 타입, 서브타입에서 검색)
+     * @return 검색된 Zone 목록
+     */
+    @GetMapping("/search")
+    public ResponseEntity<?> searchZones(@RequestParam("keyword") String keyword) {
+        List<ZoneResponse> response = zoneService.searchZones(keyword);
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "흡연구역 검색 성공",
+            "data", Map.of(
+                "zones", response,
+                "count", response.size(),
+                "keyword", keyword
+            )
+        ));
+    }
+
+    /**
+     * 현재 인증된 사용자가 등록한 흡연구역 목록 조회
+     * @param user 현재 인증된 사용자 (@CurrentUser로 자동 주입)
+     * @return 현재 사용자가 등록한 Zone 목록
+     */
+    @GetMapping("/my")
+    public ResponseEntity<?> getMyZones(@CurrentUser User user) {
+        // PK 기반으로 Zone 조회 (JOIN FETCH 사용, N+1 문제 방지)
+        List<ZoneResponse> response = zoneService.getZonesByUserId(user.getId());
+        
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "내가 등록한 흡연구역 조회 성공",
             "data", Map.of(
                 "zones", response,
                 "count", response.size()
