@@ -273,44 +273,36 @@ public class TestController {
             @RequestParam(value = "longitude", required = false) Double longitude,
             @RequestParam(value = "creator", required = false) String creator) {
         
-        try {
-            ZoneRequest zoneRequest = new ZoneRequest();
-            zoneRequest.setAddress(address);
-            zoneRequest.setDescription(description);
-            zoneRequest.setRegion(region != null ? region : "서울특별시");
-            zoneRequest.setType(type != null ? type : "흡연구역");
-            zoneRequest.setSubtype(subtype != null ? subtype : "실외");
-            zoneRequest.setSize(size != null ? size : "중형");
-            zoneRequest.setLatitude(latitude != null ? java.math.BigDecimal.valueOf(latitude) : java.math.BigDecimal.valueOf(37.5665));
-            zoneRequest.setLongitude(longitude != null ? java.math.BigDecimal.valueOf(longitude) : java.math.BigDecimal.valueOf(126.9780));
-            zoneRequest.setUser(creator != null ? creator : "테스트유저");
-            
-            // User 객체 찾기 (creator 이메일 또는 기본 사용자)
-            User zoneCreator = null;
-            if (creator != null && !creator.isEmpty()) {
-                zoneCreator = userService.getUserByEmail(creator).orElse(null);
-            }
-            // 기본 사용자 찾기 (없으면 첫 번째 사용자 사용)
-            if (zoneCreator == null) {
-                List<User> users = userService.getAllUsers();
-                if (!users.isEmpty()) {
-                    zoneCreator = users.get(0);
-                }
-            }
-            
-            ZoneResponse zoneResponse = zoneService.createZone(zoneRequest, image, zoneCreator);
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Zone 생성 성공");
-            response.put("zone", zoneResponse);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Zone 생성 실패", e);
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "Zone 생성 실패: " + e.getMessage());
-            return ResponseEntity.status(500).body(response);
+        ZoneRequest zoneRequest = new ZoneRequest();
+        zoneRequest.setAddress(address);
+        zoneRequest.setDescription(description);
+        zoneRequest.setRegion(region != null ? region : "서울특별시");
+        zoneRequest.setType(type != null ? type : "흡연구역");
+        zoneRequest.setSubtype(subtype != null ? subtype : "실외");
+        zoneRequest.setSize(size != null ? size : "중형");
+        zoneRequest.setLatitude(latitude != null ? java.math.BigDecimal.valueOf(latitude) : java.math.BigDecimal.valueOf(37.5665));
+        zoneRequest.setLongitude(longitude != null ? java.math.BigDecimal.valueOf(longitude) : java.math.BigDecimal.valueOf(126.9780));
+        zoneRequest.setUser(creator != null ? creator : "테스트유저");
+        
+        // User 객체 찾기 (creator 이메일 또는 기본 사용자)
+        User zoneCreator = null;
+        if (creator != null && !creator.isEmpty()) {
+            zoneCreator = userService.getUserByEmail(creator).orElse(null);
         }
+        // 기본 사용자 찾기 (없으면 첫 번째 사용자 사용)
+        if (zoneCreator == null) {
+            List<User> users = userService.getAllUsers();
+            if (!users.isEmpty()) {
+                zoneCreator = users.get(0);
+            }
+        }
+        
+        ZoneResponse zoneResponse = zoneService.createZone(zoneRequest, image, zoneCreator);
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Zone 생성 성공");
+        response.put("zone", zoneResponse);
+        return ResponseEntity.ok(response);
     }
 
     /**
