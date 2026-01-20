@@ -1,46 +1,27 @@
-# macOS system files
-.DS_Store
-.AppleDouble
-.LSOverride
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Thumbnails
-._*
+# dependencies
+/node_modules
 
-# Spotlight files
-.Spotlight-V100
+# next.js
+/.next/
+/out/
 
-# Trash
-.Trashes
+# production
+/build
 
-# Volume settings
-.VolumeIcon.icns
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-__pycache__/
-*.pyc
-venv/
+# env files
+.env*
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-.env.production
-.env.development
-.env.test
-.env.staging
-# .env.sample은 예제 파일이므로 커밋 가능 (필요시 주석 해제)
+# vercel
+.vercel
 
-.node_modules/
-
-firebase/
-
-*.csv
-
-# IntelliJ IDE specific files
-.idea/
-.cursor/rules/command.mdc
-
-# 업로드 파일 디렉토리 (코드와 분리된 데이터)
-uploads/
-backend/api-server/uploads/  # 백엔드 내부 uploads 폴더도 무시
-backend/uploads/profiles/  # 프로필 이미지 업로드 폴더
-backend/uploads/zones/  # Zone 이미지 업로드 폴더
+# typescript
+*.tsbuildinfo
+next-env.d.ts
