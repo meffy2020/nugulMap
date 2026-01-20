@@ -32,7 +32,7 @@ import org.springframework.context.annotation.Profile;
  * - CORS 보안 강화
  * - CSRF 보호
  */
-@Profile({"prod", "mysql"})  // mysql 프로파일에서도 활성화
+@Profile({"dev", "prod", "mysql"})  // mysql 프로파일에서도 활성화
 @Configuration 
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -73,6 +73,9 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(authz -> authz
+                // 테스트 엔드포인트 허용 (최우선 순위)
+                .requestMatchers("/test/**", "/api/test/**").permitAll()
+
                 // 공개 엔드포인트 (인증 불필요)
                 .requestMatchers("/login").permitAll() // 로그인 선택 페이지
                 .requestMatchers("/login/**").permitAll()
@@ -101,7 +104,6 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/auth/signup").permitAll()
                 
                 // 인증이 필요한 API 엔드포인트
-                .requestMatchers("/test/**").authenticated() // 테스트 페이지는 인증 필요
                 // /zones/**는 위에서 GET만 permitAll()로 설정했으므로, 나머지 메서드는 여기서 authenticated() 처리
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/zones/**").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/zones/**").authenticated()

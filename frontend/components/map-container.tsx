@@ -1,33 +1,20 @@
-// frontend/components/map-container.tsx
-
 "use client"
 
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
-import { X } from "lucide-react"
+import { X, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import Script from "next/script"
 
-import { fetchZones, getImageUrl, type SmokingZone } from "@/lib/api"
+import { fetchZones, type SmokingZone } from "@/lib/api"
 import Image from "next/image"
 
-// 카카오맵 관련 import (react-kakao-maps-sdk 컴포넌트는 더 이상 사용하지 않음)
-// import { Map, MapMarker, CustomOverlayMap } from "react-kakao-maps-sdk"
-
-// Debounce 유틸리티 함수
-function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
-  let timeout: NodeJS.Timeout;
-
-  return (...args: Parameters<F>): Promise<ReturnType<F>> =>
-    new Promise(resolve => {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-
-      timeout = setTimeout(() => resolve(func(...args)), waitFor);
-    });
+declare global {
+  interface Window {
+    kakao: any
+  }
 }
 
-// 컴포넌트 내부에서 사용할 데이터 타입
 interface LocationMarker extends SmokingZone {}
 
 export interface MapContainerRef {
@@ -39,211 +26,205 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
   const [selectedMarker, setSelectedMarker] = useState<LocationMarker | null>(null)
   const [zones, setZones] = useState<SmokingZone[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [kakaoLoaded, setKakaoLoaded] = useState(false)
+  const [showMapError, setShowMapError] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
-  const [mapInstance, setMapInstance] = useState<kakao.maps.Map | null>(null) // 카카오맵 인스턴스
-  const currentMarkers = useRef<kakao.maps.Marker[]>([]); // 현재 지도에 표시된 마커들을 관리
+  const [mapInstance, setMapInstance] = useState<any>(null)
+  const currentMarkers = useRef<any[]>([])
 
-  // 지도 인스턴스가 준비되면 idle 이벤트 리스너를 등록합니다.
+  const KAKAO_APP_KEY = process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY
+
   useEffect(() => {
-    if (!mapInstance) return;
-
-    // Debounce를 적용하여 onMapIdle 함수가 너무 자주 호출되지 않도록 합니다.
-    const debouncedOnMapIdle = debounce(() => {
-      setLoading(true);
-      console.log("지도가 멈췄습니다 (Debounced). 중앙 좌표와 반경으로 새 데이터를 요청합니다.");
-
-      const center = mapInstance.getCenter();
-      const bounds = mapInstance.getBounds();
-      const sw = bounds.getSouthWest();
-
-      const lat1 = center.getLat();
-      const lon1 = center.getLng();
-      const lat2 = sw.getLat();
-      const lon2 = sw.getLng();
-
-      const R = 6371e3; // metres
-      const φ1 = lat1 * Math.PI / 180;
-      const φ2 = lat2 * Math.PI / 180;
-      const Δφ = (lat2 - lat1) * Math.PI / 180;
-      const Δλ = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const radiusInMeters = R * c;
-
-      fetchZones(center.getLat(), center.getLng(), radiusInMeters)
-        .then(zonesData => {
-          console.log("새로운 구역 데이터 (Debounced):", zonesData);
-          setZones(zonesData);
-          setError(null);
-        })
-        .catch(err => {
-          console.error("새로운 구역 데이터를 불러오는 데 실패했습니다:", err);
-          setError("데이터를 갱신하는 데 실패했습니다.");
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }, 500); // 500ms(0.5초) 후에 실행
-
-    // 초기 로딩을 위해 한번 호출
-    debouncedOnMapIdle();
-
-    // idle 이벤트에 디바운스된 함수를 연결
-    window.kakao.maps.event.addListener(mapInstance, 'idle', debouncedOnMapIdle);
-
-    return () => {
-      window.kakao.maps.event.removeListener(mapInstance, 'idle', debouncedOnMapIdle);
-    };
-  }, [mapInstance]); // mapInstance가 준비되면 이 useEffect를 실행
-
-  // ‼️‼️‼️ 카카오맵 스크립트 직접 로드 및 지도 초기화 로직 ‼️‼️‼️
-  useEffect(() => {
-    const KAKAO_APP_KEY = process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY;
-    if (!KAKAO_APP_KEY) {
-      console.error("카카오맵 API 키가 설정되지 않았습니다.");
-      setError("카카오맵 API 키가 설정되지 않았습니다.");
-      return;
+    const loadInitialData = async () => {
+      try {
+        const zonesData = await fetchZones(37.5665, 126.978)
+        setZones(zonesData)
+      } catch (err) {
+        console.error("[v0] Failed to load zones:", err)
+        setZones([])
+      } finally {
+        setLoading(false)
+      }
     }
 
-    if (typeof window === "undefined" || !mapRef.current) return; // 클라이언트 환경에서만 실행
+    loadInitialData()
+  }, [])
 
-    const script = document.createElement("script");
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`;
-    script.async = true;
-    document.head.appendChild(script);
+  useEffect(() => {
+    if (!kakaoLoaded || !mapRef.current || !window.kakao || !window.kakao.maps) {
+      return
+    }
 
-    script.onload = () => {
-      console.log("카카오맵 SDK 스크립트 로드 완료.");
-      window.kakao.maps.load(() => {
-        console.log("카카오맵 라이브러리 로드 완료. 지도 초기화 시작.");
+    window.kakao.maps.load(() => {
+      if (!mapRef.current) return
+
+      try {
         const options = {
-          center: new window.kakao.maps.LatLng(37.5665, 126.9780), // 서울 시청
+          center: new window.kakao.maps.LatLng(37.5665, 126.978),
           level: 3,
-        };
-        const map = new window.kakao.maps.Map(mapRef.current!, options);
-        setMapInstance(map);
-        console.log("지도 인스턴스 생성 완료.", map);
-      });
-    };
-
-    script.onerror = (e) => {
-      console.error("카카오맵 SDK 스크립트 로드 실패:", e);
-      setError("카카오맵 SDK 로드에 실패했습니다. API 키 또는 네트워크를 확인하세요.");
-    };
-
-    return () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
+        }
+        const map = new window.kakao.maps.Map(mapRef.current!, options)
+        setMapInstance(map)
+        setShowMapError(false)
+      } catch (err) {
+        console.error("[v0] 카카오맵 생성 실패:", err)
       }
-    };
-  }, []);
+    })
+  }, [kakaoLoaded])
 
-  // zones 데이터가 변경될 때 마커를 다시 그리는 로직
   useEffect(() => {
     if (mapInstance && zones.length > 0) {
-      // 기존 마커 제거
-      currentMarkers.current.forEach(marker => marker.setMap(null));
-      currentMarkers.current = [];
+      currentMarkers.current.forEach((marker) => marker.setMap(null))
+      currentMarkers.current = []
 
       zones.forEach((zone) => {
-        const markerPosition = new window.kakao.maps.LatLng(zone.latitude, zone.longitude);
+        const markerPosition = new window.kakao.maps.LatLng(zone.latitude, zone.longitude)
+        
+        // 커스텀 마커 이미지 설정
+        const imageSrc = "/images/pin.png"
+        const imageSize = new window.kakao.maps.Size(40, 40)
+        const imageOption = { offset: new window.kakao.maps.Point(20, 40) }
+        
+        const markerImage = new window.kakao.maps.MarkerImage(imageSrc, imageSize, imageOption)
+        
         const marker = new window.kakao.maps.Marker({
           position: markerPosition,
           map: mapInstance,
-        });
+          image: markerImage
+        })
 
-        // 마커 클릭 시 정보창 표시
         const infoWindow = new window.kakao.maps.InfoWindow({
           content: `<div style="padding:5px;font-size:12px;">${zone.address}</div>`,
-        });
+        })
 
-        window.kakao.maps.event.addListener(marker, 'click', () => {
-          infoWindow.open(mapInstance, marker);
-          setSelectedMarker(zone as LocationMarker); // 상세 정보 표시를 위해 선택된 마커 설정
-        });
+        window.kakao.maps.event.addListener(marker, "click", () => {
+          infoWindow.open(mapInstance, marker)
+          setSelectedMarker(zone as LocationMarker)
+        })
 
-        currentMarkers.current.push(marker);
-      });
+        currentMarkers.current.push(marker)
+      })
     }
-  }, [mapInstance, zones]);
+  }, [mapInstance, zones])
 
-  // 부모 컴포넌트에서 호출할 함수들
   useImperativeHandle(ref, () => ({
     handleZoneCreated: (newZone: SmokingZone) => {
-      setZones((prev) => [...prev, newZone]);
+      setZones((prev) => [...prev, newZone])
       if (mapInstance) {
-        mapInstance.setCenter(new window.kakao.maps.LatLng(newZone.latitude, newZone.longitude));
+        mapInstance.setCenter(new window.kakao.maps.LatLng(newZone.latitude, newZone.longitude))
       }
     },
     centerOnLocation: (lat: number, lng: number) => {
       if (mapInstance) {
-        mapInstance.setCenter(new window.kakao.maps.LatLng(lat, lng));
-        mapInstance.setLevel(3); // 적절한 줌 레벨 설정
+        mapInstance.setCenter(new window.kakao.maps.LatLng(lat, lng))
+        mapInstance.setLevel(3)
       }
     },
-  }));
+  }))
+
+  const handleKakaoLoad = () => {
+    setKakaoLoaded(true)
+    setShowMapError(false)
+  }
+
+  const handleKakaoError = () => {
+    setShowMapError(true)
+    setLoading(false)
+  }
+
+  if (!KAKAO_APP_KEY) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-muted">
+        <div className="text-center p-6 max-w-md">
+          <MapPin className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <p className="text-foreground font-medium mb-2">지도 설정이 필요합니다</p>
+          <p className="text-sm text-muted-foreground">Vars 섹션에서 NEXT_PUBLIC_KAKAOMAP_APIKEY를 설정해주세요</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="relative w-full h-full">
-      {/* 지도가 그려질 영역 */}
-      <div ref={mapRef} className="w-full h-full z-10" style={{ filter: "hue-rotate(20deg) saturate(0.8)" }} />
+    <>
+      <Script
+        src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`}
+        strategy="afterInteractive"
+        onLoad={handleKakaoLoad}
+        onError={handleKakaoError}
+      />
 
-      {/* 로딩 및 에러 메시지 */}
-      {loading && (
-        <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-20">
-          <div className="text-foreground">지도 데이터를 불러오는 중...</div>
-        </div>
-      )}
+      <div className="relative w-full h-full">
+        {showMapError ? (
+          <div className="w-full h-full flex items-center justify-center bg-muted">
+            <div className="text-center p-6 max-w-md">
+              <MapPin className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-foreground font-medium mb-2">지도를 불러올 수 없습니다</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Kakao Developers 콘솔에서 현재 도메인을 Web 플랫폼에 등록해주세요
+              </p>
+              <p className="text-xs text-muted-foreground">
+                등록된 흡연구역 {zones.length}개는 정상적으로 관리되고 있습니다
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div ref={mapRef} className="w-full h-full z-10" />
+        )}
 
-      {error && (
-        <div className="absolute top-4 left-4 right-4 bg-red-500/10 border border-red-500/20 text-red-100 p-3 rounded-md z-20">
-          {error}
-        </div>
-      )}
+        {loading && !showMapError && (
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-20">
+            <div className="text-foreground">지도 데이터를 불러오는 중...</div>
+          </div>
+        )}
 
-      {/* 선택된 마커의 상세 정보 오버레이 (기존 Card 컴포넌트 사용) */}
-      {selectedMarker && (
-        <div className="absolute bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-          <Card className="mx-4 mb-4 bg-card/95 backdrop-blur-sm border-border shadow-xl rounded-lg animate-in zoom-in-90 duration-300">
-            <CardContent className="p-3">
-              {selectedMarker.image && (
-                <div className="mb-2 rounded-md overflow-hidden">
-                  <Image
-                    src={getImageUrl(selectedMarker.image) || "/placeholder.svg"}
-                    alt={`${selectedMarker.address} 흡연구역 사진`}
-                    width={200}
-                    height={120}
-                    className="w-full h-auto object-cover"
-                  />
+        {selectedMarker && (
+          <div className="absolute bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+            <Card className="mx-4 mb-4 bg-card/95 backdrop-blur-sm border-border shadow-xl rounded-lg">
+              <CardContent className="p-3">
+                {selectedMarker.image && (
+                  <div className="mb-2 rounded-md overflow-hidden">
+                    <Image
+                      src={selectedMarker.image || "/placeholder.svg"}
+                      alt={`${selectedMarker.address} 흡연구역 사진`}
+                      width={200}
+                      height={120}
+                      className="w-full h-auto object-cover"
+                    />
+                  </div>
+                )}
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-card-foreground">{selectedMarker.address}</div>
+                    <div className="text-xs text-muted-foreground">{selectedMarker.description}</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground"
+                    onClick={() => setSelectedMarker(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-              )}
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-card-foreground">{selectedMarker.address}</div>
-                  <div className="text-xs text-muted-foreground">{selectedMarker.description}</div>
+                <div className="flex flex-wrap gap-1">
+                  <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded-full">
+                    {selectedMarker.type}
+                  </span>
+                  {selectedMarker.subtype && (
+                    <span className="text-xs px-2 py-1 bg-secondary/50 text-secondary-foreground rounded-full">
+                      {selectedMarker.subtype}
+                    </span>
+                  )}
+                  <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-full">
+                    {selectedMarker.region}
+                  </span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 text-muted-foreground"
-                  onClick={() => setSelectedMarker(null)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded-full">{selectedMarker.type}</span>
-                {selectedMarker.subtype && <span className="text-xs px-2 py-1 bg-secondary/50 text-secondary-foreground rounded-full">{selectedMarker.subtype}</span>}
-                <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-full">{selectedMarker.region}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </>
   )
 })
 

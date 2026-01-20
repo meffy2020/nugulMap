@@ -1,37 +1,21 @@
 "use client"
-import { useState, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { User, LogOut, LogIn } from "lucide-react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { getCurrentUser, logout } from "@/lib/api"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 export function TopNavigation() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const router = useRouter()
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const currentUser = await getCurrentUser()
-      setIsLoggedIn(!!currentUser)
-    }
-    checkAuth()
-  }, [])
-
-  const handleLogout = async () => {
-    try {
-      await logout()
-      setIsLoggedIn(false)
-      router.push("/login")
-      router.refresh()
-    } catch (err) {
-      console.error("Logout failed:", err)
-      // 로그아웃 실패해도 로그인 페이지로 이동
-      setIsLoggedIn(false)
-      router.push("/login")
-    }
+  const handleLogout = () => {
+    console.log("[v0] 로그아웃 실행")
+    setIsLoggedIn(false)
+    // 추후 실제 로그아웃 API 호출 및 토큰 제거 로직 추가
+    router.push("/")
   }
 
   return (

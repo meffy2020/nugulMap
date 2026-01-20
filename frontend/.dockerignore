@@ -1,64 +1,11 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Build outputs
-.next/
-out/
-dist/
-build/
-.vercel
-
-# Testing
-coverage/
-.nyc_output
-
-# Environment files
-.env
+node_modules
+.next
+.git
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env*.local
-
-# Logs
-*.log
+.env
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
-
-# IDE files
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Git
-.git/
-.gitignore
-
-# Documentation
-*.md
-!README.md
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# Misc
-.cache/
-.turbo/
-.eslintcache
+Dockerfile
+.dockerignore
