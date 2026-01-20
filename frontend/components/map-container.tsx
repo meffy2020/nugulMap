@@ -8,6 +8,7 @@ import Script from "next/script"
 
 import { fetchZones, type SmokingZone, getImageUrl } from "@/lib/api"
 import Image from "next/image"
+import { cn } from "@/lib/utils"
 
 declare global {
   interface Window {
@@ -30,6 +31,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
   const [showMapError, setShowMapError] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
   const [mapInstance, setMapInstance] = useState<any>(null)
+  const clustererRef = useRef<any>(null)
   const currentMarkers = useRef<any[]>([])
 
   const KAKAO_APP_KEY = process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY
@@ -65,6 +67,26 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
         }
         const map = new window.kakao.maps.Map(mapRef.current!, options)
         setMapInstance(map)
+        
+        // 클러스터러 초기화
+        if (window.kakao.maps.MarkerClusterer) {
+          const clusterer = new window.kakao.maps.MarkerClusterer({
+            map: map,
+            averageCenter: true,
+            minLevel: 6,
+            styles: [{
+              width: '40px', height: '40px',
+              background: 'rgba(23, 23, 23, 0.9)',
+              borderRadius: '20px',
+              color: '#fff',
+              textAlign: 'center',
+              fontWeight: 'bold',
+              lineHeight: '41px'
+            }]
+          })
+          clustererRef.current = clusterer
+        }
+        
         setShowMapError(false)
       } catch (err) {
         console.error("[v0] 카카오맵 생성 실패:", err)
@@ -74,10 +96,13 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
 
   useEffect(() => {
     if (mapInstance && zones.length > 0) {
-      currentMarkers.current.forEach((marker) => marker.setMap(null))
-      currentMarkers.current = []
-
-      zones.forEach((zone) => {
+      // 기존 마커 및 클러스터 정리
+      if (clustererRef.current) {
+        clustererRef.current.clear()
+      }
+      currentMarkers.current.forEach(m => m.setMap(null))
+      
+      const markers = zones.map((zone) => {
         const markerPosition = new window.kakao.maps.LatLng(zone.latitude, zone.longitude)
         
         // 커스텀 마커 이미지 설정
@@ -89,21 +114,24 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
         
         const marker = new window.kakao.maps.Marker({
           position: markerPosition,
-          map: mapInstance,
           image: markerImage
         })
 
-        const infoWindow = new window.kakao.maps.InfoWindow({
-          content: `<div style="padding:5px;font-size:12px;">${zone.address}</div>`,
-        })
-
         window.kakao.maps.event.addListener(marker, "click", () => {
-          infoWindow.open(mapInstance, marker)
           setSelectedMarker(zone as LocationMarker)
+          mapInstance.panTo(markerPosition)
         })
 
-        currentMarkers.current.push(marker)
+        return marker
       })
+
+      if (clustererRef.current) {
+        clustererRef.current.addMarkers(markers)
+      } else {
+        markers.forEach(m => m.setMap(mapInstance))
+      }
+      
+      currentMarkers.current = markers
     }
   }, [mapInstance, zones])
 
@@ -186,7 +214,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
                     <div className="mb-4 rounded-[1.5rem] overflow-hidden shadow-sm aspect-video relative">
                       <Image
                         src={getImageUrl(selectedMarker.image) || "/placeholder.svg"}
-                        alt={`${selectedMarker.address} 흡연구역 사진"}
+                        alt={`${selectedMarker.address} 흡연구역 사진`}
                         fill
                         className="object-cover"
                       />
@@ -195,8 +223,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="text-xl font-black text-foreground tracking-tight mb-1">{selectedMarker.address}</div>
-                      <div className="text-sm text-muted-foreground font-medium leading-relaxed">{selectedMarker.description || "상세 설명이 없습니다."}
-</div>
+                      <div className="text-sm text-muted-foreground font-medium leading-relaxed">{selectedMarker.description || "상세 설명이 없습니다."}</div>
                     </div>
                     <Button
                       variant="secondary"
