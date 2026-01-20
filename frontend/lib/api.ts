@@ -15,12 +15,11 @@ export interface SmokingZone {
 // Zone 생성 시 요청 DTO에 맞는 타입 정의
 export type CreateZonePayload = Omit<SmokingZone, "id" | "image">
 
-// 환경 변수가 있으면 최우선 사용 (Vercel 배포 시 설정된 값)
-// 없으면 브라우저에서는 상대 경로(""), 서버에서는 도커 내부 경로("http://nginx") 사용
+// 환경 변수가 있으면 최우선 사용, 없으면 브라우저에서는 운영 API 주소, 서버에서는 도커 내부 주소 사용
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
   ? process.env.NEXT_PUBLIC_API_BASE_URL
   : typeof window !== "undefined"
-    ? ""
+    ? "https://api.nugulmap.com"
     : "http://nginx"
 
 const MOCK_ZONES: SmokingZone[] = [
