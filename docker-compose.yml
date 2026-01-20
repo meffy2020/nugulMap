@@ -1,20 +1,5 @@
 services:
-  # 1. Nginx
-  nginx:
-    image: nginx:latest
-    container_name: neogul-map-nginx
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - frontend
-      - api-server
-    restart: unless-stopped
-    networks:
-      - neogul-map-network
-
-  # 2. MinIO
+  # 1. MinIO
   minio:
     image: minio/minio:latest
     container_name: neogul-map-minio
@@ -36,7 +21,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2-1. MinIO 버킷 자동 생성 (한 번 실행 후 종료)
+  # 1-1. MinIO 버킷 자동 생성
   minio-init:
     image: minio/mc
     container_name: neogul-map-minio-init
@@ -57,7 +42,7 @@ services:
     networks:
       - neogul-map-network
 
-  # 3. MySQL
+  # 2. MySQL
   mysql:
     image: mysql:8.0
     container_name: neogul-map-mysql
@@ -75,7 +60,7 @@ services:
       retries: 5
       start_period: 30s
 
-  # 4. Spring Boot (Backend)
+  # 3. Spring Boot (Backend)
   api-server:
     build:
       context: ./backend/api-server
@@ -84,7 +69,7 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - ./backend/api-server/.env.local  # 파일 존재 여부 꼭 확인!
+      - ./backend/api-server/.env.local
     environment:
       SPRING_PROFILES_ACTIVE: dev,mysql,s3
       MYSQL_HOST: mysql
@@ -92,14 +77,13 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-mydb}
       MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
-      MYSQL_DDL_AUTO: create-drop
+      MYSQL_DDL_AUTO: update  # 기존 데이터 보존을 위해 update로 변경
       MYSQL_SHOW_SQL: "true"
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}  # 프런트엔드 URL (.env 파일에서 읽어옴)
-      # S3/MinIO 설정
+      FRONTEND_URL: https://nugulmap.com
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-admin}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-password}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-my-bucket}
-      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-http://minio:9000}  # Docker 네트워크 내부에서는 minio 사용
+      AWS_S3_ENDPOINT: http://minio:9000
       AWS_REGION: ${AWS_REGION:-us-east-1}
     depends_on:
       mysql:
@@ -108,31 +92,6 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
-    restart: unless-stopped
-    networks:
-      - neogul-map-network
-
-  # 5. Next.js (Frontend)
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        # 빌드 타임 주입 (매우 중요)
-        # 루트에 있는 .env 파일의 값을 빌드 단계로 넘깁니다.
-        # NEXT_PUBLIC_API_BASE_URL은 상대 경로 '/api'를 사용 (Nginx를 통해 프록시됨)
-        NEXT_PUBLIC_KAKAOMAP_APIKEY: ${NEXT_PUBLIC_KAKAOMAP_APIKEY}
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
-    container_name: neogul-map-frontend
-    ports:
-      - "3000:3000"
-    # 실행 시점 주입 (환경 변수 파일 경로 명시)
-    env_file:
-      - ./frontend/.env.local
-    environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_KAKAOMAP_APIKEY=${NEXT_PUBLIC_KAKAOMAP_APIKEY}
-      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
     restart: unless-stopped
     networks:
       - neogul-map-network
