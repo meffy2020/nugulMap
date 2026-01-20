@@ -238,6 +238,22 @@ export async function fetchUserZones(): Promise<SmokingZone[]> {
 }
 
 /**
+ * 장소 검색 (키워드)
+ */
+export async function searchZones(keyword: string): Promise<SmokingZone[]> {
+  const response = await fetch(`${API_BASE_URL}/api/zones/search?keyword=${encodeURIComponent(keyword)}`, {
+    credentials: "include",
+  })
+
+  if (!response.ok) {
+    throw new Error(`API call failed: ${response.status}`)
+  }
+
+  const result = await response.json()
+  return result.data.zones
+}
+
+/**
  * 흡연구역 삭제
  */
 export async function deleteZone(id: number): Promise<void> {
