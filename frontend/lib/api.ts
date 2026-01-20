@@ -16,7 +16,7 @@ export interface SmokingZone {
 export type CreateZonePayload = Omit<SmokingZone, "id" | "image">
 
 // 브라우저 환경에서는 상대 경로 사용, 서버 환경(SSR)에서는 도커 내부 네트워크 사용
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? "" : "http://nginx");
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || (typeof window !== "undefined" ? "" : "http://nginx");
 
 const MOCK_ZONES: SmokingZone[] = [
   {
