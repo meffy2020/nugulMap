@@ -4,55 +4,50 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { User, LogOut, LogIn } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
+import { useAuth } from "@/hooks/use-auth"
+import { getImageUrl } from "@/lib/api"
+
+import { useAuth } from "@/hooks/use-auth"
+import { getImageUrl } from "@/lib/api"
 
 export function TopNavigation() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const { user, login, logout, isLoading } = useAuth()
   const router = useRouter()
 
-  const handleLogout = () => {
-    console.log("[v0] 로그아웃 실행")
-    setIsLoggedIn(false)
-    // 추후 실제 로그아웃 API 호출 및 토큰 제거 로직 추가
-    router.push("/")
-  }
-
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 h-16 bg-background/95 backdrop-blur-sm border-b border-border px-4 flex items-center justify-between transition-all duration-300">
-      <div className="flex items-center">
-        <h1 className="text-xl font-bold text-foreground transition-all duration-300 hover:text-primary cursor-default">
-          너굴맵
+    <nav className="fixed top-0 left-0 right-0 z-50 h-16 bg-background/80 backdrop-blur-md border-b border-border/50 px-6 flex items-center justify-between transition-all duration-300 shadow-sm">
+      <div className="flex items-center gap-2 group cursor-pointer" onClick={() => router.push("/")}>
+        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+           <Image src="/images/pin.png" alt="Logo" width={20} height={20} className="invert brightness-0" />
+        </div>
+        <h1 className="text-xl font-black text-foreground tracking-tighter">
+          NugulMap
         </h1>
       </div>
 
-      {isLoggedIn ? (
+      {isLoading ? (
+        <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+      ) : user ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="relative h-10 w-10 rounded-full transition-all duration-300 hover:scale-110 hover:bg-secondary/50"
+              className="relative h-10 w-10 rounded-full transition-all duration-300 hover:scale-110 hover:bg-secondary/20"
             >
-              <Avatar className="h-10 w-10 transition-all duration-300 hover:ring-2 hover:ring-primary/30">
-                <AvatarImage src="/diverse-user-avatars.png" alt="User Avatar" />
+              <Avatar className="h-10 w-10 ring-2 ring-border group-hover:ring-primary/30 transition-all">
+                <AvatarImage src={getImageUrl(user.profileImage) || "/neutral-user-avatar.png"} alt={user.nickname} />
                 <AvatarFallback className="bg-secondary text-secondary-foreground">
                   <User className="h-5 w-5" />
                 </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-56 animate-in slide-in-from-top-2 fade-in duration-300"
-            align="end"
-            forceMount
-          >
-            <DropdownMenuItem className="cursor-pointer transition-all duration-200 hover:bg-secondary/80 hover:scale-[1.02]">
-              <User className="mr-2 h-4 w-4 transition-colors duration-200" />
-              <span>내 정보</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
+...
+            <DropdownMenuItem 
               className="cursor-pointer transition-all duration-200 hover:bg-secondary/80 hover:scale-[1.02]"
-              onClick={handleLogout}
+              onClick={logout}
             >
               <LogOut className="mr-2 h-4 w-4 transition-colors duration-200" />
               <span>로그아웃</span>
@@ -60,12 +55,14 @@ export function TopNavigation() {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
-        <Link href="/login">
-          <Button variant="default" className="transition-all duration-300 hover:scale-105">
-            <LogIn className="mr-2 h-4 w-4" />
-            로그인
-          </Button>
-        </Link>
+        <Button 
+          variant="default" 
+          onClick={login}
+          className="transition-all duration-300 hover:scale-105 rounded-xl font-bold px-6 shadow-lg active:scale-95"
+        >
+          <LogIn className="mr-2 h-4 w-4" />
+          로그인
+        </Button>
       )}
     </nav>
   )

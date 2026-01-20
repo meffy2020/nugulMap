@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Image from "next/image"
+import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<string | null>(null)
@@ -17,43 +18,44 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-lg border-2">
-        <CardHeader className="text-center space-y-6 pb-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl" />
+
+      <Card className="w-full max-w-md shadow-[0_20px_50px_rgba(0,0,0,0.1)] border-none rounded-[3rem] overflow-hidden bg-background/80 backdrop-blur-xl relative z-10">
+        <CardHeader className="text-center space-y-6 pt-12 pb-8">
           <div className="flex justify-center">
-            <div className="w-32 h-32 flex items-center justify-center">
-              <Image src="/images/pin.png" alt="NugulMap Logo" width={128} height={128} className="object-contain" />
+            <div className="w-24 h-24 bg-primary rounded-[2rem] flex items-center justify-center shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500">
+              <Image src="/images/pin.png" alt="NugulMap Logo" width={48} height={48} className="invert brightness-0" />
             </div>
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-4xl font-bold text-foreground" style={{ fontFamily: "'Righteous', sans-serif" }}>
+            <CardTitle className="text-5xl font-black text-foreground tracking-tighter" style={{ fontFamily: "'Righteous', sans-serif" }}>
               NugulMap
             </CardTitle>
-            <CardDescription className="text-base text-muted-foreground">흡연구역을 쉽게 찾아보세요</CardDescription>
+            <CardDescription className="text-lg text-muted-foreground font-medium">대한민국 모든 너구리들의 쉼터</CardDescription>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4 pb-8">
+        <CardContent className="space-y-4 px-8 pb-12">
           <Button
             onClick={() => handleSocialLogin("kakao")}
             disabled={isLoading !== null}
-            className="w-full font-medium py-6 h-auto rounded-lg transition-all hover:shadow-md"
+            className="w-full font-black py-7 h-auto rounded-2xl transition-all hover:shadow-xl hover:scale-[1.02] active:scale-95 border-none text-base"
             style={{
               backgroundColor: "#FEE500",
-              color: "#000000",
+              color: "#3C1E1E",
             }}
           >
             {isLoading === "kakao" ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                카카오 로그인 중...
-              </div>
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <div className="flex items-center gap-3">
                 <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.8 6.7L6 21.5c-.1.4.3.7.6.5l3.6-2.5c.6.1 1.2.2 1.8.2 5.5 0 10-3.6 10-8S17.5 3 12 3z" />
                 </svg>
-                카카오로 시작하기
+                카카오로 3초만에 시작
               </div>
             )}
           </Button>
@@ -61,23 +63,20 @@ export default function LoginPage() {
           <Button
             onClick={() => handleSocialLogin("naver")}
             disabled={isLoading !== null}
-            className="w-full font-medium py-6 h-auto rounded-lg transition-all hover:shadow-md"
+            className="w-full font-black py-7 h-auto rounded-2xl transition-all hover:shadow-xl hover:scale-[1.02] active:scale-95 border-none text-base"
             style={{
               backgroundColor: "#03C75A",
               color: "#FFFFFF",
             }}
           >
             {isLoading === "naver" ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                네이버 로그인 중...
-              </div>
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-white rounded flex items-center justify-center">
-                  <span className="text-[#03C75A] text-sm font-bold">N</span>
+                <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
+                  <span className="text-[#03C75A] text-xs font-black">N</span>
                 </div>
-                네이버로 시작하기
+                네이버로 로그인
               </div>
             )}
           </Button>
@@ -85,13 +84,10 @@ export default function LoginPage() {
           <Button
             onClick={() => handleSocialLogin("google")}
             disabled={isLoading !== null}
-            className="w-full font-medium py-6 h-auto rounded-lg transition-all hover:shadow-md bg-white text-foreground border-2 border-border hover:bg-gray-50"
+            className="w-full font-black py-7 h-auto rounded-2xl transition-all hover:shadow-xl hover:scale-[1.02] active:scale-95 bg-white text-foreground border-2 border-border/50 hover:bg-gray-50 text-base"
           >
             {isLoading === "google" ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                구글 로그인 중...
-              </div>
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <div className="flex items-center gap-3">
                 <svg className="w-6 h-6" viewBox="0 0 24 24">
@@ -112,16 +108,15 @@ export default function LoginPage() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                구글로 시작하기
+                구글로 로그인
               </div>
             )}
           </Button>
 
-          <div className="text-center pt-6 border-t">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              로그인하면 <span className="text-foreground hover:underline cursor-pointer font-medium">서비스 약관</span>{" "}
-              및 <span className="text-foreground hover:underline cursor-pointer font-medium">개인정보 처리방침</span>에
-              동의하는 것으로 간주됩니다.
+          <div className="text-center pt-8">
+            <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase tracking-widest opacity-60">
+              By continuing, you agree to our <br/>
+              <span className="text-foreground hover:underline cursor-pointer">Terms of Service</span> & <span className="text-foreground hover:underline cursor-pointer">Privacy Policy</span>
             </p>
           </div>
         </CardContent>
