@@ -59,11 +59,41 @@
 - [x] **Git Merge & Conflict Resolution**:
   - `migration` 브랜치의 모든 변경사항을 원격 `main` 브랜치와 병합 완료.
   - `add-location-modal.tsx` 등 주요 파일의 충돌을 `migration` 버전(최신 기능) 중심으로 해결.
-- [ ] **EC2 배포 (실행 대기)**:
-  - EC2 접속 -> `git pull origin main` -> `docker compose up -d --build`.
+- [x] **EC2 배포 (완료)**:
+  - Docker Compose에서 프론트엔드/Nginx 제거 후 **백엔드 전용(api-server, mysql, minio)**으로 경량화 배포 성공.
+  - EC2 자체 Nginx를 이용한 Reverse Proxy 및 SSL(Certbot) 적용 완료.
+  - `https://api.nugulmap.com/api/test/health` 를 통해 정상 동작 확인.
 
-### 💡 최종 상태
-현재 깃허브 `main` 브랜치는 로컬 테스트를 통과한 **완성된 소스 코드**를 포함하고 있습니다. (주소 변환, 마이페이지, 백엔드 테스트 허용 등)
+## 📅 2026-01-20 (Phase 2): 기능 고도화 및 서비스 완성도 제고
+
+### 🚀 요약
+기본 배포 환경 구축 완료 후, 실제 서비스 운영을 위한 UI/UX 개편, 로그인 연동, 공공데이터 적재 작업을 포함한 2단계 로드맵을 수립하고 `TODO.md`를 생성했습니다.
+
+### ✅ 완료된 작업 (Completed)
+- **운영 안정화**: Vercel 환경 변수 주입 이슈 해결 및 API 엔드포인트 최적화.
+- **프로젝트 관리**: `TODO.md` 생성 및 향후 우선순위 설정 완료.
+- **로그인 시스템**: 
+  - 프론트엔드 `useAuth` 훅 및 `AuthProvider` 구현으로 전역 로그인 상태 관리.
+  - `fetch` 요청 시 `credentials: 'include'` 추가하여 HttpOnly 쿠키 전송 보장.
+  - 로그인 버튼 실제 백엔드 OAuth2 엔드포인트 연결.
+- **데이터 마이그레이션**:
+  - `backend/data-scripts/scripts/upload_to_mysql.py` 작성 및 실행 성공 (용산구 데이터 적재 완료).
+  - 백엔드 `ZoneService` 및 `UserService`의 데이터 정합성 이슈(null 허용 등) 해결.
+
+### 📝 진행 예정 (Next Steps)
+- **로그인 시스템**: OAuth2 연동 상태 점검 및 프론트엔드 토큰 관리 구현.
+- **데이터 마이그레이션**: 파이썬 스크립트를 활용한 흡연구역 데이터 DB 적재.
+- **디자인**: 메인 화면 및 로그인 페이지 UI/UX 개편.
+
+### 💡 최종 아키텍처
+- **Frontend**: Vercel (Next.js) - `https://nugulmap.com`
+- **Backend**: AWS EC2 (Spring Boot) - `https://api.nugulmap.com`
+- **Database**: EC2 내 Docker MySQL
+- **Storage**: EC2 내 Docker MinIO (S3 호환)
+
+### 🚀 Vercel 연결 가이드
+1. Vercel `NEXT_PUBLIC_API_BASE_URL`을 `https://api.nugulmap.com`으로 설정.
+2. Vercel 프로젝트 Redeploy 실행.
 
 ---
 

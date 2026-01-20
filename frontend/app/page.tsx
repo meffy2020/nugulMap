@@ -7,10 +7,25 @@ import { AddLocationModal } from "@/components/add-location-modal"
 import { FloatingUserProfile } from "@/components/floating-user-profile"
 import { CurrentLocationButton } from "@/components/current-location-button"
 import { SearchBar } from "@/components/search-bar"
+import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
+import { searchZones } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const mapRef = useRef<MapContainerRef>(null)
+  const { user } = useAuth()
+  const router = useRouter()
+  const { toast } = useToast()
+
+  const handleAddClick = () => {
+    if (!user) {
+      router.push("/login")
+      return
+    }
+    setIsModalOpen(true)
+  }
 
   const handleZoneCreated = (newZone: any) => {
     console.log("[v0] New zone created, updating map:", newZone)
@@ -26,9 +41,29 @@ export default function HomePage() {
     }
   }
 
-  const handleSearch = (query: string) => {
+  const handleSearch = async (query: string) => {
     console.log("[v0] Search query:", query)
-    // TODO: 실제 검색 로직 구현
+    try {
+      const results = await searchZones(query)
+      if (results && results.length > 0) {
+        if (mapRef.current?.centerOnLocation) {
+          mapRef.current.centerOnLocation(results[0].latitude, results[0].longitude)
+        }
+      } else {
+        toast({
+          title: "검색 결과 없음",
+          description: `'${query}'에 대한 흡연구역을 찾을 수 없습니다.`,
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error("Search failed:", err)
+      toast({
+        title: "검색 오류",
+        description: "검색 중 문제가 발생했습니다.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -49,7 +84,7 @@ export default function HomePage() {
         </div>
 
         <div className="absolute bottom-8 right-6 pointer-events-auto z-40">
-          <FloatingActionButton onClick={() => setIsModalOpen(true)} />
+          <FloatingActionButton onClick={handleAddClick} />
         </div>
       </div>
 

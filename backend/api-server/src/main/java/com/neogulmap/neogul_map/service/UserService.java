@@ -53,7 +53,7 @@ public class UserService {
                 .oauthProvider(userRequest.getOauthProvider())
                 .nickname(userRequest.getNickname())
                 .profileImage(profileImagePath)
-                .createdAt(userRequest.getCreatedAt())
+                .createdAt(userRequest.getCreatedAt() != null ? userRequest.getCreatedAt() : LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .build();
         User savedUser = userRepository.save(user);
         return UserResponse.from(savedUser);

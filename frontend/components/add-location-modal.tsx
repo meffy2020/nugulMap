@@ -303,135 +303,142 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
       />
 
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-full max-w-md max-h-[95vh] overflow-y-auto bg-card border-border p-4">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-card-foreground">신규 흡연구역 등록</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-background border-none shadow-2xl p-0 gap-0 rounded-3xl overflow-hidden">
+          <div className="p-6 bg-primary text-primary-foreground">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                <MapPin className="w-6 h-6" />
+                새로운 흡연구역 제보
+              </DialogTitle>
+              <p className="text-primary-foreground/80 text-sm mt-1">정확한 위치와 사진을 공유하여 너구리들을 도와주세요!</p>
+            </DialogHeader>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="address" className="text-sm font-medium text-card-foreground">
-                주소
-              </Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="주소를 입력하세요"
-                className="bg-input border-border text-foreground h-11"
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div className="space-y-4">
+              <div className="bg-muted/30 p-4 rounded-2xl border border-border/50 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">
+                    위치 주소
+                  </Label>
+                  <Input
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    placeholder="주소를 입력하거나 지도에서 핀을 옮기세요"
+                    className="bg-background border-border/50 h-12 rounded-xl focus:ring-primary/20"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-card-foreground">위치</Label>
-              <div ref={mapContainerRef} className="w-full h-40 bg-muted rounded-lg border border-border" />
-            </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">위치 확인</Label>
+                  <div ref={mapContainerRef} className="w-full h-48 bg-muted rounded-xl border border-border/50 overflow-hidden shadow-inner" />
+                  <p className="text-[10px] text-muted-foreground text-center italic">지도를 클릭하거나 핀을 드래그하여 위치를 조정할 수 있습니다.</p>
+                </div>
+              </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-card-foreground">유형 선택</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {ZONE_TYPES.map((type) => (
-                  <Button
-                    key={type.value}
-                    type="button"
-                    variant={formData.type === type.value ? "default" : "outline"}
-                    className={`h-12 text-sm font-medium ${
-                      formData.type === type.value
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground border-border hover:bg-accent"
-                    } transition-all`}
-                    onClick={() => setFormData({ ...formData, type: type.value })}
-                  >
-                    {type.label}
-                  </Button>
-                ))}
+              <div className="space-y-3">
+                <Label className="text-sm font-bold ml-1">구역 유형</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ZONE_TYPES.map((type) => (
+                    <Button
+                      key={type.value}
+                      type="button"
+                      variant={formData.type === type.value ? "default" : "outline"}
+                      className={cn(
+                        "h-14 rounded-2xl transition-all border-2",
+                        formData.type === type.value 
+                          ? "bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]" 
+                          : "bg-background border-border/50 hover:border-primary/30"
+                      )}
+                      onClick={() => setFormData({ ...formData, type: type.value })}
+                    >
+                      {type.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-sm font-bold ml-1">현장 사진</Label>
+                {!imagePreview ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-28 rounded-2xl border-2 border-dashed border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all flex flex-col gap-2"
+                      onClick={startCamera}
+                    >
+                      <Camera className="h-6 w-6" />
+                      <span className="text-xs font-medium">카메라 촬영</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-28 rounded-2xl border-2 border-dashed border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all flex flex-col gap-2"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <ImageIcon className="h-6 w-6" />
+                      <span className="text-xs font-medium">갤러리 선택</span>
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileSelect}
+                    />
+                  </div>
+                ) : (
+                  <div className="relative group">
+                    <img
+                      src={imagePreview || "/placeholder.svg"}
+                      alt="Preview"
+                      className="w-full h-56 object-cover rounded-2xl border border-border shadow-md"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
+                       <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="rounded-full shadow-lg"
+                        onClick={removeImage}
+                      >
+                        <X className="h-4 w-4 mr-1" /> 사진 삭제
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-card-foreground">사진 추가</Label>
-              {!imagePreview ? (
-                <div className="space-y-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-24 border-2 border-dashed border-border hover:border-primary transition-all bg-transparent"
-                    onClick={startCamera}
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Camera className="h-7 w-7" />
-                      <span className="text-sm font-medium">사진 촬영</span>
-                    </div>
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 bg-transparent border-border hover:bg-accent font-medium"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <ImageIcon className="h-5 w-5 mr-2" />
-                    갤러리에서 선택
-                  </Button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <img
-                    src={imagePreview || "/placeholder.svg"}
-                    alt="Preview"
-                    className="w-full h-48 object-cover rounded-lg border border-border"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8"
-                    onClick={removeImage}
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
-                </div>
-              )}
-            </div>
-
             {error && (
-              <div className="text-red-500 text-sm bg-red-50 p-3 rounded-md border border-red-200">{error}</div>
+              <div className="text-destructive text-xs font-medium bg-destructive/10 p-3 rounded-xl border border-destructive/20 animate-shake">
+                ⚠️ {error}
+              </div>
             )}
 
-            <div className="flex flex-col gap-2 pt-2">
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
-              >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    저장 중...
-                  </div>
-                ) : showSuccess ? (
-                  <div className="flex items-center gap-2">
-                    <Check className="h-5 w-5" />
-                    완료!
-                  </div>
-                ) : (
-                  "저장하기"
-                )}
-              </Button>
+            <div className="flex gap-3 pt-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleCancel}
                 disabled={isLoading}
-                className="w-full h-12 border-border text-foreground bg-transparent hover:bg-accent font-medium"
+                className="flex-1 h-14 rounded-2xl border-2 font-bold"
               >
                 취소
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading || !formData.type}
+                className="flex-[2] h-14 rounded-2xl font-bold shadow-xl transition-transform active:scale-95"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                ) : showSuccess ? (
+                  <Check className="h-5 w-5 mr-2" />
+                ) : null}
+                {showSuccess ? "등록 완료!" : "제보하기"}
               </Button>
             </div>
           </form>

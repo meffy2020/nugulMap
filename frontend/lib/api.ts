@@ -60,6 +60,7 @@ export async function fetchZones(lat: number, lon: number, radius = 1.0): Promis
   try {
     const response = await fetch(`${API_BASE_URL}/api/zones?latitude=${lat}&longitude=${lon}&radius=${radius}`, {
       cache: "no-store",
+      credentials: "include",
     })
 
     if (!response.ok) {
@@ -92,6 +93,7 @@ export async function createZone(zoneData: CreateZonePayload, imageFile?: File):
     const response = await fetch(`${API_BASE_URL}/api/zones`, {
       method: "POST",
       body: formData,
+      credentials: "include",
     })
 
     if (!response.ok) {
@@ -129,7 +131,9 @@ export interface UserProfile {
  * @returns UserProfile 객체
  */
 export async function fetchUserProfile(userId: number): Promise<UserProfile> {
-  const response = await fetch(`${API_BASE_URL}/api/users/${userId}`)
+  const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+    credentials: "include",
+  })
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -152,6 +156,7 @@ export async function updateUserNickname(userId: number, nickname: string): Prom
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ nickname }),
+    credentials: "include",
   })
 
   if (!response.ok) {
@@ -163,28 +168,90 @@ export async function updateUserNickname(userId: number, nickname: string): Prom
 }
 
 /**
- * 사용자 프로필 이미지를 업데이트합니다.
- * @param userId - 업데이트할 사용자의 ID
- * @param imageFile - 새로운 프로필 이미지 파일
+ * 회원가입 완료 처리 (닉네임 및 프로필 이미지 등록)
  */
-export async function updateUserProfileImage(userId: number, imageFile: File): Promise<void> {
+export async function completeSignup(nickname: string, profileImage?: File): Promise<any> {
   const formData = new FormData()
-  formData.append("profileImage", imageFile)
+  formData.append("nickname", nickname)
+  if (profileImage) {
+    formData.append("profileImage", profileImage)
+  }
 
-  const response = await fetch(`${API_BASE_URL}/api/users/${userId}/profile-image`, {
-    method: "PUT",
+  const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+    method: "POST",
     body: formData,
+    credentials: "include",
   })
 
   if (!response.ok) {
     const errorText = await response.text()
     throw new Error(`API call failed: ${response.status} ${errorText}`)
   }
+
+  return response.json()
 }
 
-// ----------------------------------------------------------------------------
-// 하위 호환성을 위한 ApiService 클래스 (기존 코드와의 호환성 유지)
-// ----------------------------------------------------------------------------
+/**
+ * 현재 로그인된 사용자 정보 가져오기
+ */
+export async function getCurrentUser(): Promise<UserProfile | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      credentials: "include",
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const result = await response.json()
+    return result.data.user
+  } catch (err) {
+    console.error("Failed to get current user:", err)
+    return null
+  }
+}
+
+/**
+ * 이미지 URL 생성 헬퍼
+ */
+export function getImageUrl(imagePath: string | null | undefined): string | null {
+  if (!imagePath) return null
+  if (imagePath.startsWith("http")) return imagePath
+  return `${API_BASE_URL}/api/images/${imagePath}`
+}
+
+/**
+ * 사용자 등록 장소 가져오기
+ */
+export async function fetchUserZones(): Promise<SmokingZone[]> {
+  const response = await fetch(`${API_BASE_URL}/api/zones/my`, {
+    credentials: "include",
+  })
+
+  if (!response.ok) {
+    throw new Error(`API call failed: ${response.status}`)
+  }
+
+  const result = await response.json()
+  return result.data.zones
+}
+
+/**
+ * 장소 검색 (키워드)
+ */
+export async function searchZones(keyword: string): Promise<SmokingZone[]> {
+  const response = await fetch(`${API_BASE_URL}/api/zones/search?keyword=${encodeURIComponent(keyword)}`, {
+    credentials: "include",
+  })
+
+  if (!response.ok) {
+    throw new Error(`API call failed: ${response.status}`)
+  }
+
+  const result = await response.json()
+  return result.data.zones
+}
 
 export interface ZoneRequest {
   region: string

@@ -8,17 +8,12 @@ import Image from "next/image"
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<string | null>(null)
 
-  const handleSocialLogin = async (provider: "kakao" | "naver" | "google") => {
+  const handleSocialLogin = (provider: "kakao" | "naver" | "google") => {
     setIsLoading(provider)
-
-    console.log(`[v0] ${provider} login initiated`)
-
-    setTimeout(() => {
-      setIsLoading(null)
-      console.log(`[v0] ${provider} login completed`)
-      // 약관 동의 페이지로 이동
-      window.location.href = "/terms"
-    }, 2000)
+    // 백엔드 OAuth2 인증 엔드포인트로 리다이렉트
+    // 환경 변수 NEXT_PUBLIC_API_BASE_URL (예: https://api.nugulmap.com) 사용
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.nugulmap.com";
+    window.location.href = `${backendUrl}/api/oauth2/authorization/${provider}`;
   }
 
   return (

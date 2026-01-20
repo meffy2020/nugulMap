@@ -43,6 +43,10 @@ public class ZoneService {
             }
 
             Zone zone = request.toEntity();
+            // date 설정 (null이면 현재 날짜)
+            if (zone.getDate() == null) {
+                zone.setDate(java.time.LocalDate.now());
+            }
             // creator 설정 (User FK 관계)
             zone.setCreator(creator);
             // 하위 호환성을 위해 user 필드도 설정 (deprecated)
@@ -51,18 +55,11 @@ public class ZoneService {
             }
             
             Zone savedZone = zoneRepository.save(zone);
-            
             return ZoneResponse.from(savedZone);
             
         } catch (DataIntegrityViolationException e) {
-            // DB 유니크 제약조건 위반 시 중복 주소로 처리
-            if (e.getMessage().contains("address") || e.getMessage().contains("unique")) {
-                throw new BusinessBaseException(ErrorCode.ZONE_ALREADY_EXISTS, e);
-            }
-            throw new BusinessBaseException(ErrorCode.ZONE_SAVE_DATABASE_ERROR, e);
-        } catch (IllegalArgumentException e) {
-            log.error("Zone 생성 중 잘못된 인수 오류: {}", e.getMessage(), e);
-            throw new ValidationException(ErrorCode.VALIDATION_ERROR, "Zone 생성 중 잘못된 인수가 전달되었습니다: " + e.getMessage());
+            log.warn("Zone creation failed due to data integrity violation (likely duplicate address): {}", request.getAddress());
+            throw new BusinessBaseException(ErrorCode.ZONE_ALREADY_EXISTS, e);
         } catch (Exception e) {
             log.error("Zone 생성 실패: {}", e.getMessage(), e);
             throw new BusinessBaseException(ErrorCode.ZONE_SAVE_DATABASE_ERROR, e);
@@ -221,10 +218,7 @@ public class ZoneService {
         try {
             return ZoneResponse.from(zone);
         } catch (DataIntegrityViolationException e) {
-            if (e.getMessage().contains("address") || e.getMessage().contains("unique")) {
-                throw new BusinessBaseException(ErrorCode.ZONE_ALREADY_EXISTS, e);
-            }
-            throw new BusinessBaseException(ErrorCode.ZONE_SAVE_DATABASE_ERROR, e);
+            throw new BusinessBaseException(ErrorCode.ZONE_ALREADY_EXISTS, e);
         } catch (Exception e) {
             log.error("Zone 업데이트 실패: {}", e.getMessage(), e);
             throw new BusinessBaseException(ErrorCode.ZONE_SAVE_DATABASE_ERROR, e);

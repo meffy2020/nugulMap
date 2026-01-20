@@ -11,17 +11,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Camera, User } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
+import { completeSignup } from "@/lib/api"
 
 export default function SignupPage() {
   const router = useRouter()
   const [nickname, setNickname] = useState("")
   const [profileImage, setProfileImage] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [useDefaultProfile, setUseDefaultProfile] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setImageFile(file)
       const reader = new FileReader()
       reader.onloadend = () => {
         setProfileImage(reader.result as string)
@@ -34,19 +37,22 @@ export default function SignupPage() {
   const handleDefaultProfile = () => {
     setUseDefaultProfile(true)
     setProfileImage(null)
+    setImageFile(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // TODO: Implement actual signup logic
-    console.log("[v0] Signup:", { nickname, useDefaultProfile, hasCustomImage: !!profileImage })
-
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      await completeSignup(nickname, imageFile || undefined)
       router.push("/")
-    }, 2000)
+    } catch (err) {
+      console.error("Signup failed:", err)
+      alert("프로필 설정에 실패했습니다. 다시 시도해주세요.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
