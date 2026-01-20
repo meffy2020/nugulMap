@@ -1,5 +1,5 @@
 # 1. 반드시 FROM이 제일 먼저 나와야 합니다!
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # 2. 작업 디렉토리 설정
 WORKDIR /app
