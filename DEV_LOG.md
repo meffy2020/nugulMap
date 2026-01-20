@@ -56,13 +56,14 @@
 
 ### 📝 남은 과제 (To-Do)
 
-- [ ] **EC2 배포**:
-  - EC2 접속 -> `git pull origin migration` -> `docker compose down` -> `docker compose up -d --build`.
-- [ ] **운영 환경 테스트**:
-  - 실제 도메인(`nugulmap.com`) 연결 후 HTTPS(Certbot) 적용 확인.
-  - S3(MinIO) 이미지 업로드/조회 기능 실제 동작 확인.
-- [ ] **코드 리팩토링 (추후)**:
-  - `ZoneService`의 반경 검색 로직(`stream().filter()`)을 DB Spatial Query(`ST_Distance_Sphere`)로 개선 고려.
+- [x] **Git Merge & Conflict Resolution**:
+  - `migration` 브랜치의 모든 변경사항을 원격 `main` 브랜치와 병합 완료.
+  - `add-location-modal.tsx` 등 주요 파일의 충돌을 `migration` 버전(최신 기능) 중심으로 해결.
+- [ ] **EC2 배포 (실행 대기)**:
+  - EC2 접속 -> `git pull origin main` -> `docker compose up -d --build`.
+
+### 💡 최종 상태
+현재 깃허브 `main` 브랜치는 로컬 테스트를 통과한 **완성된 소스 코드**를 포함하고 있습니다. (주소 변환, 마이페이지, 백엔드 테스트 허용 등)
 
 ---
 

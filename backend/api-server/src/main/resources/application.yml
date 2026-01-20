@@ -131,7 +131,7 @@ app:
     naver:
       url: /oauth2/authorization/naver
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:3000}  # Nginx(80포트)와 프론트엔드(3000포트) 모두 허용
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:3000,http://nugulmap.com,https://nugulmap.com,https://www.nugulmap.com}  # 운영 도메인 추가
     allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}
     allowed-headers: ${APP_CORS_ALLOWED_HEADERS:*}
   security:
