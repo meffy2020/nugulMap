@@ -15,8 +15,13 @@ export interface SmokingZone {
 // Zone 생성 시 요청 DTO에 맞는 타입 정의
 export type CreateZonePayload = Omit<SmokingZone, "id" | "image">
 
-// 브라우저 환경에서는 상대 경로 사용, 서버 환경(SSR)에서는 도커 내부 네트워크 사용
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || (typeof window !== "undefined" ? "" : "http://nginx");
+// 환경 변수가 있으면 최우선 사용 (Vercel 배포 시 설정된 값)
+// 없으면 브라우저에서는 상대 경로(""), 서버에서는 도커 내부 경로("http://nginx") 사용
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
+  ? process.env.NEXT_PUBLIC_API_BASE_URL
+  : typeof window !== "undefined"
+    ? ""
+    : "http://nginx"
 
 const MOCK_ZONES: SmokingZone[] = [
   {
