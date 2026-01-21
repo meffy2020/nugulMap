@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Righteous&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -15,51 +16,40 @@
   font-display: swap;
 }
 
-/* Righteous 폰트 추가 - 로고 영문 텍스트용 */
-@import url("https://fonts.googleapis.com/css2?family=Righteous&display=swap");
-
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* 색상 비율 조정 - 흰색 60%, 회색 30%, 검은색 10% */
-  --background: #ffffff; /* 흰색 배경 (Base 60%) */
-  --foreground: #000000; /* 순수 검은색 텍스트 (Emphasis 10%) */
-  --card: #fafafa; /* 아주 연한 회색 카드 (Base 60%) */
-  --card-foreground: #171717; /* 거의 검은색 텍스트 (Emphasis 10%) */
-  --popover: #ffffff; /* 흰색 팝오버 */
-  --popover-foreground: #000000; /* 검은색 텍스트 */
-  --primary: #171717; /* 진한 검은색 - 주요 CTA (Emphasis 10%) */
-  --primary-foreground: #ffffff; /* 흰색 텍스트 */
-  --secondary: #737373; /* 중간 회색 - 보조 요소 (Accent 30%) */
-  --secondary-foreground: #ffffff; /* 흰색 텍스트 */
-  --muted: #f5f5f5; /* 연한 회색 배경 (Accent 30%) */
-  --muted-foreground: #525252; /* 중간 회색 텍스트 (Accent 30%) */
-  --accent: #e5e5e5; /* 강조 배경 (Accent 30%) */
-  --accent-foreground: #171717; /* 진한 텍스트 */
-  --destructive: #262626; /* 삭제 액션 */
-  --destructive-foreground: #ffffff; /* 흰색 텍스트 */
-  --border: #e5e5e5; /* 연한 회색 테두리 (Accent 30%) */
-  --input: #f5f5f5; /* 연한 회색 입력 필드 (Accent 30%) */
-  --ring: #171717; /* 검은색 포커스 링 */
-  --chart-1: #000000; /* 검은색 */
-  --chart-2: #262626; /* 진한 회색 */
-  --chart-3: #525252; /* 중간 회색 */
-  --chart-4: #737373; /* 밝은 회색 */
-  --chart-5: #a3a3a3; /* 아주 밝은 회색 */
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #fafafa;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #171717;
+  --primary-foreground: #ffffff;
+  --secondary: #737373;
+  --secondary-foreground: #ffffff;
+  --muted: #f5f5f5;
+  --muted-foreground: #525252;
+  --accent: #e5e5e5;
+  --accent-foreground: #171717;
+  --destructive: #262626;
+  --destructive-foreground: #ffffff;
+  --border: #e5e5e5;
+  --input: #f5f5f5;
+  --ring: #171717;
   --radius: 0.5rem;
-  --sidebar: #fafafa; /* 연한 회색 사이드바 */
-  --sidebar-foreground: #171717; /* 진한 텍스트 */
-  --sidebar-primary: #171717; /* 검은색 */
-  --sidebar-primary-foreground: #ffffff; /* 흰색 */
-  --sidebar-accent: #e5e5e5; /* 연한 회색 */
-  --sidebar-accent-foreground: #171717; /* 진한 텍스트 */
-  --sidebar-border: #e5e5e5; /* 연한 회색 테두리 */
-  --sidebar-ring: #171717; /* 검은색 링 */
+  --sidebar: #fafafa;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #171717;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e5e5e5;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #171717;
   --font-sans: "Kakao", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 }
-
-/* .dark 스타일 완전 제거 */
 
 @theme inline {
   --color-background: var(--background);
@@ -81,11 +71,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

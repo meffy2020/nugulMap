@@ -120,11 +120,17 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
           console.log(`[v0] Map moved: Fetching zones at ${lat}, ${lng} (radius: ${radius}km)`)
           const newZones = await fetchZones(lat, lng, radius)
           
+          if (!Array.isArray(newZones)) {
+            console.warn("[v0] fetchZones returned non-array:", newZones)
+            return
+          }
+          
           // 기존 데이터에 새 데이터 병합 (중복 제거)
           setZones((prev) => {
-            const existingIds = new Set(prev.map(z => z.id))
+            const currentZones = Array.isArray(prev) ? prev : [];
+            const existingIds = new Set(currentZones.map(z => z.id))
             const uniqueNewZones = newZones.filter(z => !existingIds.has(z.id))
-            return [...prev, ...uniqueNewZones]
+            return [...currentZones, ...uniqueNewZones]
           })
         } catch (err) {
           console.error("[v0] Failed to fetch zones on move:", err)
@@ -195,6 +201,13 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
         mapInstance.setCenter(new window.kakao.maps.LatLng(lat, lng))
         mapInstance.setLevel(3)
       }
+    },
+    getCenter: () => {
+      if (mapInstance) {
+        const center = mapInstance.getCenter()
+        return { lat: center.getLat(), lng: center.getLng() }
+      }
+      return { lat: 37.5665, lng: 126.978 }
     },
   }))
 
