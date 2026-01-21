@@ -93,7 +93,8 @@ function AddZoneContent() {
         title: "등록 완료! 👏",
         description: "너구리들을 위한 소중한 정보 감사합니다.",
       })
-      router.push("/")
+      // 메인으로 이동하면서 해당 위치로 줌인하기 위해 쿼리 파라미터 전달
+      router.push(`/?lat=${coords.lat}&lng=${coords.lng}&zoom=true`)
     } catch (err) {
       console.error("Failed to create zone:", err)
       toast({

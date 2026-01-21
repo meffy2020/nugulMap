@@ -58,10 +58,13 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       return
     }
 
-    window.kakao.maps.load(() => {
+    const initMap = () => {
       if (!mapRef.current) return
 
       try {
+        // 이미 지도가 있으면 초기화하지 않음
+        if (mapInstance) return
+
         const options = {
           center: new window.kakao.maps.LatLng(37.5665, 126.978),
           level: 3,
@@ -69,31 +72,24 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
         const map = new window.kakao.maps.Map(mapRef.current!, options)
         setMapInstance(map)
         
-        // 클러스터러 초기화
+        console.log("[v0] Main Map Initialized")
+
+        // 클러스터러 및 기타 초기화 로직...
         if (window.kakao.maps.MarkerClusterer) {
-          const clusterer = new window.kakao.maps.MarkerClusterer({
+          clustererRef.current = new window.kakao.maps.MarkerClusterer({
             map: map,
             averageCenter: true,
             minLevel: 6,
-            styles: [{
-              width: '40px', height: '40px',
-              background: 'rgba(23, 23, 23, 0.9)',
-              borderRadius: '20px',
-              color: '#fff',
-              textAlign: 'center',
-              fontWeight: 'bold',
-              lineHeight: '41px'
-            }]
           })
-          clustererRef.current = clusterer
         }
-        
         setShowMapError(false)
       } catch (err) {
         console.error("[v0] 카카오맵 생성 실패:", err)
       }
-    })
-  }, [kakaoLoaded])
+    }
+
+    window.kakao.maps.load(initMap)
+  }, [kakaoLoaded, mapInstance])
 
   // 지도 이동/줌 종료 시 데이터 재로딩
   useEffect(() => {
