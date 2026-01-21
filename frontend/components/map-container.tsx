@@ -39,7 +39,8 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const zonesData = await fetchZones(37.5665, 126.978)
+        // 초기 로딩 시 반경을 10km로 넓혀서 서울 주요 지역 데이터 확보
+        const zonesData = await fetchZones(37.5665, 126.978, 10.0)
         setZones(zonesData)
       } catch (err) {
         console.error("[v0] Failed to load zones:", err)
@@ -93,6 +94,53 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       }
     })
   }, [kakaoLoaded])
+
+  // 지도 이동/줌 종료 시 데이터 재로딩
+  useEffect(() => {
+    if (!mapInstance) return
+
+    let timeoutId: NodeJS.Timeout
+
+    const handleMapChange = () => {
+      if (timeoutId) clearTimeout(timeoutId)
+
+      // 0.5초 디바운스 (지도 이동이 멈추면 요청)
+      timeoutId = setTimeout(async () => {
+        const center = mapInstance.getCenter()
+        const lat = center.getLat()
+        const lng = center.getLng()
+        const level = mapInstance.getLevel()
+        
+        // 줌 레벨에 따라 검색 반경 조정 (줌이 클수록 반경 좁게, 작을수록 넓게)
+        // 레벨 3(기본) -> 1km, 레벨 7 -> 5km 등
+        const radius = Math.max(1, level * 0.5)
+
+        try {
+          // setLoading(true) // 너무 깜빡거리면 UX에 안 좋으므로 로딩 표시 생략 가능
+          console.log(`[v0] Map moved: Fetching zones at ${lat}, ${lng} (radius: ${radius}km)`)
+          const newZones = await fetchZones(lat, lng, radius)
+          
+          // 기존 데이터에 새 데이터 병합 (중복 제거)
+          setZones((prev) => {
+            const existingIds = new Set(prev.map(z => z.id))
+            const uniqueNewZones = newZones.filter(z => !existingIds.has(z.id))
+            return [...prev, ...uniqueNewZones]
+          })
+        } catch (err) {
+          console.error("[v0] Failed to fetch zones on move:", err)
+        }
+      }, 500)
+    }
+
+    // 카카오맵 이벤트 리스너 등록
+    window.kakao.maps.event.addListener(mapInstance, 'dragend', handleMapChange)
+    window.kakao.maps.event.addListener(mapInstance, 'zoom_changed', handleMapChange)
+
+    return () => {
+      // 클린업 (리스너 제거는 카카오맵 API 특성상 어려울 수 있으므로 타임아웃만 정리)
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+  }, [mapInstance])
 
   useEffect(() => {
     if (mapInstance && zones.length > 0) {
