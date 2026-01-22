@@ -1,4 +1,7 @@
 # macOS system files
+# IDE settings
+.vscode/
+
 # Markdown files
 *.md
 
