@@ -85,6 +85,25 @@ public class ZoneController {
         ));
     }
 
+    @GetMapping("/bounds")
+    public ResponseEntity<?> getZonesByBounds(
+            @RequestParam("minLat") Double minLat,
+            @RequestParam("maxLat") Double maxLat,
+            @RequestParam("minLng") Double minLng,
+            @RequestParam("maxLng") Double maxLng) {
+        
+        List<ZoneResponse> response = zoneService.getZonesByBounds(minLat, maxLat, minLng, maxLng);
+        
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "영역 내 흡연구역 조회 성공",
+            "data", Map.of(
+                "zones", response,
+                "count", response.size()
+            )
+        ));
+    }
+
     @GetMapping
     public ResponseEntity<?> getAllZones(
             @RequestParam(value = "latitude", required = false) Double latitude,

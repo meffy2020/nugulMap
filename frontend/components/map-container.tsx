@@ -97,24 +97,20 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
 
     let timeoutId: NodeJS.Timeout
 
-    const handleMapChange = () => {
-      if (timeoutId) clearTimeout(timeoutId)
+        const handleMapChange = async () => {
+          if (!mapInstance) return
 
-      // 0.5초 디바운스 (지도 이동이 멈추면 요청)
-      timeoutId = setTimeout(async () => {
-        const center = mapInstance.getCenter()
-        const lat = center.getLat()
-        const lng = center.getLng()
-        const level = mapInstance.getLevel()
-        
-        // 줌 레벨에 따라 검색 반경 조정 (줌이 클수록 반경 좁게, 작을수록 넓게)
-        // 레벨 3(기본) -> 1km, 레벨 7 -> 5km 등
-        const radius = Math.max(1, level * 0.5)
+          const bounds = mapInstance.getBounds()
+          const sw = bounds.getSouthWest() // 남서쪽 (minLat, minLng)
+          const ne = bounds.getNorthEast() // 북동쪽 (maxLat, maxLng)
 
-        try {
-          // setLoading(true) // 너무 깜빡거리면 UX에 안 좋으므로 로딩 표시 생략 가능
-          console.log(`[v0] Map moved: Fetching zones at ${lat}, ${lng} (radius: ${radius}km)`)
-          const newZones = await fetchZones(lat, lng, radius)
+          const minLat = sw.getLat()
+          const maxLat = ne.getLat()
+          const minLng = sw.getLng()
+          const maxLng = ne.getLng()
+
+          console.log(`[v0] Map moved: Fetching zones within bounds`)
+          const newZones = await fetchZones(minLat, maxLat, minLng, maxLng)
           
           if (!Array.isArray(newZones)) {
             console.warn("[v0] fetchZones returned non-array:", newZones)
@@ -128,11 +124,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
             const uniqueNewZones = newZones.filter(z => !existingIds.has(z.id))
             return [...currentZones, ...uniqueNewZones]
           })
-        } catch (err) {
-          console.error("[v0] Failed to fetch zones on move:", err)
         }
-      }, 500)
-    }
 
     // 카카오맵 이벤트 리스너 등록
     window.kakao.maps.event.addListener(mapInstance, 'dragend', handleMapChange)

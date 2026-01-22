@@ -50,27 +50,21 @@ const MOCK_ZONES: SmokingZone[] = [
 ]
 
 /**
- * 특정 위치 주변의 흡연구역 목록을 서버에서 가져옵니다.
- * @param lat - 검색 중심의 위도
- * @param lon - 검색 중심의 경도
- * @param radius - 검색 반경 (km)
- * @returns SmokingZone 객체의 배열
+ * 지도의 특정 영역(Bounding Box) 내의 흡연구역을 가져옵니다.
  */
-export async function fetchZones(lat: number, lon: number, radius = 1.0): Promise<SmokingZone[]> {
+export async function fetchZones(minLat: number, maxLat: number, minLng: number, maxLng: number): Promise<SmokingZone[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/zones?latitude=${lat}&longitude=${lon}&radius=${radius}`, {
-      cache: "no-store",
-      credentials: "include",
-    })
-
+    const response = await fetch(
+      `${API_BASE_URL}/api/zones/bounds?minLat=${minLat}&maxLat=${maxLat}&minLng=${minLng}&maxLng=${maxLng}`,
+    )
     if (!response.ok) {
-      throw new Error(`API call failed: ${response.status}`)
+      throw new Error("Network response was not ok")
     }
-
-    return response.json()
-  } catch (err) {
-    console.warn("[v0] 백엔드 API 연결 실패. 목 데이터를 사용합니다:", err)
-    return MOCK_ZONES
+    return await response.json()
+  } catch (error) {
+    console.error("Error fetching zones:", error)
+    // 에러 시 빈 배열 반환하여 지도 작동 유지
+    return []
   }
 }
 

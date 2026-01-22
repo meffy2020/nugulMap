@@ -33,47 +33,86 @@ function AddZoneContent() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Geocoding Logic with Retry
-  const updateAddress = useCallback((lat: number, lng: number, retryCount = 0) => {
-    if (!window.kakao?.maps?.services) {
-      if (retryCount < 5) {
-        setTimeout(() => updateAddress(lat, lng, retryCount + 1), 500)
-      } else {
-        setAddress("주소 변환 실패 (API 로드 오류)")
-        setIsAddressLoading(false)
-      }
-      return
-    }
+  // 🖼️ 이미지 리사이징 함수 (실무용 최적화)
+  const resizeImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = (event) => {
+        const img = new Image()
+        img.src = event.target?.result as string
+        img.onload = () => {
+          const canvas = document.createElement("canvas")
+          let width = img.width
+          let height = img.height
+          const MAX_SIZE = 1280 // 최대 가로/세로 1280px로 제한
 
-    setIsAddressLoading(true)
-    const geocoder = new window.kakao.maps.services.Geocoder()
-    geocoder.coord2Address(lng, lat, (result: any, status: any) => {
-      setIsAddressLoading(false)
-      if (status === window.kakao.maps.services.Status.OK && result[0]) {
-        const addr = result[0].address
-        setAddress(addr.address_name)
-        setRegion(addr.region_1depth_name || "서울특별시")
-      } else {
-        setAddress("주소를 찾을 수 없습니다.")
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width
+              width = MAX_SIZE
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height
+              height = MAX_SIZE
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext("2d")
+          ctx?.drawImage(img, 0, 0, width, height)
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const resizedFile = new File([blob], file.name, {
+                  type: "image/jpeg",
+                  lastModified: Date.now(),
+                })
+                resolve(resizedFile)
+              } else {
+                resolve(file)
+              }
+            },
+            "image/jpeg",
+            0.8 // 품질 80% (용량 대폭 절감)
+          )
+        }
       }
     })
-  }, [])
+  }
 
-  const handleLocationChange = useCallback((lat: number, lng: number) => {
-    setCoords({ lat, lng })
-    updateAddress(lat, lng)
-  }, [updateAddress])
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setImageFile(file)
-      setImagePreview(URL.createObjectURL(file))
+      // 리사이징 진행
+      const optimizedFile = await resizeImage(file)
+      setImageFile(optimizedFile)
+      setImagePreview(URL.createObjectURL(optimizedFile))
+      console.log(`[v0] Image optimized: ${(file.size / 1024).toFixed(1)}KB -> ${(optimizedFile.size / 1024).toFixed(1)}KB`)
     }
   }
 
   const handleSubmit = async () => {
     if (isSubmitting) return
+
+    // 🛡️ 도배 방지 (Rate Limit - 30초)
+    const LAST_SUBMIT_KEY = "nugul_last_submit"
+    const lastSubmit = localStorage.getItem(LAST_SUBMIT_KEY)
+    const now = Date.now()
+
+    if (lastSubmit && now - parseInt(lastSubmit) < 30000) {
+      const remaining = Math.ceil((30000 - (now - parseInt(lastSubmit))) / 1000)
+      toast({
+        title: "천천히 해주세요! ✋",
+        description: `${remaining}초 후에 다시 등록할 수 있습니다.`,
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const payload: CreateZonePayload = {
@@ -88,6 +127,9 @@ function AddZoneContent() {
       }
 
       await createZone(payload, imageFile || undefined)
+      
+      // 마지막 제출 시간 기록
+      localStorage.setItem(LAST_SUBMIT_KEY, Date.now().toString())
       
       toast({
         title: "등록 완료! 👏",

@@ -141,6 +141,25 @@ public class ZoneService {
     }
 
     /**
+     * 경계 박스 검색 (뷰포트 기반)
+     * 
+     * @param minLat 남서쪽 위도
+     * @param maxLat 북동쪽 위도
+     * @param minLng 남서쪽 경도
+     * @param maxLng 북동쪽 경도
+     * @return 영역 내 Zone 목록
+     */
+    @Transactional(readOnly = true)
+    public List<ZoneResponse> getZonesByBounds(Double minLat, Double maxLat, Double minLng, Double maxLng) {
+        log.info("경계 박스 검색 시작 - Bounds: [{}, {}] to [{}, {}]", minLat, minLng, maxLat, maxLng);
+        
+        return zoneRepository.findByLocationBounds(minLat, maxLat, minLng, maxLng)
+                .stream()
+                .map(ZoneResponse::from)
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    /**
      * 반경 검색 (위치 기반)
      * 
      * @param latitude 중심점 위도

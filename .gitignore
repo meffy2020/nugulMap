@@ -1,4 +1,7 @@
 # macOS system files
+# Markdown files
+*.md
+
 .DS_Store
 .AppleDouble
 .LSOverride

@@ -65,7 +65,7 @@ public interface ZoneRepository extends JpaRepository<Zone, Integer>, JpaSpecifi
     List<Zone> findByRegionContainingIgnoreCaseAndSubtypeContainingIgnoreCase(String region, String subtype);
     Page<Zone> findByRegionContainingIgnoreCaseAndSubtypeContainingIgnoreCase(String region, String subtype, Pageable pageable);
     
-    // 위치 기반 검색 - Haversine 공식을 사용한 반경 내 검색
+    // 위치 기반 검색 - 하버사인 공식을 사용한 반경 내 검색
     @Query("SELECT z FROM Zone z WHERE " +
            "(6371 * acos(cos(radians(:latitude)) * cos(radians(z.latitude)) * " +
            "cos(radians(z.longitude) - radians(:longitude)) + " +
@@ -73,6 +73,15 @@ public interface ZoneRepository extends JpaRepository<Zone, Integer>, JpaSpecifi
     List<Zone> findNearbyZones(@Param("latitude") Double latitude, 
                               @Param("longitude") Double longitude, 
                               @Param("radiusKm") Double radiusKm);
+
+    // 위치 기반 검색 - 경계 박스(Bounding Box) 내 검색 (뷰포트 최적화)
+    @Query("SELECT z FROM Zone z WHERE " +
+           "z.latitude BETWEEN :minLat AND :maxLat AND " +
+           "z.longitude BETWEEN :minLng AND :maxLng")
+    List<Zone> findByLocationBounds(@Param("minLat") Double minLat, 
+                                   @Param("maxLat") Double maxLat, 
+                                   @Param("minLng") Double minLng, 
+                                   @Param("maxLng") Double maxLng);
     
     // 위치 기반 검색 + 타입 필터링
     @Query("SELECT z FROM Zone z WHERE " +
