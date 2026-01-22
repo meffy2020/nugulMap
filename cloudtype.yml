@@ -1,7 +1,0 @@
-deployment:
-  name: nugulmap
-  app:
-    name: nugulmap
-    type: dockerfile
-    build:
-      dockerfile: ./backend/api-server/Dockerfile

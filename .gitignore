@@ -2,6 +2,13 @@
 # Markdown files
 *.md
 
+# Backup and temporary folders
+frontend_backup/
+nugulmap-fronted-arrange/
+
+# Unused config files
+cloudtype.yml
+
 .DS_Store
 .AppleDouble
 .LSOverride
