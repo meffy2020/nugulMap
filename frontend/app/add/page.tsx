@@ -133,8 +133,39 @@ function AddZoneContent() {
     { id: "실내", label: "실내흡연", icon: Warehouse },
   ]
 
+  // 🖱️ Draggable Bottom Sheet Logic
+  const [sheetY, setSheetY] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const sheetRef = useRef<HTMLDivElement>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return
+    const touch = e.touches[0]
+    const deltaY = window.innerHeight - touch.clientY
+    // 최소/최대 높이 제한 (150px ~ 80% 화면 높이)
+    if (deltaY > 150 && deltaY < window.innerHeight * 0.8) {
+      setSheetY(deltaY)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    setIsDragging(false)
+    // Snap 로직: 일정 높이 이상이면 45vh, 아니면 25vh 등으로 고정 가능
+    if (sheetY > window.innerHeight * 0.4) {
+      setSheetY(window.innerHeight * 0.45)
+    } else {
+      setSheetY(0) // 초기 상태(자동 높이)로 복귀
+    }
+  }
+
   return (
-    <div className="relative h-screen w-full flex flex-col bg-background overflow-hidden">
+    <div className="relative h-screen w-full flex flex-col bg-background overflow-hidden"
+         onTouchMove={handleTouchMove}
+         onTouchEnd={handleTouchEnd}>
       {/* 1. Fixed Top Header (Solid White) */}
       <header className="z-50 bg-background border-b shadow-sm">
         <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
@@ -168,16 +199,28 @@ function AddZoneContent() {
 
       {/* 2. Map Layer */}
       <div className="flex-1 relative overflow-hidden bg-muted">
-        <FixedPinMap ref={mapRef} onLocationChange={handleLocationChange} bottomOffset={250} initialLat={initialLat} initialLng={initialLng} />
+        <FixedPinMap ref={mapRef} onLocationChange={handleLocationChange} bottomOffset={sheetY > 0 ? sheetY : 250} initialLat={initialLat} initialLng={initialLng} />
       </div>
 
-      {/* 3. Bottom Sheet */}
-      <div className="absolute bottom-0 left-0 right-0 bg-background rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 flex flex-col">
-        <div className="w-full flex justify-center pt-3 pb-1">
-           <div className="w-12 h-1 bg-muted-foreground/20 rounded-full" />
+      {/* 3. Bottom Sheet (Interactive) */}
+      <div 
+        ref={sheetRef}
+        className={cn(
+          "absolute bottom-0 left-0 right-0 bg-background rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 flex flex-col transition-all duration-300 ease-out",
+          isDragging ? "transition-none" : "transition-all"
+        )}
+        style={{ height: sheetY > 0 ? `${sheetY}px` : 'auto' }}
+      >
+        {/* Handle Bar (Draggable Area) */}
+        <div 
+          className="w-full flex justify-center pt-3 pb-4 cursor-grab active:cursor-grabbing touch-none"
+          onTouchStart={handleTouchStart}
+        >
+           <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full" />
         </div>
-        <div className="p-6 pt-0 pb-safe-bottom space-y-5">
-          <div className="flex items-start gap-2.5 pt-2">
+        
+        <div className="px-6 pb-safe-bottom space-y-5 overflow-y-auto flex-1">
+          <div className="flex items-start gap-2.5">
              <MapPin className="w-5 h-5 text-primary mt-0.5 shrink-0" />
              <h2 className="text-lg font-black text-foreground leading-tight line-clamp-2">
                {isAddressLoading ? <span className="animate-pulse text-muted-foreground text-sm">위치 확인 중...</span> : address}
