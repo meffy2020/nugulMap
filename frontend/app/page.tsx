@@ -5,7 +5,7 @@ import { MapContainer, type MapContainerRef } from "@/components/map-container"
 import { FloatingActionButton } from "@/components/floating-action-button"
 // import { AddLocationModal } from "@/components/add-location-modal"
 import { FloatingUserProfile } from "@/components/floating-user-profile"
-// import { CurrentLocationButton } from "@/components/current-location-button"
+import { CurrentLocationButton } from "@/components/current-location-button"
 import { SearchBar } from "@/components/search-bar"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -110,6 +110,10 @@ function HomePageContent() {
               <FloatingUserProfile />
             </div>
           </div>
+        </div>
+
+        <div className="absolute bottom-8 left-6 pointer-events-auto z-40">
+          <CurrentLocationButton onLocationFound={handleLocationFound} />
         </div>
 
         <div className="absolute bottom-8 right-6 pointer-events-auto z-40">
