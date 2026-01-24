@@ -60,10 +60,11 @@ export async function fetchZones(minLat: number, maxLat: number, minLng: number,
     if (!response.ok) {
       throw new Error("Network response was not ok")
     }
-    return await response.json()
+    const result = await response.json()
+    // 백엔드 응답 구조 { success, message, data: { zones: [], count: 0 } } 반영
+    return result.data?.zones || []
   } catch (error) {
     console.error("Error fetching zones:", error)
-    // 에러 시 빈 배열 반환하여 지도 작동 유지
     return []
   }
 }
