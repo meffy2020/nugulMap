@@ -35,15 +35,10 @@ function AddZoneContent() {
 
   const updateAddress = useCallback((lat: number, lng: number, retryCount = 0) => {
     if (!window.kakao?.maps?.services) {
-      if (retryCount < 5) {
-        setTimeout(() => updateAddress(lat, lng, retryCount + 1), 500)
-      } else {
-        setAddress("주소 변환 실패 (API 로드 오류)")
-        setIsAddressLoading(false)
-      }
+      if (retryCount < 5) { setTimeout(() => updateAddress(lat, lng, retryCount + 1), 500) }
+      else { setAddress("주소 변환 실패 (API 로드 오류)"); setIsAddressLoading(false) }
       return
     }
-
     setIsAddressLoading(true)
     const geocoder = new window.kakao.maps.services.Geocoder()
     geocoder.coord2Address(lng, lat, (result: any, status: any) => {
@@ -52,9 +47,7 @@ function AddZoneContent() {
         const addr = result[0].address
         setAddress(addr.address_name)
         setRegion(addr.region_1depth_name || "서울특별시")
-      } else {
-        setAddress("주소를 찾을 수 없습니다.")
-      }
+      } else { setAddress("주소를 찾을 수 없습니다.") }
     })
   }, [])
 
@@ -72,16 +65,11 @@ function AddZoneContent() {
         img.src = event.target?.result as string
         img.onload = () => {
           const canvas = document.createElement("canvas")
-          let width = img.width
-          let height = img.height
+          let width = img.width; let height = img.height
           const MAX_SIZE = 1280
-          if (width > height) {
-            if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
-          } else {
-            if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
-          }
-          canvas.width = width
-          canvas.height = height
+          if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } }
+          else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+          canvas.width = width; canvas.height = height
           const ctx = canvas.getContext("2d")
           ctx?.drawImage(img, 0, 0, width, height)
           canvas.toBlob((blob) => {
@@ -110,7 +98,6 @@ function AddZoneContent() {
       toast({ title: "천천히 해주세요! ✋", description: "30초 후에 다시 등록할 수 있습니다.", variant: "destructive" })
       return
     }
-
     setIsSubmitting(true)
     try {
       const payload: CreateZonePayload = {
@@ -128,137 +115,82 @@ function AddZoneContent() {
   }
 
   const ZONE_TYPES = [
-    { id: "부스", label: "흡연부스", icon: Building2 },
-    { id: "개방", label: "개방구역", icon: Trees },
-    { id: "실내", label: "실내흡연", icon: Warehouse },
+    { id: "부스", label: "부스", icon: Building2 },
+    { id: "개방", label: "개방", icon: Trees },
+    { id: "실내", label: "실내", icon: Warehouse },
   ]
 
-  // 🖱️ Draggable Bottom Sheet Logic (Refined)
-  const [sheetHeight, setSheetHeight] = useState(0) // 0 means auto/default
-  const [isDragging, setIsDragging] = useState(false)
-  const startY = useRef(0)
-  const startHeight = useRef(0)
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setIsDragging(true)
-    startY.current = e.touches[0].clientY
-    startHeight.current = sheetHeight || (window.innerHeight * 0.35) // 현재 높이 저장
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return
-    const touch = e.touches[0]
-    const deltaY = startY.current - touch.clientY
-    const newHeight = startHeight.current + deltaY
-    
-    // 범위 제한 (150px ~ 90% 화면 높이)
-    if (newHeight > 100 && newHeight < window.innerHeight * 0.9) {
-      setSheetHeight(newHeight)
-    }
-  }
-
-  const handleTouchEnd = () => {
-    setIsDragging(false)
-    const vh = window.innerHeight / 100
-    
-    // Snap Points 로직
-    if (sheetHeight > 70 * vh) {
-      setSheetHeight(85 * vh) // High
-    } else if (sheetHeight > 40 * vh) {
-      setSheetHeight(55 * vh) // Mid
-    } else {
-      setSheetHeight(0) // Default (Auto)
-    }
-  }
-
   return (
-    <div className="relative h-screen w-full flex flex-col bg-background overflow-hidden"
-         onTouchMove={handleTouchMove}
-         onTouchEnd={handleTouchEnd}>
-      {/* 1. Fixed Top Header (Solid White) */}
-      <header className="z-50 bg-background border-b shadow-sm">
+    <div className="relative h-screen w-full flex flex-col bg-background overflow-hidden">
+      {/* 1. Header (Fixed) */}
+      <header className="z-50 bg-background border-b shadow-sm shrink-0">
         <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
-        <div className="px-4 py-3 flex flex-col gap-3">
-          {/* Top Row: Back & Title */}
+        <div className="px-4 py-3 flex flex-col gap-2">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 shrink-0" onClick={() => router.back()}>
               <ArrowLeft className="w-6 h-6 text-foreground" />
             </Button>
-            <div className="flex-1">
-               <h1 className="font-black text-lg text-foreground leading-tight">흡연구역 등록</h1>
-               <p className="text-muted-foreground text-xs font-medium">지도를 움직여 핀을 맞춰주세요.</p>
+            <div className="flex-1 min-w-0">
+               <h1 className="font-black text-base text-foreground leading-tight truncate">흡연구역 등록</h1>
+               <p className="text-muted-foreground text-[10px] font-medium">핀을 정확한 위치에 맞춰주세요.</p>
             </div>
           </div>
-          
-          {/* Bottom Row: Search & Location */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1 group">
-              <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Search className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
-              <Input placeholder="장소 또는 주소 검색" className="pl-11 h-11 bg-muted/50 border-none rounded-xl text-sm focus-visible:ring-primary/20" />
+              <Input placeholder="장소 검색" className="pl-9 h-9 bg-muted/50 border-none rounded-lg text-xs" />
             </div>
-            <CurrentLocationButton 
-              className="h-11 w-11 shrink-0 border-muted bg-muted/30" 
-              onLocationFound={(lat, lng) => mapRef.current?.centerOnLocation(lat, lng)} 
-            />
+            <CurrentLocationButton className="h-9 w-9 border-muted bg-muted/30" onLocationFound={(lat, lng) => mapRef.current?.centerOnLocation(lat, lng)} />
           </div>
         </div>
       </header>
 
       {/* 2. Map Layer */}
       <div className="flex-1 relative overflow-hidden bg-muted">
-        <FixedPinMap ref={mapRef} onLocationChange={handleLocationChange} bottomOffset={sheetHeight > 0 ? sheetHeight : 250} initialLat={initialLat} initialLng={initialLng} />
+        <FixedPinMap ref={mapRef} onLocationChange={handleLocationChange} bottomOffset={180} initialLat={initialLat} initialLng={initialLng} />
       </div>
 
-      {/* 3. Bottom Sheet (Interactive) */}
-      <div 
-        className={cn(
-          "absolute bottom-0 left-0 right-0 bg-background rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 flex flex-col",
-          isDragging ? "transition-none" : "transition-all duration-500 cubic-bezier(0.32, 0.72, 0, 1)"
-        )}
-        style={{ height: sheetHeight > 0 ? `${sheetHeight}px` : 'auto', maxHeight: '90vh' }}
-      >
-        {/* Handle Bar (Draggable Area) */}
-        <div 
-          className="w-full flex justify-center pt-3 pb-6 cursor-grab active:cursor-grabbing touch-none"
-          onTouchStart={handleTouchStart}
-        >
-           <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full" />
-        </div>
-        
-        <div className="px-6 pb-10 space-y-5 overflow-y-auto flex-1">
-          <div className="flex items-start gap-2.5">
-             <MapPin className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-             <h2 className="text-lg font-black text-foreground leading-tight line-clamp-2">
-               {isAddressLoading ? <span className="animate-pulse text-muted-foreground text-sm">위치 확인 중...</span> : address}
+      {/* 3. Slim Bottom Sheet (Fixed) */}
+      <div className="z-50 bg-background border-t shadow-[0_-5px_20px_rgba(0,0,0,0.05)] shrink-0">
+        <div className="px-5 pt-4 pb-safe-bottom space-y-3">
+          {/* Address Row */}
+          <div className="flex items-center gap-2">
+             <MapPin className="w-4 h-4 text-primary shrink-0" />
+             <h2 className="text-sm font-bold text-foreground truncate">
+               {isAddressLoading ? <span className="animate-pulse opacity-50">확인 중...</span> : address}
              </h2>
           </div>
-          <div className="h-px bg-border/50" />
-          <div className="grid grid-cols-[1fr_auto] gap-4">
-            <div className="space-y-2">
-              <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">유형 선택</label>
-              <div className="grid grid-cols-3 gap-2 h-20">
-                {ZONE_TYPES.map((t) => (
-                  <button key={t.id} onClick={() => setType(t.id)} className={cn("flex flex-col items-center justify-center rounded-2xl border transition-all duration-200 p-1", type === t.id ? "border-primary bg-primary/5 text-primary shadow-sm" : "border-border/40 bg-background text-muted-foreground hover:bg-muted/50")}>
-                    <t.icon className={cn("w-5 h-5 mb-1", type === t.id ? "fill-current" : "")} />
-                    <span className="text-[10px] font-bold">{t.label}</span>
-                  </button>
-                ))}
-              </div>
+
+          {/* Type & Photo Row (Merged) */}
+          <div className="flex items-center gap-3">
+            {/* Types (No Labels) */}
+            <div className="flex-1 grid grid-cols-3 gap-2">
+              {ZONE_TYPES.map((t) => (
+                <button key={t.id} onClick={() => setType(t.id)} className={cn("flex flex-col items-center justify-center h-12 rounded-xl border transition-all", type === t.id ? "border-primary bg-primary/5 text-primary" : "border-border/50 bg-background text-muted-foreground")}>
+                  <t.icon className={cn("w-5 h-5", type === t.id ? "fill-current" : "")} />
+                  <span className="text-[8px] font-black mt-0.5">{t.label}</span>
+                </button>
+              ))}
             </div>
-            <div className="space-y-2 w-20">
-               <label className="text-[11px] font-bold text-muted-foreground text-center block uppercase tracking-wider">사진</label>
-               <div onClick={() => fileInputRef.current?.click()} className={cn("w-full h-20 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer overflow-hidden transition-all relative bg-muted/30 hover:bg-muted/50", imagePreview ? "border-primary border-solid p-0" : "border-muted-foreground/30")}>
-                 {imagePreview ? <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" /> : <Camera className="w-6 h-6 text-muted-foreground/50" />}
-               </div>
-               <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
+            
+            {/* Photo (Compact) */}
+            <div 
+              onClick={() => fileInputRef.current?.click()} 
+              className={cn("w-14 h-12 rounded-xl border-2 border-dashed flex items-center justify-center cursor-pointer overflow-hidden transition-all shrink-0", imagePreview ? "border-primary border-solid" : "border-muted-foreground/30 bg-muted/30")}>
+              {imagePreview ? <img src={imagePreview} alt="P" className="w-full h-full object-cover" /> : <Camera className="w-5 h-5 text-muted-foreground/50" />}
             </div>
+            <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
           </div>
-          <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="상세 설명 (선택 사항)" className="h-11 rounded-2xl bg-muted/30 border-border/50 text-sm" />
-          <Button className="w-full h-14 text-base font-black rounded-2xl shadow-lg active:scale-[0.98] transition-all bg-primary text-primary-foreground hover:bg-primary/90" size="lg" disabled={isSubmitting || isAddressLoading} onClick={handleSubmit}>
-            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "이 위치로 등록하기"}
-          </Button>
+
+          {/* Description & Button */}
+          <div className="flex items-center gap-2 pb-2">
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="팁 추가 (선택)" className="flex-1 h-10 rounded-xl bg-muted/30 border-none text-xs" />
+            <Button className="h-10 px-6 text-sm font-black rounded-xl bg-primary text-primary-foreground shadow-sm shrink-0" disabled={isSubmitting || isAddressLoading} onClick={handleSubmit}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "등록"}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
