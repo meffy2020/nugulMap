@@ -117,13 +117,8 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
             return
           }
           
-          // 기존 데이터에 새 데이터 병합 (중복 제거)
-          setZones((prev) => {
-            const currentZones = Array.isArray(prev) ? prev : [];
-            const existingIds = new Set(currentZones.map(z => z.id))
-            const uniqueNewZones = newZones.filter(z => !existingIds.has(z.id))
-            return [...currentZones, ...uniqueNewZones]
-          })
+          // Bounding Box 검색이므로 기존 데이터를 유지할 필요 없이 화면 내 데이터로 교체
+          setZones(newZones)
         }
 
     // 카카오맵 이벤트 리스너 등록
@@ -147,16 +142,15 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       const markers = zones.map((zone) => {
         const markerPosition = new window.kakao.maps.LatLng(zone.latitude, zone.longitude)
         
-        // 커스텀 마커 이미지 설정
-        const imageSrc = "/images/pin.png"
-        const imageSize = new window.kakao.maps.Size(40, 40)
-        const imageOption = { offset: new window.kakao.maps.Point(20, 40) }
-        
-        const markerImage = new window.kakao.maps.MarkerImage(imageSrc, imageSize, imageOption)
+        // 커스텀 마커 이미지 설정 (이미지가 없을 경우를 위해 카카오 기본 마커 사용 가능)
+        const imageSrc = "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png" // 일단 테스트용 공용 마커
+        const imageSize = new window.kakao.maps.Size(24, 35)
+        const markerImage = new window.kakao.maps.MarkerImage(imageSrc, imageSize)
         
         const marker = new window.kakao.maps.Marker({
           position: markerPosition,
-          image: markerImage
+          image: markerImage,
+          title: zone.address
         })
 
         window.kakao.maps.event.addListener(marker, "click", () => {
