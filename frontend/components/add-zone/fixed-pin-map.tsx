@@ -117,4 +117,6 @@ export const FixedPinMap = forwardRef<FixedPinMapRef, FixedPinMapProps>(({
       </div>
     </>
   )
-}
+})
+
+FixedPinMap.displayName = "FixedPinMap"
