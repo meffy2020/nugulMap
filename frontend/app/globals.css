@@ -93,18 +93,30 @@
 
   }
 
-  html, body {
+  html {
 
-    @apply h-full overflow-hidden bg-background;
+    @apply h-full;
 
-    height: 100dvh; /* dynamic viewport height */
+    background-color: transparent;
 
   }
 
   body {
 
-    @apply text-foreground font-sans;
+    @apply h-full overflow-hidden text-foreground font-sans;
+
+    background-color: transparent;
+
+    margin: 0;
+
+    padding: 0;
+
+    height: 100dvh;
+
+    -webkit-tap-highlight-color: transparent;
 
   }
 
 }
+
+

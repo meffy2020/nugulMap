@@ -76,26 +76,17 @@ function AddZoneContent() {
           let height = img.height
           const MAX_SIZE = 1280
           if (width > height) {
-            if (width > MAX_SIZE) {
-              height *= MAX_SIZE / width
-              width = MAX_SIZE
-            }
+            if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
           } else {
-            if (height > MAX_SIZE) {
-              width *= MAX_SIZE / height
-              height = MAX_SIZE
-            }
+            if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
           }
           canvas.width = width
           canvas.height = height
           const ctx = canvas.getContext("2d")
           ctx?.drawImage(img, 0, 0, width, height)
           canvas.toBlob((blob) => {
-            if (blob) {
-              resolve(new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() }))
-            } else {
-              resolve(file)
-            }
+            if (blob) resolve(new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() }))
+            else resolve(file)
           }, "image/jpeg", 0.8)
         }
       }
@@ -133,9 +124,7 @@ function AddZoneContent() {
       router.push(`/?lat=${coords.lat}&lng=${coords.lng}&zoom=true`)
     } catch (err) {
       toast({ title: "등록 실패", description: "잠시 후 다시 시도해주세요.", variant: "destructive" })
-    } finally {
-      setIsSubmitting(false)
-    }
+    } finally { setIsSubmitting(false) }
   }
 
   const ZONE_TYPES = [
@@ -145,13 +134,17 @@ function AddZoneContent() {
   ]
 
   return (
-    <div className="relative h-full w-full flex flex-col bg-background overflow-hidden">
-      {/* 1. Header (Fixed at the very top, including notch) */}
-      <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/70 via-black/30 to-transparent pb-24 px-4 pointer-events-none transition-all" 
-           style={{ paddingTop: 'env(safe-area-inset-top, 0.5rem)' }}>
+    <div className="fixed inset-0 w-full h-full flex flex-col overflow-hidden bg-background">
+      {/* 1. Map Layer (Now Fixed Inset to cover notch) */}
+      <div className="absolute inset-0 w-full h-full z-0">
+        <FixedPinMap ref={mapRef} onLocationChange={handleLocationChange} bottomOffset={250} initialLat={initialLat} initialLng={initialLng} />
+      </div>
+
+      {/* 2. Header (Ultra-compact, No background white bars) */}
+      <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/70 via-black/20 to-transparent pb-20 px-4 pointer-events-none transition-all" 
+           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         
-        {/* Top Row: Back & Title */}
-        <div className="flex items-center gap-3 pt-1 pointer-events-auto">
+        <div className="flex items-center gap-3 pt-3 pointer-events-auto">
           <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-full h-10 w-10" onClick={() => router.back()}>
             <ArrowLeft className="w-6 h-6 shadow-sm" />
           </Button>
@@ -161,34 +154,27 @@ function AddZoneContent() {
           </div>
         </div>
 
-        {/* Search Bar & Location Button Row */}
-        <div className="flex items-center gap-2 mt-4 pointer-events-auto">
-          <div className="relative flex-1 group">
+        <div className="mt-4 pointer-events-auto px-1">
+          <div className="relative group">
             <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-white/60 group-focus-within:text-white transition-colors" />
             </div>
             <Input placeholder="장소 또는 주소 검색" className="pl-11 h-11 bg-white/15 backdrop-blur-md border border-white/10 text-white placeholder:text-white/40 rounded-xl shadow-sm focus-visible:ring-white/20 focus-visible:bg-white/20 transition-all border-none shadow-none text-sm" />
           </div>
-          
-          {/* 📍 Current Location Button (Moved to top-right area for visibility) */}
-          <CurrentLocationButton 
-            className="h-11 w-11 shrink-0 border-white/20 bg-white/10" 
-            onLocationFound={(lat, lng) => mapRef.current?.centerOnLocation(lat, lng)} 
-          />
         </div>
       </div>
 
-      {/* 2. Map Layer (Ensured to fill 100vh) */}
-      <div className="absolute inset-0 w-full h-full z-0 bg-muted">
-        <FixedPinMap ref={mapRef} onLocationChange={handleLocationChange} bottomOffset={200} initialLat={initialLat} initialLng={initialLng} />
+      {/* 3. Floating Button (Moved to bottom left, above sheet) */}
+      <div className="absolute bottom-[46vh] left-4 z-40 pointer-events-auto">
+        <CurrentLocationButton onLocationFound={(lat, lng) => mapRef.current?.centerOnLocation(lat, lng)} />
       </div>
 
-      {/* 3. Bottom Sheet */}
+      {/* 4. Bottom Sheet */}
       <div className="absolute bottom-0 left-0 right-0 bg-background rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-50 flex flex-col transition-transform duration-300">
         <div className="w-full flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
            <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full" />
         </div>
-        <div className="p-6 pt-0 pb-10 space-y-5">
+        <div className="p-6 pt-0 pb-safe-bottom space-y-5">
           <div className="flex items-start gap-2.5 pt-2">
              <MapPin className="w-5 h-5 text-primary mt-0.5 shrink-0" />
              <h2 className="text-lg font-black text-foreground leading-tight line-clamp-2">
@@ -218,7 +204,7 @@ function AddZoneContent() {
           </div>
           <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="상세 설명 (선택 사항)" className="h-11 rounded-2xl bg-muted/30 border-border/50 text-sm focus:ring-primary/10" />
           <Button className="w-full h-14 text-base font-black rounded-2xl shadow-xl active:scale-[0.98] transition-all bg-primary text-primary-foreground hover:bg-primary/90" size="lg" disabled={isSubmitting || isAddressLoading} onClick={handleSubmit}>
-            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "이 위치로 등록하기"}
+            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "이 위치로 등록하기"}
           </Button>
         </div>
       </div>
@@ -228,7 +214,7 @@ function AddZoneContent() {
 
 export default function AddZonePage() {
   return (
-    <Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
+    <Suspense fallback={<div className="fixed inset-0 w-full h-full flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
       <AddZoneContent />
     </Suspense>
   )

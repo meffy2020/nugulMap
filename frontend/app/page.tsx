@@ -112,11 +112,13 @@ function HomePageContent() {
           </div>
         </div>
 
-        <div className="absolute bottom-8 left-6 pointer-events-auto z-40">
+        {/* Bottom Left: Current Location Button */}
+        <div className="absolute bottom-10 left-6 pointer-events-auto z-40">
           <CurrentLocationButton onLocationFound={handleLocationFound} />
         </div>
 
-        <div className="absolute bottom-8 right-6 pointer-events-auto z-40">
+        {/* Bottom Right: Add Button */}
+        <div className="absolute bottom-10 right-6 pointer-events-auto z-40">
           <FloatingActionButton onClick={handleAddClick} />
         </div>
       </div>
