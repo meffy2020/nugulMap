@@ -75,16 +75,6 @@ public class ZoneController {
                 ));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getZone(@PathVariable("id") Integer id) {
-        ZoneResponse response = zoneService.getZone(id);
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "message", "흡연구역 조회 성공",
-            "data", Map.of("zone", response)
-        ));
-    }
-
     @GetMapping("/bounds")
     public ResponseEntity<?> getZonesByBounds(
             @RequestParam("minLat") Double minLat,
@@ -101,6 +91,16 @@ public class ZoneController {
                 "zones", response,
                 "count", response.size()
             )
+        ));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getZone(@PathVariable("id") Integer id) {
+        ZoneResponse response = zoneService.getZone(id);
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "흡연구역 조회 성공",
+            "data", Map.of("zone", response)
         ));
     }
 

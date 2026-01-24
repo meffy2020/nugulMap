@@ -26,10 +26,19 @@ public class ZoneResponse {
     private String image;
 
     public static ZoneResponse from(Zone zone) {
-        // creator가 있으면 creator의 이메일 사용, 없으면 기존 user 필드 사용 (하위 호환성)
-        String userEmail = zone.getCreator() != null && zone.getCreator().getEmail() != null
-                ? zone.getCreator().getEmail()
-                : zone.getUser();
+        if (zone == null) return null;
+
+        // creator 정보 안전하게 추출
+        String userEmail = "익명사용자";
+        try {
+            if (zone.getCreator() != null) {
+                userEmail = zone.getCreator().getEmail();
+            } else if (zone.getUser() != null) {
+                userEmail = zone.getUser();
+            }
+        } catch (Exception e) {
+            // Lazy loading 등 예외 발생 시 기본값 유지
+        }
         
         return ZoneResponse.builder()
                 .id(zone.getId())
