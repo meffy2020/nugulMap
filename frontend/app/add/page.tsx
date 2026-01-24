@@ -188,32 +188,35 @@ function AddZoneContent() {
 
   return (
     <div className="relative h-screen w-full flex flex-col bg-background overflow-hidden">
-      {/* 1. Header */}
-      <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/60 via-black/30 to-transparent pt-16 pb-24 px-4 pointer-events-none transition-all">
-        <div className="flex items-center gap-3 pt-6 pointer-events-auto">
+      {/* 1. Header (Adjusted for Safe Area and visibility) */}
+      <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/70 via-black/40 to-transparent pb-20 px-4 pointer-events-none transition-all" 
+           style={{ paddingTop: 'env(safe-area-inset-top, 1rem)' }}>
+        
+        {/* Top Row: Back Button & Title (Moved up) */}
+        <div className="flex items-center gap-3 pt-2 pointer-events-auto">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="text-white hover:bg-white/20 rounded-full"
+            className="text-white hover:bg-white/20 rounded-full h-10 w-10"
             onClick={() => router.back()}
           >
             <ArrowLeft className="w-6 h-6 shadow-sm" />
           </Button>
           <div className="flex-1">
-             <h1 className="text-white font-bold text-lg leading-tight drop-shadow-md">흡연구역 등록</h1>
-             <p className="text-white/90 text-xs drop-shadow-sm font-medium">지도를 움직여 핀을 위치시켜주세요.</p>
+             <h1 className="text-white font-bold text-base leading-tight drop-shadow-md">흡연구역 등록</h1>
+             <p className="text-white/80 text-[10px] drop-shadow-sm font-medium">지도를 움직여 핀을 위치시켜주세요.</p>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="absolute top-[140px] left-0 right-0 pointer-events-auto px-5 mt-2">
+        {/* Search Bar (Moved up to top-[105px]) */}
+        <div className="absolute top-[105px] left-0 right-0 pointer-events-auto px-5">
           <div className="relative group">
             <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-white/60 group-focus-within:text-white transition-colors" />
             </div>
             <Input 
               placeholder="건물명, 도로명 주소 검색" 
-              className="pl-11 h-12 bg-white/10 backdrop-blur-md border border-white/10 text-white placeholder:text-white/40 rounded-2xl shadow-sm focus-visible:ring-white/20 focus-visible:bg-white/20 transition-all border-none shadow-none"
+              className="pl-11 h-11 bg-white/10 backdrop-blur-md border border-white/10 text-white placeholder:text-white/40 rounded-xl shadow-sm focus-visible:ring-white/20 focus-visible:bg-white/20 transition-all border-none shadow-none text-sm"
             />
           </div>
         </div>
