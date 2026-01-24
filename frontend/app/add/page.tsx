@@ -133,32 +133,41 @@ function AddZoneContent() {
     { id: "실내", label: "실내흡연", icon: Warehouse },
   ]
 
-  // 🖱️ Draggable Bottom Sheet Logic
-  const [sheetY, setSheetY] = useState(0)
+  // 🖱️ Draggable Bottom Sheet Logic (Refined)
+  const [sheetHeight, setSheetHeight] = useState(0) // 0 means auto/default
   const [isDragging, setIsDragging] = useState(false)
-  const sheetRef = useRef<HTMLDivElement>(null)
+  const startY = useRef(0)
+  const startHeight = useRef(0)
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setIsDragging(true)
+    startY.current = e.touches[0].clientY
+    startHeight.current = sheetHeight || (window.innerHeight * 0.35) // 현재 높이 저장
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging) return
     const touch = e.touches[0]
-    const deltaY = window.innerHeight - touch.clientY
-    // 최소/최대 높이 제한 (150px ~ 80% 화면 높이)
-    if (deltaY > 150 && deltaY < window.innerHeight * 0.8) {
-      setSheetY(deltaY)
+    const deltaY = startY.current - touch.clientY
+    const newHeight = startHeight.current + deltaY
+    
+    // 범위 제한 (150px ~ 90% 화면 높이)
+    if (newHeight > 100 && newHeight < window.innerHeight * 0.9) {
+      setSheetHeight(newHeight)
     }
   }
 
   const handleTouchEnd = () => {
     setIsDragging(false)
-    // Snap 로직: 일정 높이 이상이면 45vh, 아니면 25vh 등으로 고정 가능
-    if (sheetY > window.innerHeight * 0.4) {
-      setSheetY(window.innerHeight * 0.45)
+    const vh = window.innerHeight / 100
+    
+    // Snap Points 로직
+    if (sheetHeight > 70 * vh) {
+      setSheetHeight(85 * vh) // High
+    } else if (sheetHeight > 40 * vh) {
+      setSheetHeight(55 * vh) // Mid
     } else {
-      setSheetY(0) // 초기 상태(자동 높이)로 복귀
+      setSheetHeight(0) // Default (Auto)
     }
   }
 
@@ -199,27 +208,26 @@ function AddZoneContent() {
 
       {/* 2. Map Layer */}
       <div className="flex-1 relative overflow-hidden bg-muted">
-        <FixedPinMap ref={mapRef} onLocationChange={handleLocationChange} bottomOffset={sheetY > 0 ? sheetY : 250} initialLat={initialLat} initialLng={initialLng} />
+        <FixedPinMap ref={mapRef} onLocationChange={handleLocationChange} bottomOffset={sheetHeight > 0 ? sheetHeight : 250} initialLat={initialLat} initialLng={initialLng} />
       </div>
 
       {/* 3. Bottom Sheet (Interactive) */}
       <div 
-        ref={sheetRef}
         className={cn(
-          "absolute bottom-0 left-0 right-0 bg-background rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 flex flex-col transition-all duration-300 ease-out",
-          isDragging ? "transition-none" : "transition-all"
+          "absolute bottom-0 left-0 right-0 bg-background rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 flex flex-col",
+          isDragging ? "transition-none" : "transition-all duration-500 cubic-bezier(0.32, 0.72, 0, 1)"
         )}
-        style={{ height: sheetY > 0 ? `${sheetY}px` : 'auto' }}
+        style={{ height: sheetHeight > 0 ? `${sheetHeight}px` : 'auto', maxHeight: '90vh' }}
       >
         {/* Handle Bar (Draggable Area) */}
         <div 
-          className="w-full flex justify-center pt-3 pb-4 cursor-grab active:cursor-grabbing touch-none"
+          className="w-full flex justify-center pt-3 pb-6 cursor-grab active:cursor-grabbing touch-none"
           onTouchStart={handleTouchStart}
         >
            <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full" />
         </div>
         
-        <div className="px-6 pb-safe-bottom space-y-5 overflow-y-auto flex-1">
+        <div className="px-6 pb-10 space-y-5 overflow-y-auto flex-1">
           <div className="flex items-start gap-2.5">
              <MapPin className="w-5 h-5 text-primary mt-0.5 shrink-0" />
              <h2 className="text-lg font-black text-foreground leading-tight line-clamp-2">
