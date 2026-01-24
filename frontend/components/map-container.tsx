@@ -125,10 +125,12 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       const markers = zones.map((zone) => {
         const markerPosition = new window.kakao.maps.LatLng(zone.latitude, zone.longitude)
         
-        // 커스텀 마커 이미지 (공용 이미지 사용으로 안정성 확보)
-        const imageSrc = "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png"
-        const imageSize = new window.kakao.maps.Size(24, 35)
-        const markerImage = new window.kakao.maps.MarkerImage(imageSrc, imageSize)
+        // 커스텀 마커 이미지 설정
+        const imageSrc = "/images/pin.png"
+        const imageSize = new window.kakao.maps.Size(40, 40)
+        const imageOption = { offset: new window.kakao.maps.Point(20, 40) } // 핀의 하단 중앙이 위치를 가리키도록 설정
+        
+        const markerImage = new window.kakao.maps.MarkerImage(imageSrc, imageSize, imageOption)
         
         const marker = new window.kakao.maps.Marker({
           position: markerPosition,
