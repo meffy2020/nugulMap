@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react"
 import Script from "next/script"
 import Image from "next/image"
 
@@ -12,16 +12,28 @@ interface FixedPinMapProps {
   bottomOffset?: number
 }
 
-export function FixedPinMap({ 
+export interface FixedPinMapRef {
+  centerOnLocation: (lat: number, lng: number) => void
+}
+
+export const FixedPinMap = forwardRef<FixedPinMapRef, FixedPinMapProps>(({ 
   initialLat = 37.5665, 
   initialLng = 126.978, 
   onLocationChange,
   onMapLoad,
   bottomOffset = 0
-}: FixedPinMapProps) {
+}, ref) => {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const [isDragging, setIsDragging] = useState(false)
+
+  useImperativeHandle(ref, () => ({
+    centerOnLocation: (lat: number, lng: number) => {
+      if (mapRef.current) {
+        mapRef.current.setCenter(new window.kakao.maps.LatLng(lat, lng))
+      }
+    }
+  }))
 
   // Initialize Map
   const initializeMap = () => {

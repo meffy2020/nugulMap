@@ -1,15 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { Navigation, Loader2 } from "lucide-react"
+import { LocateFixed, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 
 interface CurrentLocationButtonProps {
   onLocationFound: (lat: number, lng: number) => void
+  className?: string
 }
 
-export function CurrentLocationButton({ onLocationFound }: CurrentLocationButtonProps) {
+export function CurrentLocationButton({ onLocationFound, className }: CurrentLocationButtonProps) {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
@@ -47,14 +48,14 @@ export function CurrentLocationButton({ onLocationFound }: CurrentLocationButton
     <Button
       variant="outline"
       size="icon"
-      className="h-12 w-12 rounded-full bg-background shadow-xl border-none hover:bg-muted active:scale-90 transition-all group"
+      className={`h-12 w-12 rounded-full bg-black/20 backdrop-blur-sm border-2 border-white hover:bg-black/40 active:scale-90 transition-all ${className}`}
       onClick={handleGetCurrentLocation}
       disabled={loading}
     >
       {loading ? (
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <Loader2 className="h-5 w-5 animate-spin text-white" />
       ) : (
-        <Navigation className="h-5 w-5 text-primary group-hover:fill-primary transition-all" />
+        <LocateFixed className="h-6 w-6 text-white" />
       )}
     </Button>
   )
