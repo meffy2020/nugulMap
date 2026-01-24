@@ -49,20 +49,19 @@ const MOCK_ZONES: SmokingZone[] = [
   },
 ]
 
-/**
- * 지도의 특정 영역(Bounding Box) 내의 흡연구역을 가져옵니다.
- */
 export async function fetchZones(minLat: number, maxLat: number, minLng: number, maxLng: number): Promise<SmokingZone[]> {
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/zones/bounds?minLat=${minLat}&maxLat=${maxLat}&minLng=${minLng}&maxLng=${maxLng}`,
     )
-    if (!response.ok) {
-      throw new Error("Network response was not ok")
-    }
+    if (!response.ok) throw new Error("Network response was not ok")
+    
     const result = await response.json()
-    // 백엔드 응답 구조 { success, message, data: { zones: [], count: 0 } } 반영
-    return result.data?.zones || []
+    // 백엔드가 { success, data: { zones: [...] } } 형태임을 보장
+    if (result.success && result.data && Array.isArray(result.data.zones)) {
+      return result.data.zones
+    }
+    return []
   } catch (error) {
     console.error("Error fetching zones:", error)
     return []
