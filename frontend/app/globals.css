@@ -86,10 +86,25 @@
 }
 
 @layer base {
+
   * {
+
     @apply border-border outline-ring/50;
+
   }
+
+  html, body {
+
+    @apply h-full overflow-hidden bg-background;
+
+    height: 100dvh; /* dynamic viewport height */
+
+  }
+
   body {
-    @apply bg-background text-foreground font-sans;
+
+    @apply text-foreground font-sans;
+
   }
+
 }
