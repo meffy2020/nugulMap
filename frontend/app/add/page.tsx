@@ -134,45 +134,47 @@ function AddZoneContent() {
   ]
 
   return (
-    <div className="fixed inset-0 w-full h-full flex flex-col overflow-hidden bg-background">
-      {/* 1. Map Layer (Now Fixed Inset to cover notch) */}
-      <div className="absolute inset-0 w-full h-full z-0">
+    <div className="relative h-screen w-full flex flex-col bg-background overflow-hidden">
+      {/* 1. Fixed Top Header (Solid White) */}
+      <header className="z-50 bg-background border-b shadow-sm">
+        <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+        <div className="px-4 py-3 flex flex-col gap-3">
+          {/* Top Row: Back & Title */}
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 shrink-0" onClick={() => router.back()}>
+              <ArrowLeft className="w-6 h-6 text-foreground" />
+            </Button>
+            <div className="flex-1">
+               <h1 className="font-black text-lg text-foreground leading-tight">흡연구역 등록</h1>
+               <p className="text-muted-foreground text-xs font-medium">지도를 움직여 핀을 맞춰주세요.</p>
+            </div>
+          </div>
+          
+          {/* Bottom Row: Search & Location */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 group">
+              <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              </div>
+              <Input placeholder="장소 또는 주소 검색" className="pl-11 h-11 bg-muted/50 border-none rounded-xl text-sm focus-visible:ring-primary/20" />
+            </div>
+            <CurrentLocationButton 
+              className="h-11 w-11 shrink-0 border-muted bg-muted/30" 
+              onLocationFound={(lat, lng) => mapRef.current?.centerOnLocation(lat, lng)} 
+            />
+          </div>
+        </div>
+      </header>
+
+      {/* 2. Map Layer */}
+      <div className="flex-1 relative overflow-hidden bg-muted">
         <FixedPinMap ref={mapRef} onLocationChange={handleLocationChange} bottomOffset={250} initialLat={initialLat} initialLng={initialLng} />
       </div>
 
-      {/* 2. Header (Ultra-compact, No background white bars) */}
-      <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/70 via-black/20 to-transparent pb-20 px-4 pointer-events-none transition-all" 
-           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        
-        <div className="flex items-center gap-3 pt-3 pointer-events-auto">
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-full h-10 w-10" onClick={() => router.back()}>
-            <ArrowLeft className="w-6 h-6 shadow-sm" />
-          </Button>
-          <div className="flex-1">
-             <h1 className="text-white font-bold text-base leading-tight drop-shadow-md">흡연구역 등록</h1>
-             <p className="text-white/70 text-[10px] drop-shadow-sm font-medium">지도를 움직여 핀을 맞춰주세요.</p>
-          </div>
-        </div>
-
-        <div className="mt-4 pointer-events-auto px-1">
-          <div className="relative group">
-            <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-white/60 group-focus-within:text-white transition-colors" />
-            </div>
-            <Input placeholder="장소 또는 주소 검색" className="pl-11 h-11 bg-white/15 backdrop-blur-md border border-white/10 text-white placeholder:text-white/40 rounded-xl shadow-sm focus-visible:ring-white/20 focus-visible:bg-white/20 transition-all border-none shadow-none text-sm" />
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Floating Button (Moved to bottom left, above sheet) */}
-      <div className="absolute bottom-[46vh] left-4 z-40 pointer-events-auto">
-        <CurrentLocationButton onLocationFound={(lat, lng) => mapRef.current?.centerOnLocation(lat, lng)} />
-      </div>
-
-      {/* 4. Bottom Sheet */}
-      <div className="absolute bottom-0 left-0 right-0 bg-background rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-50 flex flex-col transition-transform duration-300">
-        <div className="w-full flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
-           <div className="w-12 h-1.5 bg-muted-foreground/20 rounded-full" />
+      {/* 3. Bottom Sheet */}
+      <div className="absolute bottom-0 left-0 right-0 bg-background rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 flex flex-col">
+        <div className="w-full flex justify-center pt-3 pb-1">
+           <div className="w-12 h-1 bg-muted-foreground/20 rounded-full" />
         </div>
         <div className="p-6 pt-0 pb-safe-bottom space-y-5">
           <div className="flex items-start gap-2.5 pt-2">
@@ -202,8 +204,8 @@ function AddZoneContent() {
                <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
             </div>
           </div>
-          <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="상세 설명 (선택 사항)" className="h-11 rounded-2xl bg-muted/30 border-border/50 text-sm focus:ring-primary/10" />
-          <Button className="w-full h-14 text-base font-black rounded-2xl shadow-xl active:scale-[0.98] transition-all bg-primary text-primary-foreground hover:bg-primary/90" size="lg" disabled={isSubmitting || isAddressLoading} onClick={handleSubmit}>
+          <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="상세 설명 (선택 사항)" className="h-11 rounded-2xl bg-muted/30 border-border/50 text-sm" />
+          <Button className="w-full h-14 text-base font-black rounded-2xl shadow-lg active:scale-[0.98] transition-all bg-primary text-primary-foreground hover:bg-primary/90" size="lg" disabled={isSubmitting || isAddressLoading} onClick={handleSubmit}>
             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "이 위치로 등록하기"}
           </Button>
         </div>
@@ -214,7 +216,7 @@ function AddZoneContent() {
 
 export default function AddZonePage() {
   return (
-    <Suspense fallback={<div className="fixed inset-0 w-full h-full flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
+    <Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
       <AddZoneContent />
     </Suspense>
   )

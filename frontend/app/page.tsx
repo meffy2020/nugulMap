@@ -96,21 +96,24 @@ function HomePageContent() {
 
   return (
     <div className="relative h-screen w-full flex flex-col bg-background overflow-hidden">
-      <div className="flex-1 relative">
-        <MapContainer ref={mapRef} />
-
-        {/* Top UI: Search Bar & Profile (Safe Area & Margin Adjusted) */}
-        <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none px-4 flex flex-col gap-4"
-             style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}>
-          <div className="flex items-center gap-3 pointer-events-auto w-full max-w-5xl mx-auto">
-            <div className="flex-1">
-              <SearchBar onSearch={handleSearch} />
-            </div>
-            <div className="shrink-0">
-              <FloatingUserProfile />
-            </div>
+      {/* 1. Fixed Top Header Bar */}
+      <header className="z-50 bg-background border-b shadow-sm">
+        {/* Notch Area protection */}
+        <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+        
+        <div className="px-4 h-16 flex items-center gap-3 max-w-5xl mx-auto w-full">
+          <div className="flex-1 min-w-0">
+            <SearchBar onSearch={handleSearch} />
+          </div>
+          <div className="shrink-0">
+            <FloatingUserProfile />
           </div>
         </div>
+      </header>
+
+      {/* 2. Map Layer */}
+      <div className="flex-1 relative overflow-hidden">
+        <MapContainer ref={mapRef} />
 
         {/* Bottom Left: Current Location Button */}
         <div className="absolute bottom-10 left-6 pointer-events-auto z-40">
