@@ -44,9 +44,15 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
     }
 
     const initMap = () => {
-      if (!mapRef.current || mapInstance) return
+      if (!mapRef.current) return
 
       try {
+        // 이미 지도가 있으면 로딩만 끄고 종료
+        if (mapInstance) {
+          setLoading(false)
+          return
+        }
+
         const options = {
           center: new window.kakao.maps.LatLng(37.5665, 126.978),
           level: 3,
@@ -64,9 +70,10 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
           })
         }
         setShowMapError(false)
-        setLoading(false)
       } catch (err) {
         console.error("[v0] 카카오맵 생성 실패:", err)
+      } finally {
+        setLoading(false)
       }
     }
 

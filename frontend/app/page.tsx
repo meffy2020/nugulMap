@@ -99,10 +99,16 @@ function HomePageContent() {
       <div className="flex-1 relative">
         <MapContainer ref={mapRef} />
 
-        <div className="absolute top-4 left-4 right-4 z-40 pointer-events-none flex flex-col gap-4">
-          <div className="flex items-center gap-2 pointer-events-auto">
-            <SearchBar onSearch={handleSearch} />
-            <FloatingUserProfile />
+        {/* Top UI: Search Bar & Profile (Safe Area & Margin Adjusted) */}
+        <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none px-4 flex flex-col gap-4"
+             style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}>
+          <div className="flex items-center gap-3 pointer-events-auto w-full max-w-5xl mx-auto">
+            <div className="flex-1">
+              <SearchBar onSearch={handleSearch} />
+            </div>
+            <div className="shrink-0">
+              <FloatingUserProfile />
+            </div>
           </div>
         </div>
 
