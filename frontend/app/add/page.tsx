@@ -33,6 +33,37 @@ function AddZoneContent() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 🌍 주소 변환 로직 (Geocoding)
+  const updateAddress = useCallback((lat: number, lng: number, retryCount = 0) => {
+    if (!window.kakao?.maps?.services) {
+      if (retryCount < 5) {
+        setTimeout(() => updateAddress(lat, lng, retryCount + 1), 500)
+      } else {
+        setAddress("주소 변환 실패 (API 로드 오류)")
+        setIsAddressLoading(false)
+      }
+      return
+    }
+
+    setIsAddressLoading(true)
+    const geocoder = new window.kakao.maps.services.Geocoder()
+    geocoder.coord2Address(lng, lat, (result: any, status: any) => {
+      setIsAddressLoading(false)
+      if (status === window.kakao.maps.services.Status.OK && result[0]) {
+        const addr = result[0].address
+        setAddress(addr.address_name)
+        setRegion(addr.region_1depth_name || "서울특별시")
+      } else {
+        setAddress("주소를 찾을 수 없습니다.")
+      }
+    })
+  }, [])
+
+  const handleLocationChange = useCallback((lat: number, lng: number) => {
+    setCoords({ lat, lng })
+    updateAddress(lat, lng)
+  }, [updateAddress])
+
   // 🖼️ 이미지 리사이징 함수 (실무용 최적화)
   const resizeImage = (file: File): Promise<File> => {
     return new Promise((resolve) => {
