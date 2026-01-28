@@ -1,9 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
-import { X, MapPin, Loader2 } from "lucide-react"
+import { X, MapPin, Loader2, Navigation } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import Script from "next/script"
 
 import { fetchZones, type SmokingZone, getImageUrl } from "@/lib/api"
@@ -46,20 +45,17 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
 
     const initMap = () => {
       if (!mapRef.current) return
-
       try {
         if (mapInstance) {
           setLoading(false)
           return
         }
-
         const options = {
           center: new window.kakao.maps.LatLng(37.5665, 126.978),
           level: 3,
         }
         const map = new window.kakao.maps.Map(mapRef.current!, options)
         setMapInstance(map)
-        
         if (window.kakao.maps.MarkerClusterer) {
           clustererRef.current = new window.kakao.maps.MarkerClusterer({
             map: map,
@@ -74,7 +70,6 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
         setLoading(false)
       }
     }
-
     window.kakao.maps.load(initMap)
   }, [kakaoLoaded, mapInstance])
 
@@ -92,16 +87,12 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
   }
 
   useEffect(() => {
-    if (mapInstance) {
-      loadZonesInView()
-    }
+    if (mapInstance) loadZonesInView()
   }, [mapInstance])
 
   useEffect(() => {
     if (!mapInstance) return
-    const handleMapChange = () => {
-      loadZonesInView()
-    }
+    const handleMapChange = () => loadZonesInView()
     window.kakao.maps.event.addListener(mapInstance, 'dragend', handleMapChange)
     window.kakao.maps.event.addListener(mapInstance, 'zoom_changed', handleMapChange)
     return () => {
@@ -125,14 +116,13 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
         const marker = new window.kakao.maps.Marker({
           position: markerPosition,
           image: markerImage,
-          title: zone.address
+          title: zone.name
         })
 
         window.kakao.maps.event.addListener(marker, "click", () => {
           setSelectedMarker(zone as LocationMarker)
           mapInstance.panTo(markerPosition)
         })
-
         return marker
       })
 
@@ -167,6 +157,12 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
     },
   }))
 
+  const handleDirections = () => {
+    if (!selectedMarker) return
+    const url = `https://map.kakao.com/link/to/${selectedMarker.name},${selectedMarker.latitude},${selectedMarker.longitude}`
+    window.open(url, '_blank')
+  }
+
   return (
     <div className="relative w-full h-full">
       <Script
@@ -178,7 +174,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       
       {showMapError ? (
         <div className="w-full h-full flex items-center justify-center bg-muted text-center p-6 text-zinc-500">
-          <p>지도를 불러올 수 없습니다. API 키 설정을 확인해주세요.</p>
+          <p>지도를 불러올 수 없습니다.</p>
         </div>
       ) : (
         <div ref={mapRef} className="w-full h-full" />
@@ -196,48 +192,62 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       >
         <Drawer.Portal>
           <Drawer.Overlay className="fixed inset-0 bg-black/40 z-[100]" />
-          <Drawer.Content className="bg-white flex flex-col rounded-t-[20px] h-[70dvh] fixed bottom-0 left-0 right-0 z-[101] outline-none">
-            <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-4" />
-            <div className="p-4 bg-white flex-1 overflow-y-auto">
+          <Drawer.Content className="bg-white flex flex-col rounded-t-[24px] max-h-[85dvh] fixed bottom-0 left-0 right-0 z-[101] outline-none">
+            <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-200 my-4" />
+            
+            <div className="px-5 pb-8 overflow-y-auto">
               {selectedMarker && (
-                <div className="max-w-md mx-auto">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h2 className="text-xl font-bold text-zinc-900">{selectedMarker.name}</h2>
-                      <p className="text-sm text-zinc-500">{selectedMarker.address}</p>
+                <div className="max-w-md mx-auto space-y-5">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-zinc-900 leading-tight">
+                        {selectedMarker.name}
+                      </h2>
+                      {selectedMarker.type && selectedMarker.type !== "UNKNOWN" && (
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-[10px] font-bold shrink-0",
+                          selectedMarker.type === "INDOOR" ? "bg-blue-50 text-blue-600" :
+                          selectedMarker.type === "BOOTH" ? "bg-green-50 text-green-600" :
+                          "bg-orange-50 text-orange-600"
+                        )}>
+                          {selectedMarker.type === "INDOOR" ? "실내" :
+                           selectedMarker.type === "BOOTH" ? "부스" : "개방형"}
+                        </span>
+                      )}
                     </div>
-                    <span className={cn(
-                      "px-2 py-1 rounded-full text-[10px] font-bold",
-                      selectedMarker.type === "INDOOR" ? "bg-blue-100 text-blue-700" :
-                      selectedMarker.type === "BOOTH" ? "bg-green-100 text-green-700" :
-                      "bg-orange-100 text-orange-700"
-                    )}>
-                      {selectedMarker.type === "INDOOR" ? "실내" :
-                       selectedMarker.type === "BOOTH" ? "부스" : "개방형"}
-                    </span>
+                    <p className="text-sm text-zinc-500">{selectedMarker.address}</p>
                   </div>
 
-                  <div className="relative aspect-video w-full mb-6 rounded-xl overflow-hidden bg-zinc-100 border">
-                    <Image
-                      src={getImageUrl(selectedMarker.imageUrl) || "/placeholder.svg"}
-                      alt={selectedMarker.name}
-                      fill
-                      className="object-cover"
-                    />
+                  {selectedMarker.imageUrl && (
+                    <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100">
+                      <Image
+                        src={getImageUrl(selectedMarker.imageUrl) || "/placeholder.svg"}
+                        alt={selectedMarker.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+
+                  <div className="bg-zinc-50 rounded-2xl p-4 flex items-start gap-3">
+                    <MapPin className="w-5 h-5 text-zinc-400 shrink-0 mt-0.5" />
+                    <p className="text-sm text-zinc-600 leading-relaxed">
+                      {selectedMarker.description || "등록된 상세 설명이 없습니다."}
+                    </p>
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="flex items-start gap-3 text-zinc-600">
-                      <MapPin className="w-5 h-5 shrink-0 mt-0.5" />
-                      <span className="text-sm leading-relaxed">{selectedMarker.description || "상세 설명이 등록되지 않은 장소입니다."}</span>
-                    </div>
-                    <Button className="w-full h-14 text-lg font-bold rounded-2xl" size="lg">
-                      길찾기 시작
-                    </Button>
-                  </div>
+                  <Button 
+                    onClick={handleDirections}
+                    className="w-full h-14 text-lg font-bold rounded-2xl gap-2 shadow-lg shadow-zinc-100" 
+                    size="lg"
+                  >
+                    <Navigation className="w-5 h-5" />
+                    길찾기 시작
+                  </Button>
                 </div>
               )}
             </div>
+            <div className="h-[env(safe-area-inset-bottom)]" />
           </Drawer.Content>
         </Drawer.Portal>
       </Drawer.Root>
@@ -246,3 +256,5 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
 })
 
 MapContainer.displayName = "MapContainer"
+
+export { MapContainer }
