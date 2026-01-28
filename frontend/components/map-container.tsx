@@ -9,6 +9,7 @@ import Script from "next/script"
 import { fetchZones, type SmokingZone, getImageUrl } from "@/lib/api"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { Drawer } from "vaul"
 
 declare global {
   interface Window {
@@ -208,35 +209,60 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
           </div>
         )}
 
-        {selectedMarker && (
-          <div className="absolute bottom-0 left-0 right-0 z-50 p-4 animate-in slide-in-from-bottom-full duration-300">
-            <Card className="max-w-md mx-auto bg-background/95 backdrop-blur-xl shadow-2xl rounded-[2rem] overflow-hidden">
-              <div className="w-12 h-1 bg-muted rounded-full mx-auto mt-3 opacity-50" />
-              <CardContent className="p-6">
-                {selectedMarker.image && (
-                  <div className="mb-4 rounded-2xl overflow-hidden aspect-video relative">
-                    <Image src={getImageUrl(selectedMarker.image)} alt="Smoking zone" fill className="object-cover" />
+      {/* Bottom Sheet for Details */}
+      <Drawer.Root 
+        open={!!selectedZone} 
+        onOpenChange={(open) => !open && setSelectedZone(null)}
+        shouldScaleBackground
+      >
+        <Drawer.Portal>
+          <Drawer.Overlay className="fixed inset-0 bg-black/40 z-[100]" />
+          <Drawer.Content className="bg-white flex flex-col rounded-t-[20px] h-[60%] mt-24 fixed bottom-0 left-0 right-0 z-[101] outline-none">
+            <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-zinc-300 my-4" />
+            <div className="p-4 bg-white flex-1 overflow-y-auto">
+              {selectedZone && (
+                <div className="max-w-md mx-auto">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-zinc-900">{selectedZone.name}</h2>
+                      <p className="text-sm text-zinc-500">{selectedZone.address}</p>
+                    </div>
+                    <span className={cn(
+                      "px-2 py-1 rounded-full text-xs font-medium",
+                      selectedZone.type === "INDOOR" ? "bg-blue-100 text-blue-700" :
+                      selectedZone.type === "BOOTH" ? "bg-green-100 text-green-700" :
+                      "bg-orange-100 text-orange-700"
+                    )}>
+                      {selectedZone.type === "INDOOR" ? "실내" :
+                       selectedZone.type === "BOOTH" ? "부스" : "개방형"}
+                    </span>
                   </div>
-                )}
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-xl font-black">{selectedMarker.address}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{selectedMarker.description}</p>
+
+                  <div className="relative aspect-video w-full mb-6 rounded-xl overflow-hidden bg-zinc-100">
+                    <Image
+                      src={getImageUrl(selectedZone.imageUrl) || "/placeholder.svg?height=400&width=600"}
+                      alt={selectedZone.name}
+                      fill
+                      className="object-cover"
+                    />
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => setSelectedMarker(null)}>
-                    <X className="w-5 h-5" />
-                  </Button>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 text-zinc-600">
+                      <MapPin className="w-5 h-5" />
+                      <span>{selectedZone.description || "상세 설명이 없습니다."}</span>
+                    </div>
+                    <Button className="w-full h-12 text-base font-bold rounded-xl" size="lg">
+                      길찾기 시작
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2 mt-4">
-                  <span className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-xs font-bold">{selectedMarker.type}</span>
-                  <span className="px-3 py-1 bg-muted rounded-full text-xs font-bold">{selectedMarker.region}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
-    </>
+              )}
+            </div>
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>
+    </div>
   )
 })
 

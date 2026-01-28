@@ -85,6 +85,21 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+@layer utilities {
+  .h-screen-dvh {
+    height: 100dvh;
+  }
+  .min-h-screen-dvh {
+    min-height: 100dvh;
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
 @layer base {
 
   * {

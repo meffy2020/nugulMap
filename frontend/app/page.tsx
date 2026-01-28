@@ -95,35 +95,43 @@ function HomePageContent() {
   }
 
   return (
-    <div className="relative h-screen w-full flex flex-col bg-background overflow-hidden">
-      {/* 1. Fixed Top Header Bar */}
-      <header className="z-50 bg-background border-b shadow-sm">
-        {/* Notch Area protection */}
-        <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
-        
-        <div className="px-4 h-16 flex items-center gap-3 max-w-5xl mx-auto w-full">
-          <div className="flex-1 min-w-0">
-            <SearchBar onSearch={handleSearch} />
-          </div>
-          <div className="shrink-0">
-            <FloatingUserProfile />
+    <div className="relative h-screen-dvh w-full bg-background overflow-hidden">
+      {/* 1. Floating Top Header Bar */}
+      <header className="absolute top-0 left-0 right-0 z-50">
+        {/* Notch Area protection with blur background */}
+        <div className="bg-white/80 backdrop-blur-md border-b">
+          <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+          <div className="px-4 h-16 flex items-center gap-3 max-w-5xl mx-auto w-full">
+            <div className="flex-1 min-w-0">
+              <SearchBar onSearch={handleSearch} />
+            </div>
+            <div className="shrink-0">
+              <FloatingUserProfile />
+            </div>
           </div>
         </div>
       </header>
 
-      {/* 2. Map Layer */}
-      <div className="flex-1 relative overflow-hidden">
+      {/* 2. Full Screen Map Layer */}
+      <div className="absolute inset-0 z-0">
         <MapContainer ref={mapRef} />
+      </div>
 
-        {/* Bottom Left: Current Location Button */}
-        <div className="absolute bottom-10 left-6 pointer-events-auto z-40">
-          <CurrentLocationButton onLocationFound={handleLocationFound} />
-        </div>
+      {/* Floating Controls Overlay */}
+      <div className="absolute bottom-0 left-0 right-0 pointer-events-none z-40">
+        <div className="relative w-full h-[150px]">
+          {/* Bottom Left: Current Location Button */}
+          <div className="absolute bottom-10 left-6 pointer-events-auto">
+            <CurrentLocationButton onLocationFound={handleLocationFound} />
+          </div>
 
-        {/* Bottom Right: Add Button */}
-        <div className="absolute bottom-10 right-6 pointer-events-auto z-40">
-          <FloatingActionButton onClick={handleAddClick} />
+          {/* Bottom Right: Add Button */}
+          <div className="absolute bottom-10 right-6 pointer-events-auto">
+            <FloatingActionButton onClick={handleAddClick} />
+          </div>
         </div>
+        {/* Bottom Safe Area padding */}
+        <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} className="bg-transparent" />
       </div>
     </div>
   )
