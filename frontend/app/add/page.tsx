@@ -101,7 +101,9 @@ function AddZoneContent() {
     setIsSubmitting(true)
     try {
       const payload: CreateZonePayload = {
-        region, type: "일반구역", subtype: type,
+        region, 
+        type: type === "개방" ? "OPEN" : type === "부스" ? "BOOTH" : "INDOOR", 
+        subtype: type,
         description: description || `${address}에 위치한 ${type}형 흡연구역`,
         latitude: coords.lat, longitude: coords.lng, address, user: "익명사용자",
       }
