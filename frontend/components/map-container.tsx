@@ -44,18 +44,25 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
     }
 
     const initMap = () => {
-      if (!mapRef.current) return
+      if (!mapRef.current) {
+        setLoading(false)
+        return
+      }
       try {
-        if (mapInstance) {
+        // 이미 지도가 존재한다면 로딩만 끄고 인스턴스 유지
+        if (mapInstance || (window.kakao && mapRef.current.hasChildNodes())) {
+          console.log("[v0] Map already exists, skipping re-init")
           setLoading(false)
           return
         }
+
         const options = {
           center: new window.kakao.maps.LatLng(37.5665, 126.978),
           level: 3,
         }
         const map = new window.kakao.maps.Map(mapRef.current!, options)
         setMapInstance(map)
+        
         if (window.kakao.maps.MarkerClusterer) {
           clustererRef.current = new window.kakao.maps.MarkerClusterer({
             map: map,
@@ -67,6 +74,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       } catch (err) {
         console.error("[v0] 카카오맵 생성 실패:", err)
       } finally {
+        // 어떤 경우에도 로딩 바는 꺼져야 함
         setLoading(false)
       }
     }
