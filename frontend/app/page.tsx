@@ -77,16 +77,34 @@ function HomePageContent() {
     if (!query.trim()) return
 
     try {
-      const results = await searchZones(query)
-      if (results.length > 0) {
-        const first = results[0]
-        if (mapRef.current?.centerOnLocation) {
-          mapRef.current.centerOnLocation(first.latitude, first.longitude)
-        }
-      } else {
-        toast({
-          title: "검색 결과 없음",
-          description: "해당 키워드로 등록된 장소가 없습니다.",
+      // 1. 카카오 장소 검색 시도 (일반 목적지 찾기용)
+      if (window.kakao && window.kakao.maps.services) {
+        const ps = new window.kakao.maps.services.Places()
+        ps.keywordSearch(query, async (data: any, status: any) => {
+          if (status === window.kakao.maps.services.Status.OK) {
+            // 가장 연관성 높은 장소로 이동
+            const first = data[0]
+            if (mapRef.current?.centerOnLocation) {
+              mapRef.current.centerOnLocation(parseFloat(first.y), parseFloat(first.x))
+              return // 장소를 찾았으면 여기서 종료 (이지역 흡연구역은 MapContainer가 자동으로 로드함)
+            }
+          }
+
+          // 2. 카카오 결과가 없거나 실패 시 우리 DB 검색 (흡연구역 이름으로 찾기)
+          const center = mapRef.current?.getCenter ? mapRef.current.getCenter() : null
+          const results = await searchZones(query, center?.lat, center?.lng)
+          
+          if (results.length > 0) {
+            const first = results[0]
+            if (mapRef.current?.centerOnLocation) {
+              mapRef.current.centerOnLocation(first.latitude, first.longitude)
+            }
+          } else {
+            toast({
+              title: "검색 결과 없음",
+              description: "해당 위치나 흡연구역을 찾을 수 없습니다.",
+            })
+          }
         })
       }
     } catch (err) {

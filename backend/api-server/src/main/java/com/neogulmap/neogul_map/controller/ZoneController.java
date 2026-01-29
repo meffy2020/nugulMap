@@ -188,8 +188,11 @@ public class ZoneController {
      * @return 검색된 Zone 목록
      */
     @GetMapping("/search")
-    public ResponseEntity<?> searchZones(@RequestParam("keyword") String keyword) {
-        List<ZoneResponse> response = zoneService.searchZones(keyword);
+    public ResponseEntity<?> searchZones(
+            @RequestParam("keyword") String keyword,
+            @RequestParam(value = "lat", required = false) Double lat,
+            @RequestParam(value = "lng", required = false) Double lng) {
+        List<ZoneResponse> response = zoneService.searchZones(keyword, lat, lng);
         return ResponseEntity.ok(Map.of(
             "success", true,
             "message", "흡연구역 검색 성공",

@@ -234,8 +234,13 @@ export async function fetchUserZones(): Promise<SmokingZone[]> {
 /**
  * 장소 검색 (키워드)
  */
-export async function searchZones(keyword: string): Promise<SmokingZone[]> {
-  const response = await fetch(`${API_BASE_URL}/api/zones/search?keyword=${encodeURIComponent(keyword)}`, {
+export async function searchZones(keyword: string, lat?: number, lng?: number): Promise<SmokingZone[]> {
+  let url = `${API_BASE_URL}/api/zones/search?keyword=${encodeURIComponent(keyword)}`
+  if (lat && lng) {
+    url += `&lat=${lat}&lng=${lng}`
+  }
+
+  const response = await fetch(url, {
     credentials: "include",
   })
 

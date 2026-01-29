@@ -86,14 +86,20 @@ public class ZoneService {
                 .map(ZoneResponse::from);
     }
     
-    // 간단한 키워드 검색 (MVP 수준)
+    // 키워드 검색 (위경도 있으면 거리순 정렬)
     @Transactional(readOnly = true)
-    public List<ZoneResponse> searchZones(String keyword) {
+    public List<ZoneResponse> searchZones(String keyword, Double lat, Double lng) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return getAllZones();
         }
         
-        // 키워드로 검색 (지역, 주소, 타입, 서브타입에서 검색)
+        if (lat != null && lng != null) {
+            return zoneRepository.findByKeywordOrderByDistance(keyword, lat, lng)
+                    .stream()
+                    .map(obj -> ZoneResponse.from((Zone) obj[0]))
+                    .collect(Collectors.toUnmodifiableList());
+        }
+        
         return zoneRepository.findByKeyword(keyword)
                 .stream()
                 .map(ZoneResponse::from)

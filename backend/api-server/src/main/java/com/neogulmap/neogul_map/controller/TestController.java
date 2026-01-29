@@ -332,7 +332,7 @@ public class TestController {
     @GetMapping("/zones/search")
     public ResponseEntity<Map<String, Object>> searchZones(@RequestParam("keyword") String keyword) {
         try {
-            List<ZoneResponse> zones = zoneService.searchZones(keyword);
+            List<ZoneResponse> zones = zoneService.searchZones(keyword, null, null);
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Zone 검색 성공");
