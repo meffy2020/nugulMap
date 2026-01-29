@@ -226,15 +226,16 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
                       <h2 className="text-xl font-bold text-zinc-900 leading-tight">
                         {selectedMarker.name}
                       </h2>
-                      {selectedMarker.type && selectedMarker.type !== "UNKNOWN" && (
+                      {selectedMarker.type && (
                         <span className={cn(
                           "px-2 py-0.5 rounded text-[10px] font-bold shrink-0",
-                          selectedMarker.type === "INDOOR" ? "bg-blue-50 text-blue-600" :
-                          selectedMarker.type === "BOOTH" ? "bg-green-50 text-green-600" :
-                          "bg-orange-50 text-orange-600"
+                          (selectedMarker.type.includes("INDOOR") || selectedMarker.type.includes("실내")) ? "bg-blue-50 text-blue-600" :
+                          (selectedMarker.type.includes("BOOTH") || selectedMarker.type.includes("부스")) ? "bg-green-50 text-green-600" :
+                          (selectedMarker.type.includes("OPEN") || selectedMarker.type.includes("개방") || selectedMarker.type.includes("실외")) ? "bg-orange-50 text-orange-600" :
+                          "hidden"
                         )}>
-                          {selectedMarker.type === "INDOOR" ? "실내" :
-                           selectedMarker.type === "BOOTH" ? "부스" : "개방형"}
+                          {(selectedMarker.type.includes("INDOOR") || selectedMarker.type.includes("실내")) ? "실내" :
+                           (selectedMarker.type.includes("BOOTH") || selectedMarker.type.includes("부스")) ? "부스" : "개방형"}
                         </span>
                       )}
                     </div>
