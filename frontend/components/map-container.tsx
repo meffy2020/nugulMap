@@ -37,7 +37,22 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
 
   const KAKAO_APP_KEY = process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY
 
-  // 초기 지도 설정
+  // 1. 이미 스크립트가 로드되었는지 확인
+  useEffect(() => {
+    if (window.kakao && window.kakao.maps) {
+      console.log("[v0] Kakao maps already loaded")
+      setKakaoLoaded(true)
+    }
+
+    // 3초 후 강제 로딩 종료 (무한 로딩 방지 안전장치)
+    const timer = setTimeout(() => {
+      setLoading(false)
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  // 2. 지도 초기화 로직
   useEffect(() => {
     if (!kakaoLoaded || !mapRef.current || !window.kakao || !window.kakao.maps) {
       return
@@ -48,10 +63,10 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
         setLoading(false)
         return
       }
+
       try {
-        // 이미 지도가 존재한다면 로딩만 끄고 인스턴스 유지
-        if (mapInstance || (window.kakao && mapRef.current.hasChildNodes())) {
-          console.log("[v0] Map already exists, skipping re-init")
+        // 이미 자식 노드(지도 엘리먼트)가 있다면 초기화 스킵
+        if (mapRef.current.hasChildNodes() && mapInstance) {
           setLoading(false)
           return
         }
@@ -74,12 +89,12 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       } catch (err) {
         console.error("[v0] 카카오맵 생성 실패:", err)
       } finally {
-        // 어떤 경우에도 로딩 바는 꺼져야 함
         setLoading(false)
       }
     }
+
     window.kakao.maps.load(initMap)
-  }, [kakaoLoaded, mapInstance])
+  }, [kakaoLoaded]) // mapInstance를 의존성에서 제거하여 중복 호출 방지
 
   const loadZonesInView = async () => {
     if (!mapInstance) return
@@ -189,7 +204,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       )}
 
       {loading && (
-        <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-20">
+        <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-20 pointer-events-none">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       )}
