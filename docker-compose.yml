@@ -53,6 +53,8 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-mydb}
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     restart: unless-stopped
+    volumes:
+      - mysql_data:/var/lib/mysql
     networks:
       - neogul-map-network
     healthcheck:
@@ -79,7 +81,7 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-mydb}
       MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
-      MYSQL_DDL_AUTO: update  # 기존 데이터 보존을 위해 update로 변경
+      MYSQL_DDL_AUTO: none  # 운영 안정성을 위해 none으로 고정
       MYSQL_SHOW_SQL: "true"
       FRONTEND_URL: https://nugulmap.com
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}
@@ -110,4 +112,6 @@ networks:
 
 volumes:
   minio_data:
+    driver: local
+  mysql_data:
     driver: local
