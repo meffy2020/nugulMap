@@ -36,7 +36,7 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
   sql:
     init:
-      mode: always
+      mode: never  # always에서 never로 변경하여 자동 초기화 방지
       schema-locations: classpath:schema.sql
       data-locations: classpath:data.sql
       continue-on-error: true
