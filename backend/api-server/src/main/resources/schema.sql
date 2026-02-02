@@ -1,14 +1,10 @@
 -- MySQL Schema Script
 -- H2에서 MySQL로 마이그레이션
 -- 주의: Spring Boot는 이미 데이터베이스에 연결된 상태에서 이 스크립트를 실행합니다.
--- CREATE DATABASE와 USE는 필요 없습니다 (JDBC URL에 데이터베이스가 이미 지정됨).
 
 -- -----------------------------------------------------
 -- Table `users`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `zone`;  -- FK 때문에 zone을 먼저 삭제
-DROP TABLE IF EXISTS `users`;
-
 CREATE TABLE IF NOT EXISTS `users` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `oauth_id` VARCHAR(255) NOT NULL,
