@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native"
 import WebView, { type WebViewMessageEvent } from "react-native-webview"
 import Constants from "expo-constants"
 import type { MapRegion, SmokingZone } from "../types"
@@ -94,44 +94,80 @@ function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
           });
         }
 
-        function setMarkerImage(uri) {
+        function setMarkerImage(input) {
           markerImage = null;
           markerImageReady = false;
 
-          if (!uri) {
+          var candidates = [];
+          if (Array.isArray(input)) {
+            candidates = input;
+          } else if (typeof input === "string" && input) {
+            candidates = [input];
+          }
+
+          if (!candidates.length) {
+            if (lastZones.length) {
+              renderMarkers(lastZones);
+            }
             return;
           }
 
-          try {
-            var preload = new window.Image();
-            preload.onload = function () {
-              try {
-                markerImage = new kakao.maps.MarkerImage(
-                  uri,
-                  new kakao.maps.Size(28, 28),
-                  { offset: new kakao.maps.Point(14, 28) }
-                );
-                markerImageReady = true;
-                if (lastZones.length) {
-                  renderMarkers(lastZones);
-                }
-              } catch (_error) {
-                markerImage = null;
-                markerImageReady = false;
-              }
-            };
-            preload.onerror = function () {
+          var index = 0;
+
+          function loadNextCandidate() {
+            if (index >= candidates.length) {
               markerImage = null;
               markerImageReady = false;
               if (lastZones.length) {
                 renderMarkers(lastZones);
               }
               post({ type: "warn", message: "marker image load failed" });
-            };
-            preload.src = uri;
+              return;
+            }
+
+            var uri = candidates[index];
+            index += 1;
+
+            if (!uri || typeof uri !== "string") {
+              loadNextCandidate();
+              return;
+            }
+
+            try {
+              var preload = new window.Image();
+              preload.onload = function () {
+                try {
+                  markerImage = new kakao.maps.MarkerImage(
+                    uri,
+                    new kakao.maps.Size(28, 28),
+                    { offset: new kakao.maps.Point(14, 28) }
+                  );
+                  markerImageReady = true;
+                  if (lastZones.length) {
+                    renderMarkers(lastZones);
+                  }
+                } catch (_error) {
+                  loadNextCandidate();
+                }
+              };
+              preload.onerror = function () {
+                loadNextCandidate();
+              };
+              preload.src = uri;
+            } catch (_error) {
+              loadNextCandidate();
+            }
+          }
+
+          try {
+            loadNextCandidate();
           } catch (_error) {
             markerImage = null;
             markerImageReady = false;
+            if (lastZones.length) {
+              renderMarkers(lastZones);
+            }
+            post({ type: "warn", message: "marker image load failed" });
           }
         }
 
@@ -195,7 +231,7 @@ function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
           }
 
           if (payload.type === "SET_ZONES") {
-            setMarkerImage(payload.markerImageUri);
+            setMarkerImage(payload.markerImageCandidates || payload.markerImageUri);
             renderMarkers(Array.isArray(payload.zones) ? payload.zones : []);
             return;
           }
@@ -267,7 +303,17 @@ export function MapScreen({
   const [isMapReady, setIsMapReady] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
   const lastRegionFromMap = useRef<MapRegion | null>(null)
-  const markerImageUri = useMemo(() => KAKAO_MARKER_IMAGE_URL, [])
+  const localMarkerImageUri = useMemo(
+    () => Image.resolveAssetSource(require("../../assets/images/pin.png")).uri,
+    [],
+  )
+  const markerImageCandidates = useMemo(() => {
+    const defaultWebMarkerUrl = `${KAKAO_WEBVIEW_BASE_URL.replace(/\/$/, "")}/images/pin.png`
+    const values = [localMarkerImageUri, KAKAO_MARKER_IMAGE_URL, defaultWebMarkerUrl]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+    return Array.from(new Set(values))
+  }, [localMarkerImageUri])
 
   const mapHtml = useMemo(() => buildMapHtml(KAKAO_JS_KEY, region), [])
 
@@ -290,9 +336,9 @@ export function MapScreen({
     postMessageToMap({
       type: "SET_ZONES",
       zones,
-      markerImageUri,
+      markerImageCandidates,
     })
-  }, [zones, isMapReady, markerImageUri])
+  }, [zones, isMapReady, markerImageCandidates])
 
   useEffect(() => {
     if (!isMapReady) return
