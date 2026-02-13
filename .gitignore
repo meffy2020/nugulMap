@@ -8,6 +8,8 @@
 # Backup and temporary folders
 frontend_backup/
 nugulmap-fronted-arrange/
+mobile/.expo/
+.expo/
 
 # Unused config files
 cloudtype.yml
@@ -42,6 +44,7 @@ venv/
 .env.staging
 # .env.sample은 예제 파일이므로 커밋 가능 (필요시 주석 해제)
 
+node_modules/
 .node_modules/
 
 firebase/
