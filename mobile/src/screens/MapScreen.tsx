@@ -158,8 +158,8 @@ function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
                 try {
                   markerImage = new kakao.maps.MarkerImage(
                     uri,
-                    new kakao.maps.Size(28, 28),
-                    { offset: new kakao.maps.Point(14, 28) }
+                    new kakao.maps.Size(40, 40),
+                    { offset: new kakao.maps.Point(20, 40) }
                   );
                   markerImageReady = true;
                   if (lastZones.length) {
