@@ -43,6 +43,8 @@ npm run start
 - Expo 업데이트 시 `EXPO_PUBLIC_API_BASE_URL` 번들 오염 여부
 - 지도 키/맵 SDK 버전 호환성
 - OTA 배포 정책 또는 앱스토어 릴리즈 노트 반영 사항
+- `npm run check:release:strict`로 스토어 제출 필수값 점검
+- 제출마다 `APP_IOS_BUILD_NUMBER`, `APP_ANDROID_VERSION_CODE` 증가
 
 ## 7) 대응 항목(문제 triage)
 1. 지도 화면 빈 목록/무한 로딩

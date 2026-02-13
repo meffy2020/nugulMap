@@ -8,6 +8,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "check:release": "node ./scripts/check-release.js",
+    "check:release:strict": "node ./scripts/check-release.js --strict",
+    "release:verify": "npm run check:release:strict && npx tsc --noEmit && npm run test -- --runInBand",
     "test": "jest",
     "test:watch": "jest --watch"
   },
