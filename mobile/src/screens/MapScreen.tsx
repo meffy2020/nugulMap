@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native"
 import MapView, { Marker, PROVIDER_GOOGLE, type Region as MapRegionType } from "react-native-maps"
 import type { MapRegion, SmokingZone } from "../types"
 import { colors, radius } from "../theme/tokens"
@@ -22,6 +22,7 @@ export function MapScreen({
   onSelectZone,
 }: MapScreenProps) {
   const mapRef = useRef<MapView>(null)
+  const markerImage = require("../../assets/images/pin.png")
 
   useEffect(() => {
     if (selectedZone && mapRef.current) {
@@ -71,8 +72,12 @@ export function MapScreen({
             }}
             title={zone.subtype}
             description={zone.address}
+            anchor={{ x: 0.5, y: 1 }}
+            tracksViewChanges={false}
             onPress={() => onSelectZone(zone)}
-          />
+          >
+            <Image source={markerImage} style={styles.markerIcon} resizeMode="contain" />
+          </Marker>
         ))}
       </MapView>
 
@@ -121,7 +126,7 @@ const styles = StyleSheet.create({
   },
   countWrap: {
     position: "absolute",
-    bottom: 20,
+    bottom: 100,
     alignSelf: "center",
     backgroundColor: "rgba(23,23,23,0.84)",
     borderRadius: radius.full,
@@ -132,5 +137,10 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontWeight: "700",
     fontSize: 12,
+  },
+  markerIcon: {
+    width: 26,
+    height: 26,
+    tintColor: colors.primary,
   },
 })

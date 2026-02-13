@@ -12,14 +12,10 @@ import {
 import { useState } from "react"
 import * as Location from "expo-location"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context"
 import { ZoneDetailModal } from "./src/components/ZoneDetailModal"
-import { SimpleBottomTab } from "./src/components/SimpleBottomTab"
 import { MapScreen } from "./src/screens/MapScreen"
-import { ZoneListScreen } from "./src/screens/ZoneListScreen"
-import { BookmarkScreen } from "./src/screens/BookmarkScreen"
 import { useZoneExplorer } from "./src/features/zones/hooks/useZoneExplorer"
-import type { TabKey } from "./src/navigation/tabs"
 import { AddZoneModal } from "./src/components/AddZoneModal"
 import { ProfileModal } from "./src/components/ProfileModal"
 import { useAuth } from "./src/hooks/useAuth"
@@ -39,11 +35,11 @@ export default function App() {
 
 function AppContent() {
   const insets = useSafeAreaInsets()
-  const [activeTab, setActiveTab] = useState<TabKey>("map")
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
+
   const {
     region,
     zones,
@@ -58,6 +54,7 @@ function AppContent() {
     prependZone,
     refreshCurrentRegion,
   } = useZoneExplorer()
+
   const { accessToken, user, clearToken } = useAuth()
 
   const moveToCurrentLocation = async () => {
@@ -78,6 +75,7 @@ function AppContent() {
 
   const handleTopSearch = async () => {
     if (!searchQuery.trim()) return
+
     setIsSearching(true)
     try {
       const results = await searchZones(searchQuery.trim(), region.latitude, region.longitude)
@@ -100,109 +98,62 @@ function AppContent() {
   }
 
   return (
-    <SafeAreaView style={styles.root} edges={activeTab === "map" ? ["left", "right", "bottom"] : ["top", "left", "right", "bottom"]}>
-      <StatusBar style="dark" />
-      {activeTab !== "map" ? (
-        <View style={styles.header}>
-          <View style={styles.brandWrap}>
-            <Image source={pinImage} style={styles.brandIcon} resizeMode="contain" />
-            <View>
-            <Text style={styles.kicker}>NugulMap</Text>
-            <Text style={styles.title}>대한민국 흡연구역 지도</Text>
-            </View>
-          </View>
-          <View style={styles.headerActions}>
-            <Pressable style={[styles.headerButton, styles.darkButton]} onPress={() => setIsAddOpen(true)}>
-              <Text style={styles.headerButtonText}>등록</Text>
+    <View style={styles.root}>
+      <StatusBar style="dark" translucent />
+
+      <MapScreen
+        region={region}
+        zones={zones}
+        selectedZone={selectedZone}
+        isLoading={isLoading}
+        onRegionChangeComplete={handleRegionChangeComplete}
+        onSelectZone={openDetail}
+      />
+
+      <View style={[styles.topOverlay, { top: insets.top + 8 }]}>
+        <View style={styles.searchShell}>
+          <MaterialCommunityIcons name="magnify" size={18} color={colors.textMuted} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={() => void handleTopSearch()}
+            placeholder="장소, 주소 검색..."
+            placeholderTextColor={colors.textMuted}
+            style={styles.searchInput}
+          />
+          {searchQuery ? (
+            <Pressable onPress={() => setSearchQuery("")} style={styles.clearButton}>
+              <MaterialCommunityIcons name="close" size={15} color={colors.textMuted} />
             </Pressable>
-            <Pressable style={styles.headerButton} onPress={() => setIsProfileOpen(true)}>
-              <Text style={styles.headerButtonText}>내 정보</Text>
-            </Pressable>
-          </View>
+          ) : null}
+          <View style={styles.searchDivider} />
+          <Pressable onPress={() => void handleTopSearch()}>
+            {isSearching ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.searchAction}>검색</Text>
+            )}
+          </Pressable>
         </View>
-      ) : null}
 
-      <View style={styles.container}>
-        {activeTab === "map" ? (
-          <View style={styles.mapPage}>
-            <MapScreen
-              region={region}
-              zones={zones}
-              selectedZone={selectedZone}
-              isLoading={isLoading}
-              onRegionChangeComplete={handleRegionChangeComplete}
-              onSelectZone={openDetail}
-            />
-
-            <View style={[styles.topOverlay, { top: insets.top + 8 }]}>
-              <View style={styles.searchShell}>
-                <MaterialCommunityIcons name="magnify" size={18} color={colors.textMuted} />
-                <TextInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  onSubmitEditing={() => void handleTopSearch()}
-                  placeholder="장소, 주소 검색..."
-                  placeholderTextColor={colors.textMuted}
-                  style={styles.searchInput}
-                />
-                {searchQuery ? (
-                  <Pressable onPress={() => setSearchQuery("")} style={styles.clearButton}>
-                    <MaterialCommunityIcons name="close" size={15} color={colors.textMuted} />
-                  </Pressable>
-                ) : null}
-                <View style={styles.searchDivider} />
-                <Pressable onPress={() => void handleTopSearch()}>
-                  {isSearching ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <Text style={styles.searchAction}>검색</Text>
-                  )}
-                </Pressable>
-              </View>
-              <Pressable style={styles.profileFab} onPress={() => setIsProfileOpen(true)}>
-                <Image
-                  source={user?.profileImage ? { uri: getImageUrl(user.profileImage) || "" } : neutralAvatar}
-                  style={styles.profileAvatar}
-                />
-              </Pressable>
-            </View>
-
-            <View style={[styles.bottomOverlay, { bottom: 88 + insets.bottom }]}>
-              <Pressable style={[styles.roundFab, styles.locationFab]} onPress={() => void moveToCurrentLocation()}>
-                <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.surface} />
-              </Pressable>
-              <Pressable style={styles.addFab} onPress={() => setIsAddOpen(true)}>
-                <Image source={pinImage} style={styles.addFabIcon} resizeMode="contain" />
-                <Text style={styles.addFabText}>제보하기</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.mapTabOverlay}>
-              <SimpleBottomTab activeTab={activeTab} onChange={setActiveTab} />
-            </View>
-          </View>
-        ) : null}
-
-        {activeTab === "list" ? (
-          <ZoneListScreen
-            zones={zones}
-            favoriteIds={favoriteIds}
-            onSelectZone={openDetail}
-            onToggleFavorite={toggleFavorite}
+        <Pressable style={styles.profileFab} onPress={() => setIsProfileOpen(true)}>
+          <Image
+            source={user?.profileImage ? { uri: getImageUrl(user.profileImage) || "" } : neutralAvatar}
+            style={styles.profileAvatar}
           />
-        ) : null}
-
-        {activeTab === "bookmark" ? (
-          <BookmarkScreen
-            zones={zones}
-            favoriteIds={favoriteIds}
-            onSelectZone={openDetail}
-            onToggleFavorite={toggleFavorite}
-          />
-        ) : null}
+        </Pressable>
       </View>
 
-      {activeTab !== "map" ? <SimpleBottomTab activeTab={activeTab} onChange={setActiveTab} /> : null}
+      <View style={[styles.bottomOverlay, { bottom: insets.bottom + 24 }]}>
+        <Pressable style={[styles.roundFab, styles.locationFab]} onPress={() => void moveToCurrentLocation()}>
+          <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.surface} />
+        </Pressable>
+
+        <Pressable style={styles.addFab} onPress={() => setIsAddOpen(true)}>
+          <Image source={pinImage} style={styles.addFabIcon} resizeMode="contain" />
+          <Text style={styles.addFabText}>흡연구역 제보</Text>
+        </Pressable>
+      </View>
 
       <ZoneDetailModal
         zone={detailZone}
@@ -210,6 +161,7 @@ function AppContent() {
         onClose={closeDetail}
         onToggleFavorite={() => detailZone && toggleFavorite(detailZone.id)}
       />
+
       <AddZoneModal
         visible={isAddOpen}
         accessToken={accessToken}
@@ -219,6 +171,7 @@ function AppContent() {
           void refreshCurrentRegion()
         }}
       />
+
       <ProfileModal
         visible={isProfileOpen}
         user={user}
@@ -227,12 +180,12 @@ function AppContent() {
         onClearToken={clearToken}
       />
 
-      {isLoading && (
-        <View style={styles.initialLoading}>
+      {isLoading ? (
+        <View style={[styles.initialLoading, { top: insets.top + 10 }]}> 
           <ActivityIndicator color={colors.primary} />
         </View>
-      )}
-    </SafeAreaView>
+      ) : null}
+    </View>
   )
 }
 
@@ -241,74 +194,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.surface,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: colors.dark,
-    shadowOpacity: 0.07,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 3,
-  },
-  kicker: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.primary,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: colors.text,
-  },
-  container: {
-    flex: 1,
-  },
-  brandWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  brandIcon: {
-    width: 18,
-    height: 18,
-    tintColor: colors.text,
-  },
-  headerActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  headerButton: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  darkButton: {
-    backgroundColor: colors.dark,
-  },
-  headerButtonText: {
-    color: colors.surface,
-    fontWeight: "700",
-    fontSize: 12,
-  },
-  mapPage: {
-    flex: 1,
-  },
   topOverlay: {
     position: "absolute",
-    top: 10,
     left: 12,
     right: 12,
     flexDirection: "row",
@@ -382,16 +269,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    bottom: 88,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-  },
-  mapTabOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
   },
   roundFab: {
     width: 54,
@@ -437,6 +317,5 @@ const styles = StyleSheet.create({
   initialLoading: {
     position: "absolute",
     right: 16,
-    top: 14,
   },
 })
