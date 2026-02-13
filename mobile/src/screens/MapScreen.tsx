@@ -290,7 +290,7 @@ export function MapScreen({
       zones,
       markerImageUri,
     })
-  }, [zones, isMapReady])
+  }, [zones, isMapReady, markerImageUri])
 
   useEffect(() => {
     if (!isMapReady) return
