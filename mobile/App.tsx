@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar"
-import { SafeAreaView, StyleSheet, Text, View, ActivityIndicator } from "react-native"
+import { SafeAreaView, StyleSheet, Text, View, ActivityIndicator, Pressable } from "react-native"
 import { useState } from "react"
 import { ZoneDetailModal } from "./src/components/ZoneDetailModal"
 import { SimpleBottomTab } from "./src/components/SimpleBottomTab"
@@ -8,10 +8,15 @@ import { ZoneListScreen } from "./src/screens/ZoneListScreen"
 import { BookmarkScreen } from "./src/screens/BookmarkScreen"
 import { useZoneExplorer } from "./src/features/zones/hooks/useZoneExplorer"
 import type { TabKey } from "./src/navigation/tabs"
+import { AddZoneModal } from "./src/components/AddZoneModal"
+import { ProfileModal } from "./src/components/ProfileModal"
+import { useAuth } from "./src/hooks/useAuth"
 
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("map")
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const {
     region,
     zones,
@@ -19,18 +24,28 @@ export default function App() {
     detailZone,
     isLoading,
     favoriteIds,
-    favoriteIdList,
     handleRegionChangeComplete,
     toggleFavorite,
     openDetail,
     closeDetail,
+    prependZone,
+    refreshCurrentRegion,
   } = useZoneExplorer()
+  const { accessToken, user, saveToken, clearToken } = useAuth()
 
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="dark" />
       <View style={styles.header}>
         <Text style={styles.title}>너굴맵</Text>
+        <View style={styles.headerActions}>
+          <Pressable style={[styles.headerButton, styles.darkButton]} onPress={() => setIsAddOpen(true)}>
+            <Text style={styles.headerButtonText}>등록</Text>
+          </Pressable>
+          <Pressable style={styles.headerButton} onPress={() => setIsProfileOpen(true)}>
+            <Text style={styles.headerButtonText}>내 정보</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.container}>
@@ -72,6 +87,23 @@ export default function App() {
         onClose={closeDetail}
         onToggleFavorite={() => detailZone && toggleFavorite(detailZone.id)}
       />
+      <AddZoneModal
+        visible={isAddOpen}
+        accessToken={accessToken}
+        onClose={() => setIsAddOpen(false)}
+        onCreated={(zone) => {
+          prependZone(zone)
+          void refreshCurrentRegion()
+        }}
+      />
+      <ProfileModal
+        visible={isProfileOpen}
+        user={user}
+        accessToken={accessToken}
+        onClose={() => setIsProfileOpen(false)}
+        onSaveToken={saveToken}
+        onClearToken={clearToken}
+      />
 
       {isLoading && (
         <View style={styles.initialLoading}>
@@ -89,6 +121,9 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderBottomWidth: 1,
     borderBottomColor: "#e2e8f0",
   },
@@ -99,6 +134,24 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  headerButton: {
+    backgroundColor: "#2563eb",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  darkButton: {
+    backgroundColor: "#0f172a",
+  },
+  headerButtonText: {
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 12,
   },
   initialLoading: {
     position: "absolute",

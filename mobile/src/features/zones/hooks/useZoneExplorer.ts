@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import * as Location from "expo-location"
 import { fetchZonesByBounds } from "../../../services/nugulApi"
@@ -53,8 +53,6 @@ export function useZoneExplorer() {
   const [isLoading, setIsLoading] = useState(false)
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set())
   const loadingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const favoriteIdList = useMemo(() => Array.from(favoriteIds), [favoriteIds])
 
   useEffect(() => {
     void (async () => {
@@ -120,6 +118,14 @@ export function useZoneExplorer() {
     setSelectedZone(null)
   }
 
+  const prependZone = (zone: SmokingZone) => {
+    setZones((prev) => [zone, ...prev.filter((item) => item.id !== zone.id)])
+  }
+
+  const refreshCurrentRegion = async () => {
+    await refreshZones(region)
+  }
+
   return {
     region,
     zones,
@@ -127,10 +133,11 @@ export function useZoneExplorer() {
     detailZone,
     isLoading,
     favoriteIds,
-    favoriteIdList,
     handleRegionChangeComplete,
     toggleFavorite,
     openDetail,
     closeDetail,
+    prependZone,
+    refreshCurrentRegion,
   }
 }

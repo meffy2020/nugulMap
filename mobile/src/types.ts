@@ -4,11 +4,21 @@ export interface SmokingZone {
   type: string
   subtype: string
   description: string
+  size?: string
+  date?: string
   latitude: number
   longitude: number
   address: string
   user: string
   image: string | null
+}
+
+export interface UserProfile {
+  id: number
+  email: string
+  nickname: string
+  profileImage: string | null
+  createdAt: string
 }
 
 export interface MapRegion {

@@ -1,6 +1,18 @@
-import type { MapBounds, SmokingZone } from "../types"
+import type { MapBounds, SmokingZone, UserProfile } from "../types"
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.nugulmap.com"
+
+export interface CreateZonePayload {
+  region: string
+  type: string
+  subtype: string
+  description: string
+  latitude: number
+  longitude: number
+  size?: string
+  address: string
+  user: string
+}
 
 const fallbackZones: SmokingZone[] = [
   {
@@ -52,12 +64,19 @@ function toZone(item: SmokingZone): SmokingZone {
     type: item.type || "",
     subtype: item.subtype || "",
     description: item.description || "",
+    size: item.size || "",
+    date: item.date ? String(item.date) : undefined,
     latitude: Number(item.latitude),
     longitude: Number(item.longitude),
     address: item.address || "",
     user: item.user || "",
     image: item.image || null,
   }
+}
+
+function authHeaders(token?: string): HeadersInit {
+  if (!token) return {}
+  return { Authorization: `Bearer ${token}` }
 }
 
 async function safeJson(response: Response): Promise<any> {
@@ -113,5 +132,85 @@ export async function fetchZoneById(id: number): Promise<SmokingZone | null> {
     return raw ? toZone(raw) : null
   } catch {
     return null
+  }
+}
+
+export async function createZone(payload: CreateZonePayload, token?: string): Promise<SmokingZone> {
+  const formData = new FormData()
+  formData.append("data", JSON.stringify(payload))
+
+  const response = await fetch(`${API_BASE_URL}/api/zones`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`zone create failed: ${response.status} ${text}`)
+  }
+
+  const result = await safeJson(response)
+  const raw = result?.data?.zone || result?.zone
+  if (!raw) {
+    throw new Error("invalid zone create response")
+  }
+  return toZone(raw)
+}
+
+export async function getCurrentUser(token?: string): Promise<UserProfile | null> {
+  if (!token) return null
+
+  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    headers: authHeaders(token),
+  })
+
+  if (!response.ok) return null
+  const result = await safeJson(response)
+  return result?.data?.user || null
+}
+
+export async function validateToken(token: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/validate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ token }),
+  })
+
+  if (!response.ok) return false
+  const result = await safeJson(response)
+  return Boolean(result?.valid)
+}
+
+export async function fetchMyZones(token?: string): Promise<SmokingZone[]> {
+  if (!token) return []
+
+  const response = await fetch(`${API_BASE_URL}/api/zones/my`, {
+    headers: authHeaders(token),
+  })
+
+  if (!response.ok) {
+    return []
+  }
+
+  const result = await safeJson(response)
+  return pickZones(result?.data || result)
+}
+
+export async function deleteZone(id: number, token?: string): Promise<void> {
+  if (!token) {
+    throw new Error("auth token required")
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/zones/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`delete zone failed: ${response.status} ${text}`)
   }
 }
