@@ -56,6 +56,8 @@ function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
         var map = null;
         var markers = [];
         var markerImage = null;
+        var markerImageReady = false;
+        var lastZones = [];
         var queued = [];
 
         function post(payload) {
@@ -87,35 +89,77 @@ function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
         }
 
         function setMarkerImage(uri) {
+          markerImage = null;
+          markerImageReady = false;
+
           if (!uri) {
-            markerImage = null;
             return;
           }
 
-          markerImage = new kakao.maps.MarkerImage(
-            uri,
-            new kakao.maps.Size(28, 28),
-            { offset: new kakao.maps.Point(14, 28) }
-          );
+          try {
+            var preload = new window.Image();
+            preload.onload = function () {
+              try {
+                markerImage = new kakao.maps.MarkerImage(
+                  uri,
+                  new kakao.maps.Size(28, 28),
+                  { offset: new kakao.maps.Point(14, 28) }
+                );
+                markerImageReady = true;
+                if (lastZones.length) {
+                  renderMarkers(lastZones);
+                }
+              } catch (_error) {
+                markerImage = null;
+                markerImageReady = false;
+              }
+            };
+            preload.onerror = function () {
+              markerImage = null;
+              markerImageReady = false;
+              if (lastZones.length) {
+                renderMarkers(lastZones);
+              }
+              post({ type: "warn", message: "marker image load failed" });
+            };
+            preload.src = uri;
+          } catch (_error) {
+            markerImage = null;
+            markerImageReady = false;
+          }
         }
 
         function renderMarkers(zones) {
           if (!map) return;
           clearMarkers();
+          lastZones = Array.isArray(zones) ? zones : [];
 
-          for (var i = 0; i < zones.length; i += 1) {
-            var zone = zones[i];
+          for (var i = 0; i < lastZones.length; i += 1) {
+            var zone = lastZones[i];
             if (!zone) continue;
             var lat = Number(zone.latitude);
             var lng = Number(zone.longitude);
             if (!isFinite(lat) || !isFinite(lng)) continue;
 
-            var marker = new kakao.maps.Marker({
+            var markerOptions = {
               map: map,
               position: new kakao.maps.LatLng(lat, lng),
               title: zone.subtype || "흡연구역",
-              image: markerImage || undefined,
-            });
+            };
+            if (markerImageReady && markerImage) {
+              markerOptions.image = markerImage;
+            }
+
+            var marker;
+            try {
+              marker = new kakao.maps.Marker(markerOptions);
+            } catch (_error) {
+              marker = new kakao.maps.Marker({
+                map: map,
+                position: new kakao.maps.LatLng(lat, lng),
+                title: zone.subtype || "흡연구역",
+              });
+            }
 
             (function (zoneId) {
               kakao.maps.event.addListener(marker, "click", function () {
@@ -125,6 +169,8 @@ function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
 
             markers.push(marker);
           }
+
+          post({ type: "markersRendered", count: markers.length });
         }
 
         function moveCenter(center) {
