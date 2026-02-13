@@ -28,6 +28,7 @@ const KAKAO_WEBVIEW_BASE_URL =
   EXPO_EXTRA.kakaoWebviewBaseUrl ||
   "https://nugulmap.local"
 const REGION_SYNC_EPS = 0.00002
+const MARKER_RENDER_FAIL_MESSAGE = "마커 렌더링에 실패했습니다. API URL 또는 좌표 데이터를 확인해 주세요."
 
 function isSimilarRegion(a: MapRegion, b: MapRegion): boolean {
   return (
@@ -328,6 +329,21 @@ export function MapScreen({
 
       if (data?.type === "error") {
         setMapError(String(data.message || "Failed to load kakao map"))
+        return
+      }
+
+      if (data?.type === "warn") {
+        return
+      }
+
+      if (data?.type === "markersRendered") {
+        const rendered = Number(data.count)
+        if (zones.length > 0 && rendered === 0) {
+          setMapError(MARKER_RENDER_FAIL_MESSAGE)
+          return
+        }
+
+        setMapError((prev) => (prev === MARKER_RENDER_FAIL_MESSAGE ? null : prev))
         return
       }
 
