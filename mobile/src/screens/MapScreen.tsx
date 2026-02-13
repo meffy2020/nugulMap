@@ -44,6 +44,25 @@ function isSimilarRegion(a: MapRegion, b: MapRegion): boolean {
   )
 }
 
+async function readUriAsDataUrl(uri: string): Promise<string | null> {
+  if (!uri) return null
+
+  try {
+    const response = await fetch(uri)
+    const blob = await response.blob()
+    return await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        resolve(typeof reader.result === "string" ? reader.result : null)
+      }
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
 function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
   return `
 <!doctype html>
@@ -230,8 +249,12 @@ function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
             return;
           }
 
-          if (payload.type === "SET_ZONES") {
+          if (payload.type === "SET_MARKER_IMAGE") {
             setMarkerImage(payload.markerImageCandidates || payload.markerImageUri);
+            return;
+          }
+
+          if (payload.type === "SET_ZONES") {
             renderMarkers(Array.isArray(payload.zones) ? payload.zones : []);
             return;
           }
@@ -307,13 +330,14 @@ export function MapScreen({
     () => Image.resolveAssetSource(require("../../assets/images/pin.png")).uri,
     [],
   )
-  const markerImageCandidates = useMemo(() => {
+  const markerImageBaseCandidates = useMemo(() => {
     const defaultWebMarkerUrl = `${KAKAO_WEBVIEW_BASE_URL.replace(/\/$/, "")}/images/pin.png`
     const values = [localMarkerImageUri, KAKAO_MARKER_IMAGE_URL, defaultWebMarkerUrl]
       .map((value) => String(value || "").trim())
       .filter(Boolean)
     return Array.from(new Set(values))
   }, [localMarkerImageUri])
+  const [markerImageCandidates, setMarkerImageCandidates] = useState<string[]>(markerImageBaseCandidates)
 
   const mapHtml = useMemo(() => buildMapHtml(KAKAO_JS_KEY, region), [])
 
@@ -325,6 +349,31 @@ export function MapScreen({
     setMapError(null)
   }, [])
 
+  useEffect(() => {
+    setMarkerImageCandidates(markerImageBaseCandidates)
+  }, [markerImageBaseCandidates])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const dataUri = await readUriAsDataUrl(localMarkerImageUri)
+      if (cancelled || !dataUri) return
+
+      setMarkerImageCandidates((prev) => {
+        const next = Array.from(new Set([dataUri, ...prev]))
+        if (next.length === prev.length && next.every((value, index) => value === prev[index])) {
+          return prev
+        }
+        return next
+      })
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [localMarkerImageUri])
+
   const postMessageToMap = (payload: unknown) => {
     if (!isMapReady || !webViewRef.current) return
     webViewRef.current.postMessage(JSON.stringify(payload))
@@ -334,11 +383,19 @@ export function MapScreen({
     if (!isMapReady) return
 
     postMessageToMap({
-      type: "SET_ZONES",
-      zones,
+      type: "SET_MARKER_IMAGE",
       markerImageCandidates,
     })
-  }, [zones, isMapReady, markerImageCandidates])
+  }, [isMapReady, markerImageCandidates])
+
+  useEffect(() => {
+    if (!isMapReady) return
+
+    postMessageToMap({
+      type: "SET_ZONES",
+      zones,
+    })
+  }, [zones, isMapReady])
 
   useEffect(() => {
     if (!isMapReady) return
@@ -431,6 +488,7 @@ export function MapScreen({
         source={{ html: mapHtml, baseUrl: KAKAO_WEBVIEW_BASE_URL }}
         javaScriptEnabled
         domStorageEnabled
+        mixedContentMode="always"
         onMessage={handleMessage}
         style={styles.map}
       />
