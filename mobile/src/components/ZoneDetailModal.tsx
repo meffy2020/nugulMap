@@ -1,6 +1,7 @@
-import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import type { SmokingZone } from "../types"
 import { colors, radius } from "../theme/tokens"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { getImageUrl } from "../services/nugulApi"
 
 interface ZoneDetailModalProps {
@@ -8,6 +9,10 @@ interface ZoneDetailModalProps {
   isFavorite: boolean
   onClose: () => void
   onToggleFavorite: () => void
+  onOpenRoute: () => void
+  onOpenShare: () => void
+  onOpenReport: () => void
+  onOpenReview: () => void
 }
 
 export function ZoneDetailModal({
@@ -15,14 +20,13 @@ export function ZoneDetailModal({
   isFavorite,
   onClose,
   onToggleFavorite,
+  onOpenRoute,
+  onOpenShare,
+  onOpenReport,
+  onOpenReview,
 }: ZoneDetailModalProps) {
   if (!zone) {
     return null
-  }
-
-  const openMap = () => {
-    const url = `https://www.google.com/maps/search/?api=1&query=${zone.latitude},${zone.longitude}`
-    void Linking.openURL(url)
   }
 
   const imageUrl = getImageUrl(zone.image)
@@ -31,8 +35,18 @@ export function ZoneDetailModal({
     <Modal visible={Boolean(zone)} animationType="slide" transparent>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
+          <View style={styles.dragHandle} />
           <ScrollView>
-            <Text style={styles.title}>{zone.subtype}</Text>
+            <View style={styles.header}>
+              <Text style={styles.title}>{zone.subtype}</Text>
+              <Pressable style={styles.favoriteButton} onPress={onToggleFavorite}>
+                <MaterialCommunityIcons
+                  name={isFavorite ? "heart" : "heart-outline"}
+                  size={22}
+                  color={isFavorite ? colors.destructive : colors.textMuted}
+                />
+              </Pressable>
+            </View>
             <Text style={styles.meta}>{zone.type} · {zone.region}</Text>
 
             {imageUrl ? (
@@ -51,15 +65,32 @@ export function ZoneDetailModal({
             <Text style={styles.label}>등록자</Text>
             <Text style={styles.value}>{zone.user || "익명"}</Text>
 
-            <Pressable style={styles.button} onPress={openMap}>
-              <Text style={styles.buttonText}>길찾기</Text>
+            <View style={styles.actionRow}>
+              <Pressable style={styles.button} onPress={onOpenRoute}>
+                <MaterialCommunityIcons name="map-marker-distance" size={18} color={colors.surface} />
+                <Text style={styles.buttonText}>길찾기</Text>
+              </Pressable>
+              <Pressable style={styles.button} onPress={onOpenShare}>
+                <MaterialCommunityIcons name="share-variant" size={18} color={colors.surface} />
+                <Text style={styles.buttonText}>공유</Text>
+              </Pressable>
+            </View>
+            <View style={styles.actionRow}>
+              <Pressable style={styles.outline} onPress={onOpenReport}>
+                <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.text} />
+                <Text style={[styles.buttonText, styles.outlineText]}>제보</Text>
+              </Pressable>
+              <Pressable style={styles.outline} onPress={onOpenReview}>
+                <MaterialCommunityIcons name="comment-edit-outline" size={18} color={colors.text} />
+                <Text style={[styles.buttonText, styles.outlineText]}>리뷰</Text>
+              </Pressable>
+            </View>
+
+            <Pressable style={[styles.secondaryButton]} onPress={onToggleFavorite}>
+              <Text style={styles.secondaryButtonText}>{isFavorite ? "북마크 해제" : "북마크 등록"}</Text>
             </Pressable>
 
-            <Pressable style={[styles.button, styles.outline]} onPress={onToggleFavorite}>
-              <Text style={[styles.buttonText, styles.outlineText]}>{isFavorite ? "북마크 해제" : "북마크 등록"}</Text>
-            </Pressable>
-
-            <Pressable style={[styles.button, styles.secondary]} onPress={onClose}>
+            <Pressable style={styles.closeButton} onPress={onClose}>
               <Text style={styles.buttonText}>닫기</Text>
             </Pressable>
           </ScrollView>
@@ -87,6 +118,30 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.text,
     marginBottom: 4,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  favoriteButton: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted,
+  },
+  dragHandle: {
+    alignSelf: "center",
+    width: 48,
+    height: 5,
+    borderRadius: 99,
+    marginBottom: 10,
+    backgroundColor: colors.border,
   },
   meta: {
     color: colors.textMuted,
@@ -116,12 +171,37 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 10,
     borderRadius: radius.md,
+    backgroundColor: colors.primary,
     paddingVertical: 13,
     alignItems: "center",
-    backgroundColor: colors.primary,
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+    flex: 1,
   },
-  secondary: {
+  actionRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  secondaryButton: {
+    marginTop: 10,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    color: colors.text,
+    fontWeight: "700",
+  },
+  closeButton: {
     backgroundColor: colors.destructive,
+    marginTop: 10,
+    borderRadius: radius.md,
+    paddingVertical: 13,
+    alignItems: "center",
   },
   outline: {
     backgroundColor: colors.surfaceMuted,

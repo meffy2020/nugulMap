@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Alert,
   Modal,
@@ -19,9 +19,22 @@ interface AddZoneModalProps {
   accessToken: string | null
   onClose: () => void
   onCreated: (zone: SmokingZone) => void
+  initialLatitude?: number
+  initialLongitude?: number
+  initialAddress?: string
+  initialSubtype?: string
 }
 
-export function AddZoneModal({ visible, accessToken, onClose, onCreated }: AddZoneModalProps) {
+export function AddZoneModal({
+  visible,
+  accessToken,
+  onClose,
+  onCreated,
+  initialLatitude,
+  initialLongitude,
+  initialAddress,
+  initialSubtype,
+}: AddZoneModalProps) {
   const [type, setType] = useState("BOOTH")
   const [subtype, setSubtype] = useState("부스")
   const [description, setDescription] = useState("")
@@ -29,6 +42,27 @@ export function AddZoneModal({ visible, accessToken, onClose, onCreated }: AddZo
   const [lat, setLat] = useState("")
   const [lng, setLng] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!visible) return
+
+    if (typeof initialLatitude === "number") {
+      setLat(String(initialLatitude))
+    } else {
+      setLat("")
+    }
+
+    if (typeof initialLongitude === "number") {
+      setLng(String(initialLongitude))
+    } else {
+      setLng("")
+    }
+
+    setType("BOOTH")
+    setSubtype(initialSubtype || "부스")
+    setAddress(initialAddress || "")
+    setDescription(initialSubtype ? `${initialSubtype} 흡연구역` : "")
+  }, [visible, initialLatitude, initialLongitude, initialAddress, initialSubtype])
 
   const fillCurrentLocation = async () => {
     const permission = await Location.requestForegroundPermissionsAsync()

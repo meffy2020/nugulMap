@@ -6,6 +6,8 @@ import { KOREA_DEFAULT_REGION, type MapBounds, type MapRegion, type SmokingZone 
 
 const FAVORITES_KEY = "@nugulmap:favorites:v1"
 const REGION_REFRESH_DEBOUNCE_MS = 700
+const REGION_MOVE_THRESHOLD = 0.00015
+const REGION_DELTA_THRESHOLD = 0.00008
 
 function parseToRegion(latitude: number, longitude: number): MapRegion {
   return {
@@ -23,6 +25,15 @@ function toBounds(region: MapRegion): MapBounds {
     minLng: region.longitude - region.longitudeDelta / 2,
     maxLng: region.longitude + region.longitudeDelta / 2,
   }
+}
+
+function isMeaningfulRegionChange(prev: MapRegion, next: MapRegion): boolean {
+  return (
+    Math.abs(prev.latitude - next.latitude) > REGION_MOVE_THRESHOLD ||
+    Math.abs(prev.longitude - next.longitude) > REGION_MOVE_THRESHOLD ||
+    Math.abs(prev.latitudeDelta - next.latitudeDelta) > REGION_DELTA_THRESHOLD ||
+    Math.abs(prev.longitudeDelta - next.longitudeDelta) > REGION_DELTA_THRESHOLD
+  )
 }
 
 async function loadFavoriteIds(): Promise<Set<number>> {
@@ -85,6 +96,10 @@ export function useZoneExplorer() {
   }
 
   const handleRegionChangeComplete = (nextRegion: MapRegion) => {
+    if (!isMeaningfulRegionChange(region, nextRegion)) {
+      return
+    }
+
     setRegion(nextRegion)
 
     if (loadingTimer.current) {

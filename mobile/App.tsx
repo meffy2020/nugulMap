@@ -1,13 +1,16 @@
 import { StatusBar } from "expo-status-bar"
 import {
-  StyleSheet,
-  Text,
-  View,
   ActivityIndicator,
-  Pressable,
-  TextInput,
   Alert,
   Image,
+  Linking,
+  Modal,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native"
 import { useState } from "react"
 import * as Location from "expo-location"
@@ -39,6 +42,14 @@ function AppContent() {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
+  const [isReviewOpen, setIsReviewOpen] = useState(false)
+  const [reviewText, setReviewText] = useState("")
+  const [reportSeed, setReportSeed] = useState<{
+    latitude: number
+    longitude: number
+    address?: string
+    subtype?: string
+  } | null>(null)
 
   const {
     region,
@@ -97,6 +108,37 @@ function AppContent() {
     }
   }
 
+  const openRouteForZone = () => {
+    if (!detailZone) return
+    const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${detailZone.latitude},${detailZone.longitude}`
+    void Linking.openURL(mapUrl)
+  }
+
+  const openShareForZone = async () => {
+    if (!detailZone) return
+    await Share.share({
+      title: detailZone.subtype || detailZone.address,
+      message: `${detailZone.subtype || "흡연구역"}\n${detailZone.address}\nhttps://www.google.com/maps/search/?api=1&query=${detailZone.latitude},${detailZone.longitude}`,
+    })
+  }
+
+  const openReviewForZone = () => {
+    if (!detailZone) return
+    setReviewText("")
+    setIsReviewOpen(true)
+  }
+
+  const openReportForZone = () => {
+    if (!detailZone) return
+    setReportSeed({
+      latitude: detailZone.latitude,
+      longitude: detailZone.longitude,
+      address: detailZone.address,
+      subtype: detailZone.subtype,
+    })
+    setIsAddOpen(true)
+  }
+
   return (
     <View style={styles.root}>
       <StatusBar style="dark" translucent />
@@ -144,7 +186,7 @@ function AppContent() {
         </Pressable>
       </View>
 
-      <View style={[styles.bottomOverlay, { bottom: insets.bottom + 24 }]}>
+      <View style={[styles.bottomOverlay, { bottom: insets.bottom + 18 }]}>
         <Pressable style={[styles.roundFab, styles.locationFab]} onPress={() => void moveToCurrentLocation()}>
           <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.surface} />
         </Pressable>
@@ -160,12 +202,23 @@ function AppContent() {
         isFavorite={detailZone ? favoriteIds.has(detailZone.id) : false}
         onClose={closeDetail}
         onToggleFavorite={() => detailZone && toggleFavorite(detailZone.id)}
+        onOpenRoute={openRouteForZone}
+        onOpenShare={openShareForZone}
+        onOpenReport={openReportForZone}
+        onOpenReview={openReviewForZone}
       />
 
       <AddZoneModal
         visible={isAddOpen}
         accessToken={accessToken}
-        onClose={() => setIsAddOpen(false)}
+        initialLatitude={reportSeed?.latitude}
+        initialLongitude={reportSeed?.longitude}
+        initialAddress={reportSeed?.address}
+        initialSubtype={reportSeed?.subtype}
+        onClose={() => {
+          setIsAddOpen(false)
+          setReportSeed(null)
+        }}
         onCreated={(zone) => {
           prependZone(zone)
           void refreshCurrentRegion()
@@ -185,6 +238,36 @@ function AppContent() {
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : null}
+
+      <Modal visible={isReviewOpen} animationType="slide" transparent={false}>
+        <View style={styles.reviewRoot}>
+          <View style={styles.reviewHeader}>
+            <Text style={styles.reviewTitle}>리뷰 작성</Text>
+            <Pressable onPress={() => setIsReviewOpen(false)}>
+              <Text style={styles.reviewClose}>닫기</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.reviewHint}>해당 위치에 대한 간단한 후기를 작성해 주세요.</Text>
+          <TextInput
+            value={reviewText}
+            onChangeText={setReviewText}
+            style={styles.reviewInput}
+            placeholder="좋은 점 / 개선점 / 혼잡도 ..."
+            multiline
+            textAlignVertical="top"
+          />
+          <Pressable
+            style={styles.reviewSubmit}
+            onPress={() => {
+              Alert.alert("리뷰 제출", "리뷰 API 연동 전이라 임시 저장되었습니다.")
+              setReviewText("")
+              setIsReviewOpen(false)
+            }}
+          >
+            <Text style={styles.reviewSubmitText}>제출</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -201,6 +284,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    zIndex: 20,
   },
   searchShell: {
     flex: 1,
@@ -272,6 +356,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    zIndex: 20,
   },
   roundFab: {
     width: 54,
@@ -317,5 +402,51 @@ const styles = StyleSheet.create({
   initialLoading: {
     position: "absolute",
     right: 16,
+  },
+  reviewRoot: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    paddingTop: 56,
+    paddingHorizontal: 16,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  reviewTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: colors.text,
+  },
+  reviewClose: {
+    color: colors.text,
+    fontWeight: "700",
+  },
+  reviewHint: {
+    color: colors.textMuted,
+    marginBottom: 10,
+  },
+  reviewInput: {
+    minHeight: 180,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: colors.text,
+    backgroundColor: colors.surface,
+  },
+  reviewSubmit: {
+    marginTop: 12,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  reviewSubmitText: {
+    color: colors.surface,
+    fontWeight: "700",
   },
 })
