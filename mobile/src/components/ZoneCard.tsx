@@ -67,24 +67,24 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   metaMuted: {
-    color: "#64748b",
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: "600",
   },
   dot: {
-    color: "#94a3b8",
+    color: colors.border,
   },
   description: {
-    color: "#334155",
+    color: colors.textMuted,
     marginBottom: 8,
   },
   address: {
     fontSize: 12,
-    color: "#64748b",
+    color: colors.textMuted,
   },
   badge: {
     fontSize: 16,
-    color: "#94a3b8",
+    color: colors.border,
   },
   badgeActive: {
     color: colors.warning,
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   badgeWrapActive: {
-    borderColor: "#fde68a",
-    backgroundColor: "#fef3c7",
+    borderColor: colors.border,
+    backgroundColor: colors.primarySoft,
   },
 })

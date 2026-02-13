@@ -1,6 +1,7 @@
 import { FlatList, StyleSheet, Text, View } from "react-native"
 import type { SmokingZone } from "../types"
 import { ZoneCard } from "../components/ZoneCard"
+import { colors } from "../theme/tokens"
 
 interface BookmarkScreenProps {
   zones: SmokingZone[]
@@ -41,12 +42,12 @@ export function BookmarkScreen({
 const styles = StyleSheet.create({
   wrap: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.bg,
   },
   heading: {
     marginTop: 10,
     marginHorizontal: 14,
-    color: "#0f172a",
+    color: colors.text,
     fontWeight: "800",
     fontSize: 18,
   },
@@ -57,6 +58,6 @@ const styles = StyleSheet.create({
   empty: {
     textAlign: "center",
     marginTop: 40,
-    color: "#64748b",
+    color: colors.textMuted,
   },
 })

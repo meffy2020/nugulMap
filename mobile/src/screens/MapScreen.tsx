@@ -78,7 +78,7 @@ export function MapScreen({
 
       {isLoading ? (
         <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color="#0f172a" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>구역 조회 중...</Text>
         </View>
       ) : null}
@@ -123,13 +123,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 20,
     alignSelf: "center",
-    backgroundColor: "rgba(15,23,42,0.84)",
+    backgroundColor: "rgba(23,23,23,0.84)",
     borderRadius: radius.full,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
   countText: {
-    color: "#ffffff",
+    color: colors.surface,
     fontWeight: "700",
     fontSize: 12,
   },

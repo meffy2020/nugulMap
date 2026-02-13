@@ -1,14 +1,16 @@
 export const colors = {
-  bg: "#f1f5f9",
+  bg: "#ffffff",
   surface: "#ffffff",
-  surfaceMuted: "#f8fafc",
-  text: "#0f172a",
-  textMuted: "#475569",
-  border: "#e2e8f0",
-  primary: "#2563eb",
-  primarySoft: "#dbeafe",
-  dark: "#0f172a",
-  warning: "#f59e0b",
+  surfaceMuted: "#fafafa",
+  text: "#171717",
+  textMuted: "#525252",
+  border: "#e5e5e5",
+  primary: "#171717",
+  primarySoft: "#f5f5f5",
+  dark: "#171717",
+  warning: "#171717",
+  secondary: "#737373",
+  destructive: "#262626",
 }
 
 export const radius = {

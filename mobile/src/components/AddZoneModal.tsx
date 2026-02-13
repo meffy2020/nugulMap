@@ -12,6 +12,7 @@ import {
 import * as Location from "expo-location"
 import { createZone, type CreateZonePayload } from "../services/nugulApi"
 import type { SmokingZone } from "../types"
+import { colors, radius } from "../theme/tokens"
 
 interface AddZoneModalProps {
   visible: boolean
@@ -43,7 +44,7 @@ export function AddZoneModal({ visible, accessToken, onClose, onCreated }: AddZo
 
   const submit = async () => {
     if (!accessToken) {
-      Alert.alert("로그인 필요", "프로필 탭에서 토큰을 등록한 뒤 제보할 수 있습니다.")
+      Alert.alert("로그인 필요", "로그인 후 제보 기능을 사용할 수 있습니다.")
       return
     }
 
@@ -144,7 +145,7 @@ export function AddZoneModal({ visible, accessToken, onClose, onCreated }: AddZo
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#f8fafc" },
+  root: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingTop: 56,
     paddingHorizontal: 16,
@@ -152,32 +153,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderBottomLeftRadius: 22,
-    borderBottomRightRadius: 22,
-    shadowColor: "#0f172a",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   kicker: {
     fontSize: 11,
-    color: "#1d4ed8",
+    color: colors.textMuted,
     fontWeight: "800",
     letterSpacing: 1,
     textTransform: "uppercase",
   },
-  title: { fontSize: 20, fontWeight: "800", color: "#0f172a" },
-  close: { color: "#2563eb", fontWeight: "800" },
+  title: { fontSize: 20, fontWeight: "800", color: colors.text },
+  close: { color: colors.text, fontWeight: "800" },
   content: { padding: 16, gap: 10 },
-  label: { color: "#334155", fontSize: 11, fontWeight: "800", marginTop: 10, textTransform: "uppercase", letterSpacing: 0.5 },
+  label: { color: colors.textMuted, fontSize: 11, fontWeight: "800", marginTop: 10, textTransform: "uppercase", letterSpacing: 0.5 },
   input: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#cbd5e1",
-    borderRadius: 14,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    color: colors.text,
   },
   textArea: { minHeight: 86, textAlignVertical: "top" },
   row: { flexDirection: "row", gap: 8 },
@@ -185,25 +183,25 @@ const styles = StyleSheet.create({
   chip: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#cbd5e1",
-    borderRadius: 14,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     paddingVertical: 12,
     alignItems: "center",
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
   },
   chipActive: {
-    borderColor: "#1d4ed8",
-    backgroundColor: "#dbeafe",
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
-  chipText: { color: "#334155", fontWeight: "700" },
-  chipTextActive: { color: "#1d4ed8" },
+  chipText: { color: colors.textMuted, fontWeight: "700" },
+  chipTextActive: { color: colors.primary },
   button: {
     marginTop: 8,
-    backgroundColor: "#2563eb",
-    borderRadius: 14,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
     paddingVertical: 13,
     alignItems: "center",
   },
-  secondary: { backgroundColor: "#0f172a" },
-  buttonText: { color: "#ffffff", fontWeight: "700" },
+  secondary: { backgroundColor: colors.destructive },
+  buttonText: { color: colors.surface, fontWeight: "700" },
 })

@@ -22,7 +22,7 @@ export function SimpleBottomTab({ activeTab, onChange }: TabProps) {
             <MaterialCommunityIcons
               name={tab.icon}
               size={18}
-              color={isActive ? colors.primary : "#64748b"}
+              color={isActive ? colors.primary : colors.textMuted}
               style={styles.icon}
             />
             <Text style={[styles.label, isActive && styles.activeLabel]}>{tab.label}</Text>
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   label: {
-    color: "#334155",
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: "700",
   },

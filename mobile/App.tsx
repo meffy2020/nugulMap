@@ -1,6 +1,5 @@
 import { StatusBar } from "expo-status-bar"
 import {
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -8,10 +7,12 @@ import {
   Pressable,
   TextInput,
   Alert,
+  Image,
 } from "react-native"
 import { useState } from "react"
 import * as Location from "expo-location"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { ZoneDetailModal } from "./src/components/ZoneDetailModal"
 import { SimpleBottomTab } from "./src/components/SimpleBottomTab"
 import { MapScreen } from "./src/screens/MapScreen"
@@ -23,10 +24,21 @@ import { AddZoneModal } from "./src/components/AddZoneModal"
 import { ProfileModal } from "./src/components/ProfileModal"
 import { useAuth } from "./src/hooks/useAuth"
 import { colors, radius } from "./src/theme/tokens"
-import { searchZones } from "./src/services/nugulApi"
+import { getImageUrl, searchZones } from "./src/services/nugulApi"
 
+const pinImage = require("./assets/images/pin.png")
+const neutralAvatar = require("./assets/images/neutral-user-avatar.png")
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  )
+}
+
+function AppContent() {
+  const insets = useSafeAreaInsets()
   const [activeTab, setActiveTab] = useState<TabKey>("map")
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
@@ -46,7 +58,7 @@ export default function App() {
     prependZone,
     refreshCurrentRegion,
   } = useZoneExplorer()
-  const { accessToken, user, saveToken, clearToken } = useAuth()
+  const { accessToken, user, clearToken } = useAuth()
 
   const moveToCurrentLocation = async () => {
     const permission = await Location.requestForegroundPermissionsAsync()
@@ -88,13 +100,16 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={activeTab === "map" ? ["left", "right", "bottom"] : ["top", "left", "right", "bottom"]}>
       <StatusBar style="dark" />
       {activeTab !== "map" ? (
         <View style={styles.header}>
-          <View>
+          <View style={styles.brandWrap}>
+            <Image source={pinImage} style={styles.brandIcon} resizeMode="contain" />
+            <View>
             <Text style={styles.kicker}>NugulMap</Text>
             <Text style={styles.title}>대한민국 흡연구역 지도</Text>
+            </View>
           </View>
           <View style={styles.headerActions}>
             <Pressable style={[styles.headerButton, styles.darkButton]} onPress={() => setIsAddOpen(true)}>
@@ -119,30 +134,46 @@ export default function App() {
               onSelectZone={openDetail}
             />
 
-            <View style={styles.topOverlay}>
+            <View style={[styles.topOverlay, { top: insets.top + 8 }]}>
               <View style={styles.searchShell}>
-                <MaterialCommunityIcons name="magnify" size={18} color="#64748b" />
+                <MaterialCommunityIcons name="magnify" size={18} color={colors.textMuted} />
                 <TextInput
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   onSubmitEditing={() => void handleTopSearch()}
-                  placeholder="위치/구역 검색"
-                  placeholderTextColor="#94a3b8"
+                  placeholder="장소, 주소 검색..."
+                  placeholderTextColor={colors.textMuted}
                   style={styles.searchInput}
                 />
-                {isSearching ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+                {searchQuery ? (
+                  <Pressable onPress={() => setSearchQuery("")} style={styles.clearButton}>
+                    <MaterialCommunityIcons name="close" size={15} color={colors.textMuted} />
+                  </Pressable>
+                ) : null}
+                <View style={styles.searchDivider} />
+                <Pressable onPress={() => void handleTopSearch()}>
+                  {isSearching ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text style={styles.searchAction}>검색</Text>
+                  )}
+                </Pressable>
               </View>
               <Pressable style={styles.profileFab} onPress={() => setIsProfileOpen(true)}>
-                <MaterialCommunityIcons name="account-circle-outline" size={21} color="#0f172a" />
+                <Image
+                  source={user?.profileImage ? { uri: getImageUrl(user.profileImage) || "" } : neutralAvatar}
+                  style={styles.profileAvatar}
+                />
               </Pressable>
             </View>
 
-            <View style={styles.bottomOverlay}>
+            <View style={[styles.bottomOverlay, { bottom: 88 + insets.bottom }]}>
               <Pressable style={[styles.roundFab, styles.locationFab]} onPress={() => void moveToCurrentLocation()}>
-                <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#0f172a" />
+                <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.surface} />
               </Pressable>
-              <Pressable style={[styles.roundFab, styles.addFab]} onPress={() => setIsAddOpen(true)}>
-                <MaterialCommunityIcons name="plus" size={24} color="#ffffff" />
+              <Pressable style={styles.addFab} onPress={() => setIsAddOpen(true)}>
+                <Image source={pinImage} style={styles.addFabIcon} resizeMode="contain" />
+                <Text style={styles.addFabText}>제보하기</Text>
               </Pressable>
             </View>
 
@@ -193,13 +224,12 @@ export default function App() {
         user={user}
         accessToken={accessToken}
         onClose={() => setIsProfileOpen(false)}
-        onSaveToken={saveToken}
         onClearToken={clearToken}
       />
 
       {isLoading && (
         <View style={styles.initialLoading}>
-          <ActivityIndicator color="#0f172a" />
+          <ActivityIndicator color={colors.primary} />
         </View>
       )}
     </SafeAreaView>
@@ -241,6 +271,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  brandWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  brandIcon: {
+    width: 18,
+    height: 18,
+    tintColor: colors.text,
+  },
   headerActions: {
     flexDirection: "row",
     gap: 8,
@@ -259,7 +299,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dark,
   },
   headerButtonText: {
-    color: "#ffffff",
+    color: colors.surface,
     fontWeight: "700",
     fontSize: 12,
   },
@@ -298,6 +338,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  clearButton: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted,
+  },
+  searchDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.border,
+  },
+  searchAction: {
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: 13,
+  },
   profileFab: {
     width: 46,
     height: 46,
@@ -312,6 +370,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+  },
+  profileAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   bottomOverlay: {
     position: "absolute",
@@ -341,12 +406,33 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   locationFab: {
-    backgroundColor: "rgba(255,255,255,0.96)",
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: "rgba(23,23,23,0.78)",
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
   addFab: {
     backgroundColor: colors.primary,
+    height: 56,
+    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    gap: 8,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
+  },
+  addFabIcon: {
+    width: 18,
+    height: 18,
+    tintColor: colors.surface,
+  },
+  addFabText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: "800",
   },
   initialLoading: {
     position: "absolute",

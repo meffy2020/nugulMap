@@ -3,6 +3,7 @@ import { FlatList, StyleSheet, Text, TextInput, View } from "react-native"
 import type { SmokingZone } from "../types"
 import { ZoneCard } from "../components/ZoneCard"
 import { searchZones } from "../services/nugulApi"
+import { colors, radius } from "../theme/tokens"
 
 interface ZoneListScreenProps {
   zones: SmokingZone[]
@@ -80,22 +81,22 @@ export function ZoneListScreen({
 const styles = StyleSheet.create({
   wrap: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.bg,
   },
   heading: {
     marginTop: 10,
     marginHorizontal: 14,
-    color: "#0f172a",
+    color: colors.text,
     fontWeight: "800",
     fontSize: 18,
   },
   input: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     marginTop: 10,
     marginHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#cbd5e1",
-    borderRadius: 14,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     paddingHorizontal: 12,
     paddingVertical: 11,
   },
@@ -105,6 +106,6 @@ const styles = StyleSheet.create({
   empty: {
     textAlign: "center",
     marginTop: 40,
-    color: "#64748b",
+    color: colors.textMuted,
   },
 })

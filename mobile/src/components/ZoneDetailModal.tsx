@@ -1,5 +1,7 @@
 import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import type { SmokingZone } from "../types"
+import { colors, radius } from "../theme/tokens"
+import { getImageUrl } from "../services/nugulApi"
 
 interface ZoneDetailModalProps {
   zone: SmokingZone | null
@@ -23,7 +25,7 @@ export function ZoneDetailModal({
     void Linking.openURL(url)
   }
 
-  const imageUrl = zone.image ? zone.image : null
+  const imageUrl = getImageUrl(zone.image)
 
   return (
     <Modal visible={Boolean(zone)} animationType="slide" transparent>
@@ -75,7 +77,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: "80%",
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
     padding: 22,
@@ -83,11 +85,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#0f172a",
+    color: colors.text,
     marginBottom: 4,
   },
   meta: {
-    color: "#1d4ed8",
+    color: colors.textMuted,
     marginBottom: 14,
     fontWeight: "700",
   },
@@ -96,10 +98,10 @@ const styles = StyleSheet.create({
     height: 190,
     borderRadius: 10,
     marginBottom: 12,
-    backgroundColor: "#cbd5e1",
+    backgroundColor: colors.surfaceMuted,
   },
   label: {
-    color: "#475569",
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: "700",
     marginTop: 10,
@@ -108,27 +110,29 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   value: {
-    color: "#0f172a",
+    color: colors.text,
     lineHeight: 20,
   },
   button: {
     marginTop: 10,
-    borderRadius: 14,
+    borderRadius: radius.md,
     paddingVertical: 13,
     alignItems: "center",
-    backgroundColor: "#2563eb",
+    backgroundColor: colors.primary,
   },
   secondary: {
-    backgroundColor: "#0f172a",
+    backgroundColor: colors.destructive,
   },
   outline: {
-    backgroundColor: "#eff6ff",
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   buttonText: {
-    color: "#ffffff",
+    color: colors.surface,
     fontWeight: "700",
   },
   outlineText: {
-    color: "#1d4ed8",
+    color: colors.text,
   },
 })

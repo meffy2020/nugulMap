@@ -223,3 +223,10 @@ export async function deleteZone(id: number, token?: string): Promise<void> {
     throw new Error(`delete zone failed: ${response.status} ${text}`)
   }
 }
+
+export function getImageUrl(imagePath: string | null | undefined): string | null {
+  if (!imagePath) return null
+  if (imagePath.startsWith("http")) return imagePath
+  if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`
+  return `${API_BASE_URL}/api/images/${imagePath}`
+}
