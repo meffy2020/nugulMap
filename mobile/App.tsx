@@ -11,6 +11,7 @@ import type { TabKey } from "./src/navigation/tabs"
 import { AddZoneModal } from "./src/components/AddZoneModal"
 import { ProfileModal } from "./src/components/ProfileModal"
 import { useAuth } from "./src/hooks/useAuth"
+import { colors, radius } from "./src/theme/tokens"
 
 
 export default function App() {
@@ -120,7 +121,7 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: colors.bg,
   },
   header: {
     paddingHorizontal: 16,
@@ -128,10 +129,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    shadowColor: "#0f172a",
+    shadowColor: colors.dark,
     shadowOpacity: 0.07,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -140,14 +141,14 @@ const styles = StyleSheet.create({
   kicker: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#1d4ed8",
+    color: colors.primary,
     textTransform: "uppercase",
     letterSpacing: 1,
   },
   title: {
     fontSize: 17,
     fontWeight: "800",
-    color: "#0f172a",
+    color: colors.text,
   },
   container: {
     flex: 1,
@@ -157,17 +158,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerButton: {
-    backgroundColor: "#2563eb",
-    borderRadius: 999,
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    shadowColor: "#2563eb",
+    shadowColor: colors.primary,
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
   },
   darkButton: {
-    backgroundColor: "#0f172a",
+    backgroundColor: colors.dark,
   },
   headerButtonText: {
     color: "#ffffff",

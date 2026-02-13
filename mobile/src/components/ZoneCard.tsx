@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native"
 import type { SmokingZone } from "../types"
+import { colors, radius } from "../theme/tokens"
 
 interface ZoneCardProps {
   zone: SmokingZone
@@ -31,12 +32,12 @@ export function ZoneCard({ zone, isFavorite, onSelect, onToggleFavorite }: ZoneC
 const styles = StyleSheet.create({
   card: {
     padding: 16,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: colors.border,
     marginBottom: 12,
-    shadowColor: "#0f172a",
+    shadowColor: colors.dark,
     shadowOpacity: 0.05,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -51,7 +52,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#0f172a",
+    color: colors.text,
     flexShrink: 1,
     marginRight: 8,
   },
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   meta: {
-    color: "#2563eb",
+    color: colors.primary,
     fontWeight: "700",
   },
   metaMuted: {
@@ -86,17 +87,17 @@ const styles = StyleSheet.create({
     color: "#94a3b8",
   },
   badgeActive: {
-    color: "#f59e0b",
+    color: colors.warning,
   },
   badgeWrap: {
     minWidth: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.surfaceMuted,
   },
   badgeWrapActive: {
     borderColor: "#fde68a",

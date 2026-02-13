@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native"
+import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { TABS, type TabKey } from "../navigation/tabs"
+import { colors, radius } from "../theme/tokens"
 
 interface TabProps {
   activeTab: TabKey
@@ -17,6 +19,12 @@ export function SimpleBottomTab({ activeTab, onChange }: TabProps) {
             onPress={() => onChange(tab.key)}
             style={[styles.tab, isActive && styles.activeTab]}
           >
+            <MaterialCommunityIcons
+              name={tab.icon}
+              size={18}
+              color={isActive ? colors.primary : "#64748b"}
+              style={styles.icon}
+            />
             <Text style={[styles.label, isActive && styles.activeLabel]}>{tab.label}</Text>
           </Pressable>
         )
@@ -28,12 +36,12 @@ export function SimpleBottomTab({ activeTab, onChange }: TabProps) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     marginHorizontal: 12,
     marginBottom: 10,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     padding: 4,
-    shadowColor: "#0f172a",
+    shadowColor: colors.dark,
     shadowOpacity: 0.1,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
@@ -43,18 +51,21 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     paddingVertical: 11,
-    borderRadius: 14,
+    borderRadius: radius.md,
   },
   activeTab: {
-    backgroundColor: "#dbeafe",
+    backgroundColor: colors.primarySoft,
+  },
+  icon: {
+    marginBottom: 3,
   },
   label: {
     color: "#334155",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
   },
   activeLabel: {
-    color: "#1d4ed8",
+    color: colors.primary,
     fontWeight: "800",
   },
 })

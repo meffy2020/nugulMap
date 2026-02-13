@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react"
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 import MapView, { Marker, PROVIDER_GOOGLE, type Region as MapRegionType } from "react-native-maps"
 import type { MapRegion, SmokingZone } from "../types"
+import { colors, radius } from "../theme/tokens"
 
 interface MapScreenProps {
   region: MapRegion
@@ -103,19 +104,19 @@ const styles = StyleSheet.create({
     right: 16,
     paddingVertical: 11,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: radius.md,
     backgroundColor: "rgba(255,255,255,0.9)",
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
-    shadowColor: "#0f172a",
+    shadowColor: colors.dark,
     shadowOpacity: 0.1,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
   loadingText: {
-    color: "#0f172a",
+    color: colors.text,
     fontWeight: "700",
   },
   countWrap: {
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
     bottom: 20,
     alignSelf: "center",
     backgroundColor: "rgba(15,23,42,0.84)",
-    borderRadius: 999,
+    borderRadius: radius.full,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
