@@ -20,7 +20,12 @@ const config: ExpoConfig = {
     fallbackToCacheTimeout: 0
   },
   extra: {
-    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.nugulmap.com"
+    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.nugulmap.com",
+    kakaoJavascriptKey:
+      process.env.EXPO_PUBLIC_KAKAO_JAVASCRIPT_KEY ||
+      process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY ||
+      "",
+    kakaoWebviewBaseUrl: process.env.EXPO_PUBLIC_KAKAO_WEBVIEW_BASE_URL || "https://nugulmap.local",
   }
 }
 

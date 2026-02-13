@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ActivityIndicator, Image, StyleSheet, View } from "react-native"
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native"
 import WebView, { type WebViewMessageEvent } from "react-native-webview"
+import Constants from "expo-constants"
 import type { MapRegion, SmokingZone } from "../types"
 import { colors, radius } from "../theme/tokens"
 
@@ -13,8 +14,19 @@ interface MapScreenProps {
   onSelectZone: (zone: SmokingZone) => void
 }
 
-const KAKAO_JS_KEY = process.env.EXPO_PUBLIC_KAKAO_JAVASCRIPT_KEY || ""
-const KAKAO_WEBVIEW_BASE_URL = process.env.EXPO_PUBLIC_KAKAO_WEBVIEW_BASE_URL || "https://nugulmap.local"
+const EXPO_EXTRA = (Constants.expoConfig?.extra || {}) as {
+  kakaoJavascriptKey?: string
+  kakaoWebviewBaseUrl?: string
+}
+const KAKAO_JS_KEY =
+  process.env.EXPO_PUBLIC_KAKAO_JAVASCRIPT_KEY ||
+  process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY ||
+  EXPO_EXTRA.kakaoJavascriptKey ||
+  ""
+const KAKAO_WEBVIEW_BASE_URL =
+  process.env.EXPO_PUBLIC_KAKAO_WEBVIEW_BASE_URL ||
+  EXPO_EXTRA.kakaoWebviewBaseUrl ||
+  "https://nugulmap.local"
 const REGION_SYNC_EPS = 0.00002
 
 function isSimilarRegion(a: MapRegion, b: MapRegion): boolean {
@@ -157,6 +169,11 @@ function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
           onMessage(event.data);
         });
 
+        if (!window.kakao || !window.kakao.maps) {
+          post({ type: "error", message: "Kakao SDK not loaded. Check app key and allowed domain." });
+          return;
+        }
+
         kakao.maps.load(function () {
           map = new kakao.maps.Map(document.getElementById("map"), {
             center: new kakao.maps.LatLng(${initialRegion.latitude}, ${initialRegion.longitude}),
@@ -175,6 +192,10 @@ function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
           emitRegion();
           post({ type: "ready" });
         });
+
+        window.addEventListener("error", function (e) {
+          post({ type: "error", message: e && e.message ? e.message : "Unknown script error" });
+        });
       })();
     </script>
   </body>
@@ -192,6 +213,7 @@ export function MapScreen({
 }: MapScreenProps) {
   const webViewRef = useRef<WebView>(null)
   const [isMapReady, setIsMapReady] = useState(false)
+  const [mapError, setMapError] = useState<string | null>(null)
   const lastRegionFromMap = useRef<MapRegion | null>(null)
   const markerImageUri = useMemo(
     () => Image.resolveAssetSource(require("../../assets/images/pin.png")).uri,
@@ -199,6 +221,14 @@ export function MapScreen({
   )
 
   const mapHtml = useMemo(() => buildMapHtml(KAKAO_JS_KEY, region), [])
+
+  useEffect(() => {
+    if (!KAKAO_JS_KEY) {
+      setMapError("Kakao JavaScript key is missing. Check mobile/.env")
+      return
+    }
+    setMapError(null)
+  }, [])
 
   const postMessageToMap = (payload: unknown) => {
     if (!isMapReady || !webViewRef.current) return
@@ -246,6 +276,12 @@ export function MapScreen({
       const data = JSON.parse(event.nativeEvent.data)
       if (data?.type === "ready") {
         setIsMapReady(true)
+        setMapError(null)
+        return
+      }
+
+      if (data?.type === "error") {
+        setMapError(String(data.message || "Failed to load kakao map"))
         return
       }
 
@@ -294,6 +330,12 @@ export function MapScreen({
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : null}
+
+      {mapError ? (
+        <View style={styles.errorWrap}>
+          <Text style={styles.errorText}>{mapError}</Text>
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -318,5 +360,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  errorWrap: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    top: 70,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    backgroundColor: "rgba(38,38,38,0.92)",
+  },
+  errorText: {
+    color: colors.surface,
+    fontSize: 12,
+    fontWeight: "700",
   },
 })
