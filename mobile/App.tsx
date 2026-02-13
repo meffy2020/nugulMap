@@ -21,12 +21,12 @@ import { MapScreen } from "./src/screens/MapScreen"
 import { useZoneExplorer } from "./src/features/zones/hooks/useZoneExplorer"
 import { AddZoneModal } from "./src/components/AddZoneModal"
 import { ProfileModal } from "./src/components/ProfileModal"
+import { AppMenuModal } from "./src/components/AppMenuModal"
 import { useAuth } from "./src/hooks/useAuth"
 import { colors, radius } from "./src/theme/tokens"
-import { getImageUrl, searchZones } from "./src/services/nugulApi"
+import { searchZones } from "./src/services/nugulApi"
 
 const pinImage = require("./assets/images/pin.png")
-const neutralAvatar = require("./assets/images/neutral-user-avatar.png")
 
 export default function App() {
   return (
@@ -40,6 +40,7 @@ function AppContent() {
   const insets = useSafeAreaInsets()
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
   const [isReviewOpen, setIsReviewOpen] = useState(false)
@@ -178,11 +179,8 @@ function AppContent() {
           </Pressable>
         </View>
 
-        <Pressable style={styles.profileFab} onPress={() => setIsProfileOpen(true)}>
-          <Image
-            source={user?.profileImage ? { uri: getImageUrl(user.profileImage) || "" } : neutralAvatar}
-            style={styles.profileAvatar}
-          />
+        <Pressable style={styles.menuFab} onPress={() => setIsMenuOpen(true)}>
+          <MaterialCommunityIcons name="menu" size={22} color={colors.text} />
         </Pressable>
       </View>
 
@@ -231,6 +229,13 @@ function AppContent() {
         accessToken={accessToken}
         onClose={() => setIsProfileOpen(false)}
         onClearToken={clearToken}
+      />
+      <AppMenuModal
+        visible={isMenuOpen}
+        user={user}
+        onClose={() => setIsMenuOpen(false)}
+        onOpenProfile={() => setIsProfileOpen(true)}
+        onLogout={clearToken}
       />
 
       {isLoading ? (
@@ -327,7 +332,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 13,
   },
-  profileFab: {
+  menuFab: {
     width: 46,
     height: 46,
     borderRadius: radius.full,
@@ -341,13 +346,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
-  },
-  profileAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   bottomOverlay: {
     position: "absolute",

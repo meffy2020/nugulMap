@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react"
-import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native"
-import MapView, { Marker, PROVIDER_GOOGLE, type Region as MapRegionType } from "react-native-maps"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { ActivityIndicator, Image, StyleSheet, View } from "react-native"
+import WebView, { type WebViewMessageEvent } from "react-native-webview"
 import type { MapRegion, SmokingZone } from "../types"
 import { colors, radius } from "../theme/tokens"
 
@@ -13,6 +13,174 @@ interface MapScreenProps {
   onSelectZone: (zone: SmokingZone) => void
 }
 
+const KAKAO_JS_KEY = process.env.EXPO_PUBLIC_KAKAO_JAVASCRIPT_KEY || ""
+const REGION_SYNC_EPS = 0.00002
+
+function isSimilarRegion(a: MapRegion, b: MapRegion): boolean {
+  return (
+    Math.abs(a.latitude - b.latitude) < REGION_SYNC_EPS &&
+    Math.abs(a.longitude - b.longitude) < REGION_SYNC_EPS &&
+    Math.abs(a.latitudeDelta - b.latitudeDelta) < REGION_SYNC_EPS &&
+    Math.abs(a.longitudeDelta - b.longitudeDelta) < REGION_SYNC_EPS
+  )
+}
+
+function buildMapHtml(appKey: string, initialRegion: MapRegion): string {
+  return `
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <style>
+      html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: #fff; }
+    </style>
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&autoload=false"></script>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script>
+      (function () {
+        var map = null;
+        var markers = [];
+        var markerImage = null;
+        var queued = [];
+
+        function post(payload) {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+          }
+        }
+
+        function clearMarkers() {
+          for (var i = 0; i < markers.length; i += 1) {
+            markers[i].setMap(null);
+          }
+          markers = [];
+        }
+
+        function emitRegion() {
+          if (!map) return;
+          var center = map.getCenter();
+          var bounds = map.getBounds();
+          var sw = bounds.getSouthWest();
+          var ne = bounds.getNorthEast();
+          post({
+            type: "regionChange",
+            latitude: center.getLat(),
+            longitude: center.getLng(),
+            latitudeDelta: Math.abs(ne.getLat() - sw.getLat()) || 0.05,
+            longitudeDelta: Math.abs(ne.getLng() - sw.getLng()) || 0.05,
+          });
+        }
+
+        function setMarkerImage(uri) {
+          if (!uri) {
+            markerImage = null;
+            return;
+          }
+
+          markerImage = new kakao.maps.MarkerImage(
+            uri,
+            new kakao.maps.Size(28, 28),
+            { offset: new kakao.maps.Point(14, 28) }
+          );
+        }
+
+        function renderMarkers(zones) {
+          if (!map) return;
+          clearMarkers();
+
+          for (var i = 0; i < zones.length; i += 1) {
+            var zone = zones[i];
+            if (!zone) continue;
+            var lat = Number(zone.latitude);
+            var lng = Number(zone.longitude);
+            if (!isFinite(lat) || !isFinite(lng)) continue;
+
+            var marker = new kakao.maps.Marker({
+              map: map,
+              position: new kakao.maps.LatLng(lat, lng),
+              title: zone.subtype || "흡연구역",
+              image: markerImage || undefined,
+            });
+
+            (function (zoneId) {
+              kakao.maps.event.addListener(marker, "click", function () {
+                post({ type: "markerPress", id: zoneId });
+              });
+            })(zone.id);
+
+            markers.push(marker);
+          }
+        }
+
+        function moveCenter(center) {
+          if (!map || !center) return;
+          var lat = Number(center.latitude);
+          var lng = Number(center.longitude);
+          if (!isFinite(lat) || !isFinite(lng)) return;
+
+          map.setCenter(new kakao.maps.LatLng(lat, lng));
+        }
+
+        function applyPayload(payload) {
+          if (!map) {
+            queued.push(payload);
+            return;
+          }
+
+          if (payload.type === "SET_ZONES") {
+            setMarkerImage(payload.markerImageUri);
+            renderMarkers(Array.isArray(payload.zones) ? payload.zones : []);
+            return;
+          }
+
+          if (payload.type === "MOVE_CENTER") {
+            moveCenter(payload.center);
+            return;
+          }
+        }
+
+        function onMessage(raw) {
+          try {
+            var payload = JSON.parse(raw);
+            applyPayload(payload);
+          } catch (_error) {}
+        }
+
+        window.addEventListener("message", function (event) {
+          onMessage(event.data);
+        });
+
+        document.addEventListener("message", function (event) {
+          onMessage(event.data);
+        });
+
+        kakao.maps.load(function () {
+          map = new kakao.maps.Map(document.getElementById("map"), {
+            center: new kakao.maps.LatLng(${initialRegion.latitude}, ${initialRegion.longitude}),
+            level: 4,
+          });
+
+          kakao.maps.event.addListener(map, "idle", emitRegion);
+
+          if (queued.length) {
+            for (var i = 0; i < queued.length; i += 1) {
+              applyPayload(queued[i]);
+            }
+            queued = [];
+          }
+
+          emitRegion();
+          post({ type: "ready" });
+        });
+      })();
+    </script>
+  </body>
+</html>
+`
+}
+
 export function MapScreen({
   region,
   zones,
@@ -21,76 +189,110 @@ export function MapScreen({
   onRegionChangeComplete,
   onSelectZone,
 }: MapScreenProps) {
-  const mapRef = useRef<MapView>(null)
-  const markerImage = require("../../assets/images/pin.png")
+  const webViewRef = useRef<WebView>(null)
+  const [isMapReady, setIsMapReady] = useState(false)
+  const lastRegionFromMap = useRef<MapRegion | null>(null)
+  const markerImageUri = useMemo(
+    () => Image.resolveAssetSource(require("../../assets/images/pin.png")).uri,
+    [],
+  )
+
+  const mapHtml = useMemo(() => buildMapHtml(KAKAO_JS_KEY, region), [])
+
+  const postMessageToMap = (payload: unknown) => {
+    if (!isMapReady || !webViewRef.current) return
+    webViewRef.current.postMessage(JSON.stringify(payload))
+  }
 
   useEffect(() => {
-    if (selectedZone && mapRef.current) {
-      const camera = {
-        center: {
-          latitude: selectedZone.latitude,
-          longitude: selectedZone.longitude,
-        },
-        zoom: 15,
-      }
-      void mapRef.current.animateToRegion(
-        {
-          latitude: camera.center.latitude,
-          longitude: camera.center.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        },
-        350,
-      )
-    }
-  }, [selectedZone])
+    if (!isMapReady) return
 
-  const toRegion = (next: MapRegionType): MapRegion => ({
-    latitude: next.latitude,
-    longitude: next.longitude,
-    latitudeDelta: next.latitudeDelta,
-    longitudeDelta: next.longitudeDelta,
-  })
+    postMessageToMap({
+      type: "SET_ZONES",
+      zones,
+      markerImageUri,
+    })
+  }, [zones, isMapReady])
+
+  useEffect(() => {
+    if (!isMapReady) return
+
+    const last = lastRegionFromMap.current
+    if (last && isSimilarRegion(last, region)) {
+      return
+    }
+
+    postMessageToMap({
+      type: "MOVE_CENTER",
+      center: region,
+    })
+  }, [region, isMapReady])
+
+  useEffect(() => {
+    if (!isMapReady || !selectedZone) return
+
+    postMessageToMap({
+      type: "MOVE_CENTER",
+      center: {
+        latitude: selectedZone.latitude,
+        longitude: selectedZone.longitude,
+      },
+    })
+  }, [selectedZone, isMapReady])
+
+  const handleMessage = (event: WebViewMessageEvent) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data)
+      if (data?.type === "ready") {
+        setIsMapReady(true)
+        return
+      }
+
+      if (data?.type === "markerPress") {
+        const zone = zones.find((item) => item.id === Number(data.id))
+        if (zone) {
+          onSelectZone(zone)
+        }
+        return
+      }
+
+      if (data?.type === "regionChange") {
+        const nextRegion: MapRegion = {
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+          latitudeDelta: Number(data.latitudeDelta) || 0.05,
+          longitudeDelta: Number(data.longitudeDelta) || 0.05,
+        }
+
+        if (Number.isNaN(nextRegion.latitude) || Number.isNaN(nextRegion.longitude)) {
+          return
+        }
+
+        lastRegionFromMap.current = nextRegion
+        onRegionChangeComplete(nextRegion)
+      }
+    } catch {
+      // ignore malformed bridge messages
+    }
+  }
 
   return (
     <View style={styles.wrap}>
-      <MapView
-        ref={mapRef}
+      <WebView
+        ref={webViewRef}
+        originWhitelist={["*"]}
+        source={{ html: mapHtml }}
+        javaScriptEnabled
+        domStorageEnabled
+        onMessage={handleMessage}
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
-        region={region}
-        onRegionChangeComplete={(next) => onRegionChangeComplete(toRegion(next))}
-        showsUserLocation
-        showsMyLocationButton
-      >
-        {zones.map((zone) => (
-          <Marker
-            key={zone.id}
-            coordinate={{
-              latitude: zone.latitude,
-              longitude: zone.longitude,
-            }}
-            title={zone.subtype}
-            description={zone.address}
-            anchor={{ x: 0.5, y: 1 }}
-            tracksViewChanges={false}
-            onPress={() => onSelectZone(zone)}
-          >
-            <Image source={markerImage} style={styles.markerIcon} resizeMode="contain" />
-          </Marker>
-        ))}
-      </MapView>
+      />
 
       {isLoading ? (
         <View style={styles.loaderWrap}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>구역 조회 중...</Text>
         </View>
       ) : null}
-
-      <View style={styles.countWrap}>
-        <Text style={styles.countText}>현재 영역 {zones.length}개</Text>
-      </View>
     </View>
   )
 }
@@ -101,46 +303,19 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+    backgroundColor: colors.surface,
   },
   loaderWrap: {
     position: "absolute",
-    top: 18,
-    left: 16,
+    top: 16,
     right: 16,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    borderRadius: radius.md,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-    shadowColor: colors.dark,
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  loadingText: {
-    color: colors.text,
-    fontWeight: "700",
-  },
-  countWrap: {
-    position: "absolute",
-    bottom: 100,
-    alignSelf: "center",
-    backgroundColor: "rgba(23,23,23,0.84)",
+    width: 34,
+    height: 34,
     borderRadius: radius.full,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  countText: {
-    color: colors.surface,
-    fontWeight: "700",
-    fontSize: 12,
-  },
-  markerIcon: {
-    width: 26,
-    height: 26,
-    tintColor: colors.primary,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 })
