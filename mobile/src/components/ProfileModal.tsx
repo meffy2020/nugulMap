@@ -3,7 +3,6 @@ import {
   Alert,
   FlatList,
   Image,
-  Linking,
   Modal,
   Pressable,
   StyleSheet,
@@ -14,9 +13,20 @@ import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { deleteZone, fetchMyZones, getImageUrl } from "../services/nugulApi"
 import type { SmokingZone, UserProfile } from "../types"
 import { colors, radius } from "../theme/tokens"
+import type { SocialLoginProvider } from "../hooks/useAuth"
 
 const neutralAvatar = require("../../assets/images/neutral-user-avatar.png")
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.nugulmap.com"
+
+const SOCIAL_LOGIN_OPTIONS: Array<{
+  provider: SocialLoginProvider
+  label: string
+  backgroundColor: string
+  textColor: string
+}> = [
+  { provider: "kakao", label: "카카오로 시작하기", backgroundColor: "#FEE500", textColor: "#171717" },
+  { provider: "naver", label: "네이버로 시작하기", backgroundColor: "#03C75A", textColor: "#ffffff" },
+  { provider: "google", label: "구글로 시작하기", backgroundColor: "#171717", textColor: "#ffffff" },
+]
 
 interface ProfileModalProps {
   visible: boolean
@@ -24,6 +34,10 @@ interface ProfileModalProps {
   accessToken: string | null
   onClose: () => void
   onClearToken: () => Promise<void>
+  onSocialLogin: (provider: SocialLoginProvider) => Promise<void>
+  authMessage: string | null
+  onClearAuthMessage: () => void
+  isAuthenticating: boolean
 }
 
 export function ProfileModal({
@@ -32,6 +46,10 @@ export function ProfileModal({
   accessToken,
   onClose,
   onClearToken,
+  onSocialLogin,
+  authMessage,
+  onClearAuthMessage,
+  isAuthenticating,
 }: ProfileModalProps) {
   const [myZones, setMyZones] = useState<SmokingZone[]>([])
   const [loadingZones, setLoadingZones] = useState(false)
@@ -52,15 +70,6 @@ export function ProfileModal({
       void loadMyZones()
     }
   }, [visible, accessToken, user])
-
-  const openLogin = async () => {
-    const loginUrl = `${API_BASE_URL}/api/oauth2/authorization/kakao`
-    try {
-      await Linking.openURL(loginUrl)
-    } catch {
-      Alert.alert("오류", "로그인 페이지를 열 수 없습니다.")
-    }
-  }
 
   const removeZone = async (id: number) => {
     if (!accessToken) return
@@ -90,11 +99,30 @@ export function ProfileModal({
 
         {!user ? (
           <View style={styles.section}>
-            <Text style={styles.subTitle}>로그인이 필요합니다</Text>
-            <Text style={styles.value}>웹 버전과 동일한 OAuth 로그인 페이지로 이동합니다.</Text>
-            <Pressable style={styles.button} onPress={() => void openLogin()}>
-              <Text style={styles.buttonText}>로그인하러 가기</Text>
-            </Pressable>
+            <Text style={styles.subTitle}>간편 로그인</Text>
+            <Text style={styles.value}>웹 버전과 동일한 OAuth 계정으로 바로 로그인할 수 있어요.</Text>
+
+            {authMessage ? (
+              <View style={styles.messageBox}>
+                <Text style={styles.messageText}>{authMessage}</Text>
+                <Pressable onPress={onClearAuthMessage}>
+                  <MaterialCommunityIcons name="close" size={16} color={colors.textMuted} />
+                </Pressable>
+              </View>
+            ) : null}
+
+            {SOCIAL_LOGIN_OPTIONS.map((item) => (
+              <Pressable
+                key={item.provider}
+                style={[styles.socialButton, { backgroundColor: item.backgroundColor }]}
+                onPress={() => void onSocialLogin(item.provider)}
+                disabled={isAuthenticating}
+              >
+                <Text style={[styles.socialButtonText, { color: item.textColor }]}>
+                  {isAuthenticating ? "로그인 진행 중..." : item.label}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         ) : (
           <>
@@ -216,13 +244,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
-  button: {
-    backgroundColor: colors.primary,
+  socialButton: {
     borderRadius: radius.md,
     paddingVertical: 12,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  buttonText: { color: colors.surface, fontWeight: "700" },
+  socialButtonText: { fontWeight: "800" },
+  messageBox: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  messageText: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+  },
   secondaryButton: {
     marginTop: 2,
     backgroundColor: colors.surface,

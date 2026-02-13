@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler {
     
     private final OAuth2AuthorizationRequestBasedOnCookieRepository authorizationRequestRepository;
+    private final OAuth2RedirectUrlResolver redirectUrlResolver;
     
     @Value("${app.frontend-url}")
     private String frontendUrl; // 예: http://localhost
@@ -50,6 +51,17 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
     }
 
     private String determineTargetUrl(HttpServletRequest request, AuthenticationException exception) {
+        String mobileTarget = redirectUrlResolver.resolveRedirectUri(request)
+                .map(redirectUri -> UriComponentsBuilder.fromUriString(redirectUri)
+                        .queryParam("error", exception.getLocalizedMessage())
+                        .build()
+                        .encode(StandardCharsets.UTF_8)
+                        .toUriString())
+                .orElse(null);
+        if (mobileTarget != null) {
+            return mobileTarget;
+        }
+
         String requestUrl = request.getRequestURL().toString();
         
         // 백엔드 직접 접근(8080)인지 확인 (테스트용)

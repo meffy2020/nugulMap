@@ -12,6 +12,8 @@ import org.springframework.util.SerializationUtils;
 import org.springframework.web.util.WebUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import java.util.Base64;
 
@@ -53,7 +55,8 @@ public class OAuth2AuthorizationRequestBasedOnCookieRepository
         // 2. 로그인 후 돌아갈 리다이렉트 URI 저장 (프론트엔드 주소 등)
         String redirectUriAfterLogin = request.getParameter(REDIRECT_URI_PARAM_COOKIE_NAME);
         if (redirectUriAfterLogin != null && !redirectUriAfterLogin.isEmpty()) {
-            addCookie(response, REDIRECT_URI_PARAM_COOKIE_NAME, redirectUriAfterLogin, COOKIE_EXPIRE_SECONDS);
+            String encodedRedirectUri = URLEncoder.encode(redirectUriAfterLogin, StandardCharsets.UTF_8);
+            addCookie(response, REDIRECT_URI_PARAM_COOKIE_NAME, encodedRedirectUri, COOKIE_EXPIRE_SECONDS);
         }
     }
     

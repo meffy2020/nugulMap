@@ -12,12 +12,22 @@ type MenuPage = "main" | "notice" | "settings"
 interface AppMenuModalProps {
   visible: boolean
   user: UserProfile | null
+  isLoggedIn: boolean
   onClose: () => void
   onOpenProfile: () => void
+  onLogin: () => Promise<void>
   onLogout: () => Promise<void>
 }
 
-export function AppMenuModal({ visible, user, onClose, onOpenProfile, onLogout }: AppMenuModalProps) {
+export function AppMenuModal({
+  visible,
+  user,
+  isLoggedIn,
+  onClose,
+  onOpenProfile,
+  onLogin,
+  onLogout,
+}: AppMenuModalProps) {
   const [page, setPage] = useState<MenuPage>("main")
 
   useEffect(() => {
@@ -60,16 +70,29 @@ export function AppMenuModal({ visible, user, onClose, onOpenProfile, onLogout }
         <Text style={styles.menuLabel}>설정</Text>
       </Pressable>
 
-      <Pressable
-        style={[styles.menuItem, styles.logoutItem]}
-        onPress={() => {
-          void onLogout()
-          onClose()
-        }}
-      >
-        <MaterialCommunityIcons name="logout" size={20} color={colors.destructive} />
-        <Text style={styles.logoutLabel}>로그아웃</Text>
-      </Pressable>
+      {!isLoggedIn ? (
+        <Pressable
+          style={[styles.menuItem, styles.loginItem]}
+          onPress={() => {
+            void onLogin()
+            onClose()
+          }}
+        >
+          <MaterialCommunityIcons name="login" size={20} color={colors.text} />
+          <Text style={styles.menuLabel}>카카오로 로그인</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={[styles.menuItem, styles.logoutItem]}
+          onPress={() => {
+            void onLogout()
+            onClose()
+          }}
+        >
+          <MaterialCommunityIcons name="logout" size={20} color={colors.destructive} />
+          <Text style={styles.logoutLabel}>로그아웃</Text>
+        </Pressable>
+      )}
     </View>
   )
 
@@ -201,6 +224,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   logoutItem: {
+    marginTop: 6,
+  },
+  loginItem: {
     marginTop: 6,
   },
   logoutLabel: {

@@ -124,6 +124,8 @@ app:
     success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:}  # 비어있으면 상대 경로 사용 (Nginx 헤더 기반)
     signup-redirect-url: ${OAUTH2_SIGNUP_REDIRECT_URL:}  # 비어있으면 상대 경로 사용 (Nginx 헤더 기반)
     failure-redirect-url: ${OAUTH2_FAILURE_REDIRECT_URL:}  # 비어있으면 상대 경로 사용 (Nginx 헤더 기반)
+    allowed-redirect-uris: ${OAUTH2_ALLOWED_REDIRECT_URIS:http://localhost,http://localhost:3000,https://nugulmap.com,https://www.nugulmap.com,nugulmap://oauth/callback}
+    allowed-redirect-uri-prefixes: ${OAUTH2_ALLOWED_REDIRECT_URI_PREFIXES:}
     google:
       url: /oauth2/authorization/google
     kakao:

@@ -65,7 +65,16 @@ function AppContent() {
     refreshCurrentRegion,
   } = useZoneExplorer()
 
-  const { accessToken, user, clearToken } = useAuth()
+  const {
+    accessToken,
+    user,
+    isLoggedIn,
+    clearToken,
+    startSocialLogin,
+    authMessage,
+    clearAuthMessage,
+    isAuthenticating,
+  } = useAuth()
 
   const moveToCurrentLocation = async () => {
     const permission = await Location.requestForegroundPermissionsAsync()
@@ -225,12 +234,18 @@ function AppContent() {
         accessToken={accessToken}
         onClose={() => setIsProfileOpen(false)}
         onClearToken={clearToken}
+        onSocialLogin={startSocialLogin}
+        authMessage={authMessage}
+        onClearAuthMessage={clearAuthMessage}
+        isAuthenticating={isAuthenticating}
       />
       <AppMenuModal
         visible={isMenuOpen}
         user={user}
+        isLoggedIn={isLoggedIn}
         onClose={() => setIsMenuOpen(false)}
         onOpenProfile={() => setIsProfileOpen(true)}
+        onLogin={() => startSocialLogin("kakao")}
         onLogout={clearToken}
       />
 

@@ -3,6 +3,7 @@ import { ExpoConfig } from "expo/config"
 const config: ExpoConfig = {
   name: "NugulMap",
   slug: "nugulmap-mobile",
+  scheme: "nugulmap",
   version: "1.0.0",
   orientation: "portrait",
   userInterfaceStyle: "automatic",
@@ -27,6 +28,7 @@ const config: ExpoConfig = {
       "",
     kakaoWebviewBaseUrl: process.env.EXPO_PUBLIC_KAKAO_WEBVIEW_BASE_URL || "https://nugulmap.local",
     kakaoMarkerImageUrl: process.env.EXPO_PUBLIC_KAKAO_MARKER_IMAGE_URL || "",
+    oauthRedirectUri: process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI || "nugulmap://oauth/callback",
   }
 }
 
