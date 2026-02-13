@@ -145,6 +145,10 @@ export default function App() {
                 <MaterialCommunityIcons name="plus" size={24} color="#ffffff" />
               </Pressable>
             </View>
+
+            <View style={styles.mapTabOverlay}>
+              <SimpleBottomTab activeTab={activeTab} onChange={setActiveTab} />
+            </View>
           </View>
         ) : null}
 
@@ -167,7 +171,7 @@ export default function App() {
         ) : null}
       </View>
 
-      <SimpleBottomTab activeTab={activeTab} onChange={setActiveTab} />
+      {activeTab !== "map" ? <SimpleBottomTab activeTab={activeTab} onChange={setActiveTab} /> : null}
 
       <ZoneDetailModal
         zone={detailZone}
@@ -313,10 +317,16 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    bottom: 22,
+    bottom: 88,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  mapTabOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   roundFab: {
     width: 54,
