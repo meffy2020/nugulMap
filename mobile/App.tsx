@@ -58,9 +58,7 @@ function AppContent() {
     selectedZone,
     detailZone,
     isLoading,
-    favoriteIds,
     handleRegionChangeComplete,
-    toggleFavorite,
     openDetail,
     closeDetail,
     prependZone,
@@ -197,9 +195,7 @@ function AppContent() {
 
       <ZoneDetailModal
         zone={detailZone}
-        isFavorite={detailZone ? favoriteIds.has(detailZone.id) : false}
         onClose={closeDetail}
-        onToggleFavorite={() => detailZone && toggleFavorite(detailZone.id)}
         onOpenRoute={openRouteForZone}
         onOpenShare={openShareForZone}
         onOpenReport={openReportForZone}

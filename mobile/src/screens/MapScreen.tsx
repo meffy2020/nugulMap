@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 import WebView, { type WebViewMessageEvent } from "react-native-webview"
 import Constants from "expo-constants"
 import type { MapRegion, SmokingZone } from "../types"
@@ -17,6 +17,7 @@ interface MapScreenProps {
 const EXPO_EXTRA = (Constants.expoConfig?.extra || {}) as {
   kakaoJavascriptKey?: string
   kakaoWebviewBaseUrl?: string
+  kakaoMarkerImageUrl?: string
 }
 const KAKAO_JS_KEY =
   process.env.EXPO_PUBLIC_KAKAO_JAVASCRIPT_KEY ||
@@ -27,6 +28,10 @@ const KAKAO_WEBVIEW_BASE_URL =
   process.env.EXPO_PUBLIC_KAKAO_WEBVIEW_BASE_URL ||
   EXPO_EXTRA.kakaoWebviewBaseUrl ||
   "https://nugulmap.local"
+const KAKAO_MARKER_IMAGE_URL =
+  process.env.EXPO_PUBLIC_KAKAO_MARKER_IMAGE_URL ||
+  EXPO_EXTRA.kakaoMarkerImageUrl ||
+  `${KAKAO_WEBVIEW_BASE_URL.replace(/\/$/, "")}/images/pin.png`
 const REGION_SYNC_EPS = 0.00002
 const MARKER_RENDER_FAIL_MESSAGE = "마커 렌더링에 실패했습니다. API URL 또는 좌표 데이터를 확인해 주세요."
 
@@ -262,10 +267,7 @@ export function MapScreen({
   const [isMapReady, setIsMapReady] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
   const lastRegionFromMap = useRef<MapRegion | null>(null)
-  const markerImageUri = useMemo(
-    () => Image.resolveAssetSource(require("../../assets/images/pin.png")).uri,
-    [],
-  )
+  const markerImageUri = useMemo(() => KAKAO_MARKER_IMAGE_URL, [])
 
   const mapHtml = useMemo(() => buildMapHtml(KAKAO_JS_KEY, region), [])
 

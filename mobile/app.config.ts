@@ -26,6 +26,7 @@ const config: ExpoConfig = {
       process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY ||
       "",
     kakaoWebviewBaseUrl: process.env.EXPO_PUBLIC_KAKAO_WEBVIEW_BASE_URL || "https://nugulmap.local",
+    kakaoMarkerImageUrl: process.env.EXPO_PUBLIC_KAKAO_MARKER_IMAGE_URL || "",
   }
 }
 
