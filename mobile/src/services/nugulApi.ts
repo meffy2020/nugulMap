@@ -82,7 +82,16 @@ function authHeaders(token?: string): HeadersInit {
 async function safeJson(response: Response): Promise<any> {
   const text = await response.text()
   if (!text) return null
-  return JSON.parse(text)
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+async function readZonesOrEmpty(response: Response): Promise<SmokingZone[]> {
+  const result = await safeJson(response)
+  return pickZones(result?.data || result)
 }
 
 export async function fetchZonesByBounds(bounds: MapBounds): Promise<SmokingZone[]> {
@@ -94,16 +103,18 @@ export async function fetchZonesByBounds(bounds: MapBounds): Promise<SmokingZone
       return fallbackZones
     }
 
-    const result = await safeJson(response)
-    return pickZones(result?.data || result)
+    return readZonesOrEmpty(response)
   } catch (error) {
     console.warn("zones fetch failed", error)
     return fallbackZones
   }
 }
 
-export async function searchZones(keyword: string): Promise<SmokingZone[]> {
-  const url = `${API_BASE_URL}/api/zones/search?keyword=${encodeURIComponent(keyword)}`
+export async function searchZones(keyword: string, lat?: number, lng?: number): Promise<SmokingZone[]> {
+  let url = `${API_BASE_URL}/api/zones/search?keyword=${encodeURIComponent(keyword)}`
+  if (lat !== undefined && lng !== undefined) {
+    url += `&lat=${lat}&lng=${lng}`
+  }
 
   try {
     const response = await fetch(url)
@@ -111,8 +122,7 @@ export async function searchZones(keyword: string): Promise<SmokingZone[]> {
       return []
     }
 
-    const result = await safeJson(response)
-    return pickZones(result?.data || result)
+    return readZonesOrEmpty(response)
   } catch {
     return []
   }
@@ -195,8 +205,7 @@ export async function fetchMyZones(token?: string): Promise<SmokingZone[]> {
     return []
   }
 
-  const result = await safeJson(response)
-  return pickZones(result?.data || result)
+  return readZonesOrEmpty(response)
 }
 
 export async function deleteZone(id: number, token?: string): Promise<void> {

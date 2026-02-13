@@ -1,4 +1,13 @@
-import { fetchZoneById, fetchZonesByBounds, searchZones } from "./nugulApi"
+import {
+  createZone,
+  deleteZone,
+  fetchMyZones,
+  fetchZoneById,
+  fetchZonesByBounds,
+  getCurrentUser,
+  searchZones,
+  validateToken,
+} from "./nugulApi"
 
 const mockFetch = jest.fn()
 
@@ -87,6 +96,19 @@ describe("nugulApi", () => {
     expect(zones).toEqual([])
   })
 
+  it("searchZones includes lat/lng when provided", async () => {
+    mockFetch.mockResolvedValue(
+      mockJsonResponse({
+        success: true,
+        data: { zones: [rawZone] },
+      }),
+    )
+
+    await searchZones("시청", 37.5, 126.9)
+
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("&lat=37.5&lng=126.9"))
+  })
+
   it("fetchZoneById returns one zone", async () => {
     mockFetch.mockResolvedValue(
       mockJsonResponse({
@@ -102,5 +124,79 @@ describe("nugulApi", () => {
     expect(zone).not.toBeNull()
     expect(zone?.id).toBe(10)
     expect(zone?.subtype).toBe("테스트 부스")
+  })
+
+  it("fetchZonesByBounds falls back when JSON parse fails", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: async () => "not-json",
+    } as Response)
+
+    const zones = await fetchZonesByBounds({
+      minLat: 37.4,
+      maxLat: 37.6,
+      minLng: 126.8,
+      maxLng: 127.0,
+    })
+
+    expect(zones).toEqual([])
+  })
+
+  it("validateToken returns true for valid token response", async () => {
+    mockFetch.mockResolvedValue(mockJsonResponse({ success: true, valid: true }))
+
+    const valid = await validateToken("token-123")
+
+    expect(valid).toBe(true)
+  })
+
+  it("getCurrentUser returns null without token", async () => {
+    const user = await getCurrentUser()
+    expect(user).toBeNull()
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it("fetchMyZones returns [] when unauthorized", async () => {
+    mockFetch.mockResolvedValue(mockJsonResponse({}, false))
+
+    const zones = await fetchMyZones("token-123")
+
+    expect(zones).toEqual([])
+  })
+
+  it("createZone sends multipart and auth header", async () => {
+    mockFetch.mockResolvedValue(
+      mockJsonResponse({
+        success: true,
+        data: { zone: rawZone },
+      }),
+    )
+
+    const zone = await createZone(
+      {
+        region: "서울특별시",
+        type: "BOOTH",
+        subtype: "부스",
+        description: "테스트",
+        latitude: 37.5,
+        longitude: 126.9,
+        address: "서울 중구",
+        user: "mobile-user",
+      },
+      "token-abc",
+    )
+
+    expect(zone.id).toBe(10)
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/zones"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ Authorization: "Bearer token-abc" }),
+      }),
+    )
+  })
+
+  it("deleteZone throws without token", async () => {
+    await expect(deleteZone(10)).rejects.toThrow("auth token required")
   })
 })
