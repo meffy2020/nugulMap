@@ -19,6 +19,7 @@ export function BookmarkScreen({
 
   return (
     <View style={styles.wrap}>
+      <Text style={styles.heading}>북마크한 장소</Text>
       <FlatList
         data={bookmarked}
         keyExtractor={(item) => String(item.id)}
@@ -42,8 +43,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8fafc",
   },
+  heading: {
+    marginTop: 10,
+    marginHorizontal: 14,
+    color: "#0f172a",
+    fontWeight: "800",
+    fontSize: 18,
+  },
   list: {
     padding: 12,
+    paddingTop: 10,
   },
   empty: {
     textAlign: "center",

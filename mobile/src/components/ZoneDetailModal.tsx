@@ -53,8 +53,8 @@ export function ZoneDetailModal({
               <Text style={styles.buttonText}>길찾기</Text>
             </Pressable>
 
-            <Pressable style={[styles.button, styles.secondary]} onPress={onToggleFavorite}>
-              <Text style={styles.buttonText}>{isFavorite ? "북마크 해제" : "북마크 등록"}</Text>
+            <Pressable style={[styles.button, styles.outline]} onPress={onToggleFavorite}>
+              <Text style={[styles.buttonText, styles.outlineText]}>{isFavorite ? "북마크 해제" : "북마크 등록"}</Text>
             </Pressable>
 
             <Pressable style={[styles.button, styles.secondary]} onPress={onClose}>
@@ -76,19 +76,20 @@ const styles = StyleSheet.create({
   sheet: {
     maxHeight: "80%",
     backgroundColor: "#ffffff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 20,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    padding: 22,
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "800",
     color: "#0f172a",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   meta: {
     color: "#1d4ed8",
-    marginBottom: 12,
+    marginBottom: 14,
+    fontWeight: "700",
   },
   image: {
     width: "100%",
@@ -99,25 +100,35 @@ const styles = StyleSheet.create({
   },
   label: {
     color: "#475569",
-    fontSize: 12,
-    marginTop: 8,
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 10,
     marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   value: {
     color: "#0f172a",
+    lineHeight: 20,
   },
   button: {
-    marginTop: 12,
-    borderRadius: 10,
-    paddingVertical: 12,
+    marginTop: 10,
+    borderRadius: 14,
+    paddingVertical: 13,
     alignItems: "center",
     backgroundColor: "#2563eb",
   },
   secondary: {
     backgroundColor: "#0f172a",
   },
+  outline: {
+    backgroundColor: "#eff6ff",
+  },
   buttonText: {
     color: "#ffffff",
     fontWeight: "700",
+  },
+  outlineText: {
+    color: "#1d4ed8",
   },
 })

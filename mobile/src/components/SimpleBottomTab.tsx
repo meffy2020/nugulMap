@@ -28,25 +28,33 @@ export function SimpleBottomTab({ activeTab, onChange }: TabProps) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "#e2e8f0",
     backgroundColor: "#ffffff",
+    marginHorizontal: 12,
+    marginBottom: 10,
+    borderRadius: 18,
+    padding: 4,
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   tab: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 11,
+    borderRadius: 14,
   },
   activeTab: {
-    borderTopWidth: 2,
-    borderTopColor: "#2563eb",
+    backgroundColor: "#dbeafe",
   },
   label: {
     color: "#334155",
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: "700",
   },
   activeLabel: {
     color: "#1d4ed8",
-    fontWeight: "700",
+    fontWeight: "800",
   },
 })

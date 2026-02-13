@@ -78,7 +78,10 @@ export function ProfileModal({
     <Modal visible={visible} animationType="slide" transparent={false}>
       <View style={styles.root}>
         <View style={styles.header}>
-          <Text style={styles.title}>내 정보</Text>
+          <View>
+            <Text style={styles.kicker}>Account</Text>
+            <Text style={styles.title}>내 정보</Text>
+          </View>
           <Pressable onPress={onClose}>
             <Text style={styles.close}>닫기</Text>
           </Pressable>
@@ -153,21 +156,41 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "#ffffff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  kicker: {
+    fontSize: 11,
+    color: "#1d4ed8",
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
   title: { fontSize: 20, fontWeight: "800", color: "#0f172a" },
-  close: { color: "#2563eb", fontWeight: "700" },
-  section: { padding: 16, borderBottomWidth: 1, borderBottomColor: "#e2e8f0", gap: 8 },
+  close: { color: "#2563eb", fontWeight: "800" },
+  section: {
+    padding: 16,
+    marginHorizontal: 12,
+    marginTop: 12,
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    gap: 8,
+  },
   listSection: { flex: 1 },
-  label: { color: "#334155", fontSize: 12, fontWeight: "700" },
+  label: { color: "#334155", fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5 },
   subTitle: { color: "#0f172a", fontSize: 16, fontWeight: "800" },
   value: { color: "#334155" },
   input: {
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#cbd5e1",
-    borderRadius: 10,
+    borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 76,
@@ -178,8 +201,8 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     backgroundColor: "#2563eb",
-    borderRadius: 10,
-    paddingVertical: 10,
+    borderRadius: 14,
+    paddingVertical: 12,
     alignItems: "center",
   },
   secondary: { backgroundColor: "#0f172a" },

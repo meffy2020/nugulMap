@@ -37,7 +37,10 @@ export default function App() {
     <SafeAreaView style={styles.root}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <Text style={styles.title}>너굴맵</Text>
+        <View>
+          <Text style={styles.kicker}>NugulMap</Text>
+          <Text style={styles.title}>대한민국 흡연구역 지도</Text>
+        </View>
         <View style={styles.headerActions}>
           <Pressable style={[styles.headerButton, styles.darkButton]} onPress={() => setIsAddOpen(true)}>
             <Text style={styles.headerButtonText}>등록</Text>
@@ -117,18 +120,32 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#f1f5f9",
   },
   header: {
-    padding: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    backgroundColor: "#ffffff",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 3,
+  },
+  kicker: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#1d4ed8",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   title: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "800",
     color: "#0f172a",
   },
@@ -141,9 +158,13 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     backgroundColor: "#2563eb",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    shadowColor: "#2563eb",
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
   darkButton: {
     backgroundColor: "#0f172a",

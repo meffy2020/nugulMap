@@ -52,6 +52,7 @@ export function ZoneListScreen({
 
   return (
     <View style={styles.wrap}>
+      <Text style={styles.heading}>전체 흡연구역</Text>
       <TextInput
         value={query}
         onChangeText={search}
@@ -81,14 +82,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8fafc",
   },
+  heading: {
+    marginTop: 10,
+    marginHorizontal: 14,
+    color: "#0f172a",
+    fontWeight: "800",
+    fontSize: 18,
+  },
   input: {
     backgroundColor: "#ffffff",
-    margin: 12,
+    marginTop: 10,
+    marginHorizontal: 12,
     borderWidth: 1,
     borderColor: "#cbd5e1",
-    borderRadius: 10,
+    borderRadius: 14,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
   },
   list: {
     padding: 12,

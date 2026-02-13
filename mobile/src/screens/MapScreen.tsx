@@ -81,6 +81,10 @@ export function MapScreen({
           <Text style={styles.loadingText}>구역 조회 중...</Text>
         </View>
       ) : null}
+
+      <View style={styles.countWrap}>
+        <Text style={styles.countText}>현재 영역 {zones.length}개</Text>
+      </View>
     </View>
   )
 }
@@ -94,17 +98,38 @@ const styles = StyleSheet.create({
   },
   loaderWrap: {
     position: "absolute",
-    top: 16,
+    top: 18,
     left: 16,
     right: 16,
-    padding: 10,
-    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     backgroundColor: "rgba(255,255,255,0.9)",
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   loadingText: {
     color: "#0f172a",
+    fontWeight: "700",
+  },
+  countWrap: {
+    position: "absolute",
+    bottom: 20,
+    alignSelf: "center",
+    backgroundColor: "rgba(15,23,42,0.84)",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  countText: {
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 12,
   },
 })
