@@ -424,19 +424,32 @@ export function AddZoneModal({
         </View>
 
         <View style={styles.locationBody}>
-          <Text style={styles.locationTitle}>흡연구역의 위치가 맞는지 확인해주세요</Text>
-          <Text style={styles.locationDescription}>지도를 움직여 핀의 위치를 변경해주세요</Text>
+          <View style={styles.identityCard}>
+            <View style={styles.identityIconWrap}>
+              <Image source={require("../../assets/images/pin.png")} style={styles.identityIcon} resizeMode="contain" />
+            </View>
+            <View style={styles.identityTextWrap}>
+              <Text style={styles.identityKicker}>NugulMap</Text>
+              <Text style={styles.identityHeadline}>우리 동네 흡연구역 제보</Text>
+            </View>
+          </View>
+
+          <Text style={styles.locationTitle}>핀 위치를 정확하게 맞춰주세요</Text>
+          <Text style={styles.locationDescription}>지도를 움직여 위치를 확인한 뒤 다음 단계로 진행합니다.</Text>
 
           <View style={styles.currentAddressCard}>
-            <Text style={styles.currentAddressLabel}>현 위치</Text>
+            <View style={styles.currentAddressHeader}>
+              <MaterialCommunityIcons name="map-marker-outline" size={17} color={colors.textMuted} />
+              <Text style={styles.currentAddressLabel}>선택된 주소</Text>
+            </View>
             <Text style={styles.currentAddressText}>
               {isAddressLoading ? "주소 확인 중..." : address || "주소를 불러오지 못했습니다."}
             </Text>
           </View>
 
           <View style={styles.warningCard}>
-            <MaterialCommunityIcons name="alert-circle" size={18} color="#786300" />
-            <Text style={styles.warningText}>지도의 표시와 실제 위치가 맞는지 확인해주세요</Text>
+            <MaterialCommunityIcons name="information-outline" size={18} color={colors.textMuted} />
+            <Text style={styles.warningText}>건물명보다 도로명 주소 기준으로 한 번 더 확인해 주세요.</Text>
           </View>
 
           <Pressable
@@ -447,7 +460,7 @@ export function AddZoneModal({
             disabled={!address.trim() || isAddressLoading}
             onPress={() => setStep("details")}
           >
-            <Text style={styles.locationConfirmText}>해당 위치로 흡연구역을 설정할게요</Text>
+            <Text style={styles.locationConfirmText}>이 위치로 다음 단계 진행</Text>
           </Pressable>
         </View>
       </View>
@@ -522,7 +535,9 @@ export function AddZoneModal({
             <MaterialCommunityIcons name="arrow-left" size={29} color={colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>흡연구역 제보</Text>
-          <View style={styles.headerRightPlaceholder} />
+          <View style={styles.headerRightBadge}>
+            <Image source={require("../../assets/images/pin.png")} style={styles.headerRightIcon} resizeMode="contain" />
+          </View>
         </View>
 
         {step === "location" ? renderLocationStep() : renderDetailsStep()}
@@ -534,15 +549,17 @@ export function AddZoneModal({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#f2f3f5",
+    backgroundColor: colors.surfaceMuted,
   },
   header: {
-    backgroundColor: "#f2f3f5",
+    backgroundColor: colors.surface,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 12,
     paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   headerBackButton: {
     width: 36,
@@ -552,22 +569,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: "800",
     color: colors.text,
   },
-  headerRightPlaceholder: {
+  headerRightBadge: {
     width: 36,
     height: 36,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  headerRightIcon: {
+    width: 18,
+    height: 18,
   },
   stepRoot: {
     flex: 1,
   },
   mapWrap: {
     width: "100%",
-    height: 430,
+    height: 380,
     backgroundColor: colors.surfaceMuted,
-    borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: colors.border,
     overflow: "hidden",
@@ -620,72 +646,123 @@ const styles = StyleSheet.create({
   },
   locationBody: {
     flex: 1,
+    marginTop: -10,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 26,
   },
+  identityCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.primarySoft,
+    padding: 10,
+  },
+  identityIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  identityIcon: {
+    width: 22,
+    height: 22,
+  },
+  identityTextWrap: {
+    flex: 1,
+    gap: 1,
+  },
+  identityKicker: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: "700",
+  },
+  identityHeadline: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: "800",
+  },
   locationTitle: {
-    fontSize: 21,
+    marginTop: 14,
+    fontSize: 20,
     fontWeight: "800",
     color: colors.text,
   },
   locationDescription: {
-    marginTop: 6,
-    fontSize: 16,
+    marginTop: 5,
+    fontSize: 14,
     fontWeight: "600",
     color: colors.textMuted,
   },
   currentAddressCard: {
-    marginTop: 18,
+    marginTop: 14,
     borderRadius: radius.lg,
-    borderWidth: 2,
-    borderColor: "#8cd6a8",
-    backgroundColor: "#d8efe2",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingVertical: 16,
     paddingHorizontal: 14,
     gap: 8,
   },
+  currentAddressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
   currentAddressLabel: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#16a34a",
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.textMuted,
   },
   currentAddressText: {
-    fontSize: 18,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 23,
     color: colors.text,
     fontWeight: "700",
   },
   warningCard: {
-    marginTop: 14,
+    marginTop: 10,
     borderRadius: radius.lg,
-    backgroundColor: "#efe8be",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 8,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 14,
   },
   warningText: {
     flex: 1,
-    color: "#57534e",
-    fontSize: 17,
-    fontWeight: "700",
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 19,
   },
   locationConfirmButton: {
-    marginTop: 14,
+    marginTop: 12,
     borderRadius: radius.lg,
-    backgroundColor: "#1b8c40",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 20,
+    paddingVertical: 17,
   },
   locationConfirmButtonDisabled: {
     opacity: 0.5,
   },
   locationConfirmText: {
     color: colors.surface,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800",
   },
   detailBody: {
