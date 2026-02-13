@@ -14,6 +14,7 @@ interface MapScreenProps {
 }
 
 const KAKAO_JS_KEY = process.env.EXPO_PUBLIC_KAKAO_JAVASCRIPT_KEY || ""
+const KAKAO_WEBVIEW_BASE_URL = process.env.EXPO_PUBLIC_KAKAO_WEBVIEW_BASE_URL || "https://nugulmap.local"
 const REGION_SYNC_EPS = 0.00002
 
 function isSimilarRegion(a: MapRegion, b: MapRegion): boolean {
@@ -281,7 +282,7 @@ export function MapScreen({
       <WebView
         ref={webViewRef}
         originWhitelist={["*"]}
-        source={{ html: mapHtml }}
+        source={{ html: mapHtml, baseUrl: KAKAO_WEBVIEW_BASE_URL }}
         javaScriptEnabled
         domStorageEnabled
         onMessage={handleMessage}
