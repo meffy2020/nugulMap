@@ -73,26 +73,3 @@ CREATE TABLE IF NOT EXISTS `zone_review` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------
--- Table `zone_review`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `zone_review` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `zone_id` INT NOT NULL,
-  `creator_id` BIGINT NOT NULL,
-  `content` TEXT NOT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `idx_zone_review_zone_id` (`zone_id`),
-  INDEX `idx_zone_review_creator_id` (`creator_id`),
-  CONSTRAINT `fk_zone_review_zone`
-    FOREIGN KEY (`zone_id`)
-    REFERENCES `zone` (`id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  CONSTRAINT `fk_zone_review_creator`
-    FOREIGN KEY (`creator_id`)
-    REFERENCES `users` (`id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

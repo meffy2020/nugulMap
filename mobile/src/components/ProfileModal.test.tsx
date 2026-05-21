@@ -63,6 +63,7 @@ describe("ProfileModal", () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockedCompleteProfileSetup.mockResolvedValue(user)
+    mockedFetchMyZones.mockResolvedValue([])
     mockedGetImageUrl.mockImplementation((image: string | null | undefined) =>
       image ? `https://cdn.test/${image}` : null,
     )
