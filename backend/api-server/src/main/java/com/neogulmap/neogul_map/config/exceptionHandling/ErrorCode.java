@@ -28,6 +28,7 @@ public enum ErrorCode {
     ZONE_DELETE_DATABASE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Z004", "데이터 삭제 중 오류가 발생했습니다."),
     ZONE_IMAGE_UPLOAD_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Z005", "이미지 업로드 중 오류가 발생했습니다."),
     ZONE_IMAGE_DELETE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Z006", "이미지 삭제 중 오류가 발생했습니다."),
+    ZONE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Z007", "본인이 등록한 장소만 수정 또는 삭제할 수 있습니다."),
     
     // Search
     SEARCH_KEYWORD_INVALID(HttpStatus.BAD_REQUEST, "S001", "검색 키워드가 올바르지 않습니다."),

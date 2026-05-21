@@ -1,0 +1,30 @@
+# 모바일 완성 체크리스트 (2026-02-16)
+
+## 1) 범위/완료 기준
+- [x] 핵심 플로우: 지도 탐색/검색, 목록, 북마크, 상세, 제보, 리뷰
+- [x] 인증 플로우: OAuth 시작, 콜백 토큰 저장/검증, 만료 처리
+- [x] 마이페이지: 프로필 설정/수정, 내가 등록한 장소 수정/삭제
+- [x] 제보/수정: 이미지 선택 및 카메라 촬영 업로드
+- [x] 화면 상태: 로딩/에러/빈값/재시도 UI 반영 (리뷰 모달 포함)
+
+## 2) 기술 정리
+- [x] 앱 오케스트레이션: `useZoneExplorer`에 로딩/에러/재시도 상태 통합
+- [x] API 계층: `nugulApi.ts` 예외 처리/타임아웃/응답 파싱 강화
+- [x] 탭 UX: `map/list/bookmark` 실제 연결
+
+## 3) 품질 게이트
+- [x] `npx tsc --noEmit`
+- [x] `npm run test -- --runInBand`
+- [x] 리뷰 회귀 테스트: `ZoneReviewModal`, `nugulApi` review API
+- [x] `npm run check:release`
+- [x] `npm run release:verify` (production env 기준)
+
+## 4) 릴리즈 준비
+- [x] `.env.production.example` 추가
+- [x] `check:release:strict:prod` 스크립트 추가
+- [x] 문서 업데이트 (`README.md`, `DEVELOPMENT.md`)
+
+## 5) 수동 작업(스토어 제출 전)
+- [ ] App Store Connect 메타데이터(설명/스크린샷/개인정보처리방침 URL)
+- [ ] Play Console 메타데이터(설명/스크린샷/데이터 보안)
+- [ ] 제출 직전 `APP_IOS_BUILD_NUMBER`, `APP_ANDROID_VERSION_CODE` 증가

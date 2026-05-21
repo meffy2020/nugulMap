@@ -56,3 +56,30 @@ WHERE NOT EXISTS (SELECT 1 FROM zone WHERE address = '서울특별시 송파구 
 INSERT INTO zone (region, type, subtype, description, latitude, longitude, size, address, creator, creator_id, image) 
 SELECT '서울특별시', '흡연구역', '실내', '여의도역 실내 흡연구역입니다.', 37.5219, 126.9242, '대형', '서울특별시 영등포구 여의대로 24', '테스트유저3', (SELECT id FROM users WHERE email = 'test3@example.com' LIMIT 1), NULL
 WHERE NOT EXISTS (SELECT 1 FROM zone WHERE address = '서울특별시 영등포구 여의대로 24');
+
+-- Zone Review 테스트 데이터
+INSERT INTO zone_review (zone_id, author_id, content, created_at)
+SELECT
+  (SELECT id FROM zone WHERE address = '서울특별시 강남구 강남대로 396' LIMIT 1),
+  (SELECT id FROM users WHERE email = 'test2@example.com' LIMIT 1),
+  '야외라 환기가 잘 되고 주변 동선도 괜찮습니다.',
+  NOW()
+WHERE NOT EXISTS (
+  SELECT 1 FROM zone_review
+  WHERE zone_id = (SELECT id FROM zone WHERE address = '서울특별시 강남구 강남대로 396' LIMIT 1)
+    AND author_id = (SELECT id FROM users WHERE email = 'test2@example.com' LIMIT 1)
+    AND content = '야외라 환기가 잘 되고 주변 동선도 괜찮습니다.'
+);
+
+INSERT INTO zone_review (zone_id, author_id, content, created_at)
+SELECT
+  (SELECT id FROM zone WHERE address = '서울특별시 중구 명동길 26' LIMIT 1),
+  (SELECT id FROM users WHERE email = 'test1@example.com' LIMIT 1),
+  '퇴근 시간에는 조금 붐비지만 위치 찾기는 쉽습니다.',
+  NOW()
+WHERE NOT EXISTS (
+  SELECT 1 FROM zone_review
+  WHERE zone_id = (SELECT id FROM zone WHERE address = '서울특별시 중구 명동길 26' LIMIT 1)
+    AND author_id = (SELECT id FROM users WHERE email = 'test1@example.com' LIMIT 1)
+    AND content = '퇴근 시간에는 조금 붐비지만 위치 찾기는 쉽습니다.'
+);

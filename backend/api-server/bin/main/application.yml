@@ -36,7 +36,7 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
   sql:
     init:
-      mode: always
+      mode: never  # always에서 never로 변경하여 자동 초기화 방지
       schema-locations: classpath:schema.sql
       data-locations: classpath:data.sql
       continue-on-error: true
@@ -124,6 +124,8 @@ app:
     success-redirect-url: ${OAUTH2_SUCCESS_REDIRECT_URL:}  # 비어있으면 상대 경로 사용 (Nginx 헤더 기반)
     signup-redirect-url: ${OAUTH2_SIGNUP_REDIRECT_URL:}  # 비어있으면 상대 경로 사용 (Nginx 헤더 기반)
     failure-redirect-url: ${OAUTH2_FAILURE_REDIRECT_URL:}  # 비어있으면 상대 경로 사용 (Nginx 헤더 기반)
+    allowed-redirect-uris: ${OAUTH2_ALLOWED_REDIRECT_URIS:http://localhost,http://localhost:3000,https://nugulmap.com,https://www.nugulmap.com,nugulmap://oauth/callback}
+    allowed-redirect-uri-prefixes: ${OAUTH2_ALLOWED_REDIRECT_URI_PREFIXES:}
     google:
       url: /oauth2/authorization/google
     kakao:
@@ -131,7 +133,7 @@ app:
     naver:
       url: /oauth2/authorization/naver
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:3000}  # Nginx(80포트)와 프론트엔드(3000포트) 모두 허용
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:3000,http://nugulmap.com,https://nugulmap.com,https://www.nugulmap.com}  # 운영 도메인 추가
     allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}
     allowed-headers: ${APP_CORS_ALLOWED_HEADERS:*}
   security:

@@ -223,9 +223,10 @@ public class ZoneService {
     }
 
     @Transactional
-    public ZoneResponse updateZone(Integer zoneId, ZoneRequest request, MultipartFile image) {
+    public ZoneResponse updateZone(Integer zoneId, ZoneRequest request, MultipartFile image, User currentUser) {
         Zone zone = zoneRepository.findById(zoneId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.ZONE_NOT_FOUND));
+        validateZoneOwner(zone, currentUser);
 
         // 이미지 처리 (ImageService 사용)
         if (image != null && !image.isEmpty()) {
@@ -251,10 +252,11 @@ public class ZoneService {
     }
 
     @Transactional
-    public void deleteZone(Integer zoneId) {
+    public void deleteZone(Integer zoneId, User currentUser) {
         try {
             Zone zone = zoneRepository.findById(zoneId)
                         .orElseThrow(() -> new NotFoundException(ErrorCode.ZONE_NOT_FOUND));
+            validateZoneOwner(zone, currentUser);
             
             // 이미지 파일도 삭제
             if (zone.getImage() != null && !zone.getImage().isEmpty()) {
@@ -267,6 +269,26 @@ public class ZoneService {
         } catch (Exception e) {
             log.error("Zone 삭제 실패: {}", e.getMessage(), e);
             throw new BusinessBaseException(ErrorCode.ZONE_DELETE_DATABASE_ERROR, e);
+        }
+    }
+
+    private void validateZoneOwner(Zone zone, User currentUser) {
+        if (currentUser == null) {
+            throw new BusinessBaseException(ErrorCode.ZONE_ACCESS_DENIED);
+        }
+
+        boolean matchesCreatorId =
+                zone.getCreator() != null
+                        && zone.getCreator().getId() != null
+                        && zone.getCreator().getId().equals(currentUser.getId());
+
+        boolean matchesLegacyUser =
+                zone.getUser() != null
+                        && currentUser.getEmail() != null
+                        && zone.getUser().equalsIgnoreCase(currentUser.getEmail());
+
+        if (!matchesCreatorId && !matchesLegacyUser) {
+            throw new BusinessBaseException(ErrorCode.ZONE_ACCESS_DENIED);
         }
     }
 }

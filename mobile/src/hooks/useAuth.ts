@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Linking } from "react-native"
 import Constants from "expo-constants"
@@ -18,6 +18,7 @@ const OAUTH_REDIRECT_URI =
   process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI ||
   EXPO_EXTRA.oauthRedirectUri ||
   "nugulmap://oauth/callback"
+const AUTH_FLOW_TIMEOUT_MS = 120_000
 
 export type SocialLoginProvider = "kakao" | "naver" | "google"
 
@@ -45,38 +46,83 @@ function normalizeUriWithoutQuery(uri: string): string {
 export function useAuth() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [user, setUser] = useState<UserProfile | null>(null)
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [authMessage, setAuthMessage] = useState<string | null>(null)
+  const authFlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearAuthFlowTimer = useCallback(() => {
+    if (!authFlowTimerRef.current) return
+    clearTimeout(authFlowTimerRef.current)
+    authFlowTimerRef.current = null
+  }, [])
+
+  const isProfileSetupRequired = useCallback((profile: UserProfile | null) => {
+    if (!profile) return false
+    return !String(profile.nickname || "").trim()
+  }, [])
 
   useEffect(() => {
+    let isMounted = true
+
     void (async () => {
       const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY)
       if (!token) {
-        setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false)
+        }
         return
       }
 
+      const valid = await validateToken(token)
+      if (!valid) {
+        await AsyncStorage.removeItem(ACCESS_TOKEN_KEY)
+        if (isMounted) {
+          setAccessToken(null)
+          setUser(null)
+          setAuthMessage("로그인이 만료되었습니다. 다시 로그인해 주세요.")
+          setIsLoading(false)
+        }
+        return
+      }
+
+      if (!isMounted) return
       setAccessToken(token)
       const me = await getCurrentUser(token)
+      if (!isMounted) return
       setUser(me)
+      const needsSetup = isProfileSetupRequired(me)
+      setNeedsProfileSetup(needsSetup)
+      if (needsSetup) {
+        setAuthMessage("로그인은 완료되었지만 추가 프로필 설정이 필요합니다.")
+      }
       setIsLoading(false)
     })()
-  }, [])
+
+    return () => {
+      isMounted = false
+    }
+  }, [isProfileSetupRequired])
 
   const saveToken = useCallback(async (token: string): Promise<boolean> => {
-    const normalized = token.trim()
-    if (!normalized) return false
+    try {
+      const normalized = token.trim()
+      if (!normalized) return false
 
-    const valid = await validateToken(normalized)
-    if (!valid) return false
+      const valid = await validateToken(normalized)
+      if (!valid) return false
 
-    await AsyncStorage.setItem(ACCESS_TOKEN_KEY, normalized)
-    setAccessToken(normalized)
-    const me = await getCurrentUser(normalized)
-    setUser(me)
-    return true
-  }, [])
+      await AsyncStorage.setItem(ACCESS_TOKEN_KEY, normalized)
+      setAccessToken(normalized)
+      const me = await getCurrentUser(normalized)
+      setUser(me)
+      setNeedsProfileSetup(isProfileSetupRequired(me))
+      return true
+    } catch {
+      return false
+    }
+  }, [isProfileSetupRequired])
 
   const handleOAuthCallbackUrl = useCallback(
     async (url: string) => {
@@ -86,6 +132,7 @@ export function useAuth() {
         return
       }
 
+      clearAuthFlowTimer()
       setIsAuthenticating(true)
       const params = parseQueryParams(url)
       const accessTokenFromCallback = params.accessToken
@@ -111,10 +158,11 @@ export function useAuth() {
       }
 
       const needsSignup = params.profileComplete === "false"
+      setNeedsProfileSetup(needsSignup)
       setAuthMessage(needsSignup ? "로그인은 완료되었지만 추가 프로필 설정이 필요합니다." : "로그인 성공")
       setIsAuthenticating(false)
     },
-    [saveToken],
+    [saveToken, clearAuthFlowTimer],
   )
 
   useEffect(() => {
@@ -134,11 +182,20 @@ export function useAuth() {
     }
   }, [handleOAuthCallbackUrl])
 
+  useEffect(() => {
+    return () => {
+      clearAuthFlowTimer()
+    }
+  }, [clearAuthFlowTimer])
+
   const clearToken = async () => {
+    clearAuthFlowTimer()
     await AsyncStorage.removeItem(ACCESS_TOKEN_KEY)
     setAccessToken(null)
     setUser(null)
+    setNeedsProfileSetup(false)
     setAuthMessage(null)
+    setIsAuthenticating(false)
   }
 
   const refreshUser = async () => {
@@ -148,15 +205,20 @@ export function useAuth() {
     }
     const me = await getCurrentUser(accessToken)
     setUser(me)
+    setNeedsProfileSetup(isProfileSetupRequired(me))
   }
 
   const startSocialLogin = async (provider: SocialLoginProvider): Promise<void> => {
+    clearAuthFlowTimer()
     setIsAuthenticating(true)
     setAuthMessage(null)
     try {
       const loginUrl = `${API_BASE_URL}/api/oauth2/authorization/${provider}?redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}`
       await Linking.openURL(loginUrl)
-      setIsAuthenticating(false)
+      authFlowTimerRef.current = setTimeout(() => {
+        setIsAuthenticating(false)
+        setAuthMessage((prev) => prev || "로그인이 완료되지 않았습니다. 다시 시도해 주세요.")
+      }, AUTH_FLOW_TIMEOUT_MS)
     } catch {
       setAuthMessage("로그인 페이지를 열 수 없습니다.")
       setIsAuthenticating(false)
@@ -170,6 +232,7 @@ export function useAuth() {
   return {
     accessToken,
     user,
+    needsProfileSetup,
     isLoading,
     isLoggedIn: Boolean(accessToken),
     isAuthenticating,

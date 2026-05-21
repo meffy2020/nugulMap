@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import * as Location from "expo-location"
 import { fetchZonesByBounds } from "../../../services/nugulApi"
@@ -8,6 +8,8 @@ const FAVORITES_KEY = "@nugulmap:favorites:v1"
 const REGION_REFRESH_DEBOUNCE_MS = 700
 const REGION_MOVE_THRESHOLD = 0.00015
 const REGION_DELTA_THRESHOLD = 0.00008
+const INITIAL_LOAD_ERROR_MESSAGE = "초기 흡연구역 정보를 불러오지 못했습니다."
+const REGION_REFRESH_ERROR_MESSAGE = "주변 흡연구역 새로고침에 실패했습니다."
 
 function parseToRegion(latitude: number, longitude: number): MapRegion {
   return {
@@ -37,10 +39,10 @@ function isMeaningfulRegionChange(prev: MapRegion, next: MapRegion): boolean {
 }
 
 async function loadFavoriteIds(): Promise<Set<number>> {
-  const saved = await AsyncStorage.getItem(FAVORITES_KEY)
-  if (!saved) return new Set()
-
   try {
+    const saved = await AsyncStorage.getItem(FAVORITES_KEY)
+    if (!saved) return new Set()
+
     const parsed = JSON.parse(saved) as number[]
     return new Set(parsed)
   } catch {
@@ -49,11 +51,15 @@ async function loadFavoriteIds(): Promise<Set<number>> {
 }
 
 async function resolveInitialRegion(defaultRegion: MapRegion): Promise<MapRegion> {
-  const locationPermission = await Location.requestForegroundPermissionsAsync()
-  if (locationPermission.status !== "granted") return defaultRegion
+  try {
+    const locationPermission = await Location.requestForegroundPermissionsAsync()
+    if (locationPermission.status !== "granted") return defaultRegion
 
-  const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-  return parseToRegion(current.coords.latitude, current.coords.longitude)
+    const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+    return parseToRegion(current.coords.latitude, current.coords.longitude)
+  } catch {
+    return defaultRegion
+  }
 }
 
 export function useZoneExplorer() {
@@ -63,83 +69,126 @@ export function useZoneExplorer() {
   const [detailZone, setDetailZone] = useState<SmokingZone | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set())
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const loadingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const regionRef = useRef<MapRegion>(KOREA_DEFAULT_REGION)
 
   useEffect(() => {
+    let isMounted = true
+
     void (async () => {
       setIsLoading(true)
+      setErrorMessage(null)
 
-      const [nextRegion, nextFavoriteIds] = await Promise.all([
-        resolveInitialRegion(region),
-        loadFavoriteIds(),
-      ])
+      try {
+        const [nextRegion, nextFavoriteIds] = await Promise.all([
+          resolveInitialRegion(KOREA_DEFAULT_REGION),
+          loadFavoriteIds(),
+        ])
 
-      setRegion(nextRegion)
-      setFavoriteIds(nextFavoriteIds)
-      const nextZones = await fetchZonesByBounds(toBounds(nextRegion))
-      setZones(nextZones)
-      setIsLoading(false)
+        if (!isMounted) return
+        regionRef.current = nextRegion
+        setRegion(nextRegion)
+        setFavoriteIds(nextFavoriteIds)
+
+        const nextZones = await fetchZonesByBounds(toBounds(nextRegion))
+        if (!isMounted) return
+        setZones(nextZones)
+      } catch (error) {
+        console.warn("zone explorer initial load failed", error)
+        if (isMounted) {
+          setErrorMessage(INITIAL_LOAD_ERROR_MESSAGE)
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
     })()
 
     return () => {
+      isMounted = false
       if (loadingTimer.current) {
         clearTimeout(loadingTimer.current)
       }
     }
   }, [])
 
-  const refreshZones = async (nextRegion: MapRegion) => {
+  const refreshZones = useCallback(async (nextRegion: MapRegion) => {
     setIsLoading(true)
-    const nextZones = await fetchZonesByBounds(toBounds(nextRegion))
-    setZones(nextZones)
-    setIsLoading(false)
-  }
+    setErrorMessage(null)
 
-  const handleRegionChangeComplete = (nextRegion: MapRegion) => {
-    if (!isMeaningfulRegionChange(region, nextRegion)) {
-      return
+    try {
+      const nextZones = await fetchZonesByBounds(toBounds(nextRegion))
+      setZones(nextZones)
+    } catch (error) {
+      console.warn("zone refresh failed", error)
+      setErrorMessage(REGION_REFRESH_ERROR_MESSAGE)
+    } finally {
+      setIsLoading(false)
     }
+  }, [])
 
-    setRegion(nextRegion)
+  const handleRegionChangeComplete = useCallback(
+    (nextRegion: MapRegion) => {
+      if (!isMeaningfulRegionChange(regionRef.current, nextRegion)) {
+        return
+      }
 
-    if (loadingTimer.current) {
-      clearTimeout(loadingTimer.current)
-    }
+      regionRef.current = nextRegion
+      setRegion(nextRegion)
 
-    loadingTimer.current = setTimeout(() => {
-      void refreshZones(nextRegion)
-    }, REGION_REFRESH_DEBOUNCE_MS)
-  }
+      if (loadingTimer.current) {
+        clearTimeout(loadingTimer.current)
+      }
 
-  const toggleFavorite = async (id: number) => {
-    const next = new Set(favoriteIds)
-    if (next.has(id)) {
-      next.delete(id)
-    } else {
-      next.add(id)
-    }
+      loadingTimer.current = setTimeout(() => {
+        void refreshZones(nextRegion)
+      }, REGION_REFRESH_DEBOUNCE_MS)
+    },
+    [refreshZones],
+  )
 
-    setFavoriteIds(next)
-    await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(next)))
-  }
+  const toggleFavorite = useCallback(
+    async (id: number) => {
+      const next = new Set(favoriteIds)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
 
-  const openDetail = (zone: SmokingZone) => {
+      setFavoriteIds(next)
+      try {
+        await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(next)))
+      } catch (error) {
+        console.warn("favorite save failed", error)
+      }
+    },
+    [favoriteIds],
+  )
+
+  const openDetail = useCallback((zone: SmokingZone) => {
     setDetailZone(zone)
     setSelectedZone(zone)
-  }
+  }, [])
 
-  const closeDetail = () => {
+  const closeDetail = useCallback(() => {
     setDetailZone(null)
     setSelectedZone(null)
-  }
+  }, [])
 
-  const prependZone = (zone: SmokingZone) => {
+  const prependZone = useCallback((zone: SmokingZone) => {
     setZones((prev) => [zone, ...prev.filter((item) => item.id !== zone.id)])
-  }
+  }, [])
 
-  const refreshCurrentRegion = async () => {
-    await refreshZones(region)
-  }
+  const refreshCurrentRegion = useCallback(async () => {
+    await refreshZones(regionRef.current)
+  }, [refreshZones])
+
+  const clearError = useCallback(() => {
+    setErrorMessage(null)
+  }, [])
 
   return {
     region,
@@ -148,11 +197,13 @@ export function useZoneExplorer() {
     detailZone,
     isLoading,
     favoriteIds,
+    errorMessage,
     handleRegionChangeComplete,
     toggleFavorite,
     openDetail,
     closeDetail,
     prependZone,
     refreshCurrentRegion,
+    clearError,
   }
 }

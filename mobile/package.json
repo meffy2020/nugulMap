@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "check:release": "node ./scripts/check-release.js",
     "check:release:strict": "node ./scripts/check-release.js --strict",
-    "release:verify": "npm run check:release:strict && npx tsc --noEmit && npm run test -- --runInBand",
+    "check:release:strict:prod": "NODE_ENV=production node ./scripts/check-release.js --strict",
+    "release:verify": "npm run check:release:strict:prod && NODE_ENV=production npx tsc --noEmit && npm run test -- --runInBand",
     "test": "jest",
     "test:watch": "jest --watch"
   },
@@ -19,6 +20,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "^54.0.0",
     "expo-constants": "^18.0.13",
+    "expo-image-picker": "~17.0.10",
     "expo-location": "~19.0.8",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",

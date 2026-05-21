@@ -1,0 +1,63 @@
+# NugulMap Shape Essence System
+
+This guide defines a geometric essence that can be reused when generating icons, map pins, badges, and UI motifs with AI.
+
+## 1) Core idea
+- Identity = `map pin silhouette` + `warm animal-like face geometry`.
+- Keep forms simple and blocky enough to survive at `24px` and `32px` sizes.
+- Use only circles, rounded rectangles, triangles, and one drop/pin path.
+
+## 2) Primitive set
+- `P1 Drop`: base map-pin body (teardrop).
+- `P2 Head circle`: central face container.
+- `P3 Ear pair`: two small rounded triangles or circles.
+- `P4 Mask band`: rounded horizontal pill.
+- `P5 Eye pair`: two equal circles.
+- `P6 Nose`: tiny centered circle.
+- `P7 Status badge`: ring/dot/star/exclamation overlay.
+
+## 3) Proportion rules (recommended)
+Use a `100 x 120` canvas for generation prompts.
+- Drop body height: `88-94%` of canvas height.
+- Face circle diameter: `44-50%` of canvas width.
+- Ear width: `10-12%` each.
+- Eye diameter: `7-9%` each.
+- Keep symmetry on vertical axis.
+
+## 4) Color tokens
+- `Bark 700`: `#703810` (primary body)
+- `Mask 900`: `#302820` (mask/line)
+- `Face 500`: `#D09848` (face fill)
+- `Accent 400`: `#D89A48` (secondary fill)
+- `Sand 200`: `#E7C389` (highlight)
+- `Locate 500`: `#2C9E8B` (current location state)
+- `Report 500`: `#C84C2E` (report/warning state)
+
+## 5) Stroke & corner language
+- Prefer filled shapes; avoid thin outlines.
+- If outline is needed, use `2px` at 128px export base.
+- Rounded corners should stay between `16-28%` of local shape size.
+
+## 6) Variant grammar
+- Zone pin: base mascot pin.
+- Current-location pin: base pin + locate ring (`Locate 500`) + center dot.
+- Favorite pin: base pin + 5-point star badge in top-right.
+- Report pin: base pin + rounded exclamation badge in top-right.
+
+## 7) AI generation constraints
+When using an image model, always include:
+- Flat vector style, no photorealism.
+- Clean geometry, centered composition, transparent background.
+- No text, no shadows unless explicitly requested.
+- Export as SVG-compatible vector look.
+
+## 8) Do / Don't
+- Do: keep mascot face readable at 24px.
+- Do: preserve warm brown palette as the identity anchor.
+- Don't: add complex textures, gradients, or glossy 3D effects.
+- Don't: distort pin silhouette.
+
+## 9) Immediate usage in this repo
+- Base sample assets are under `frontend/public/images/essence`.
+- Web marker image source can be switched via env:
+  - `NEXT_PUBLIC_MAP_MARKER_IMAGE_SRC=/images/essence/pin-zone-geometric.svg`
