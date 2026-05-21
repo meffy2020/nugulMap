@@ -131,7 +131,10 @@ function validateConfig(config) {
     if (apiUrl) {
       assert(apiUrl.protocol === "https:", "extra.apiBaseUrl must use https")
       if (strict) {
-        assert(!isPrivateHost(apiUrl.hostname), "extra.apiBaseUrl must be public for release builds")
+        assert(
+          !isPrivateHost(apiUrl.hostname),
+          "extra.apiBaseUrl must be public for release builds (use .env.production)",
+        )
       }
     }
   }
@@ -154,7 +157,10 @@ function validateConfig(config) {
     if (webviewUrl) {
       assert(webviewUrl.protocol === "https:", "extra.kakaoWebviewBaseUrl must use https")
       if (strict) {
-        assert(!isPrivateHost(webviewUrl.hostname), "extra.kakaoWebviewBaseUrl must be public for release builds")
+        assert(
+          !isPrivateHost(webviewUrl.hostname),
+          "extra.kakaoWebviewBaseUrl must be public for release builds (use .env.production)",
+        )
       }
     }
   }

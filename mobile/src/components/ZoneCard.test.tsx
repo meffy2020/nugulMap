@@ -14,6 +14,13 @@ const zone = {
   image: null,
 }
 
+const zoneWithImage = {
+  ...zone,
+  id: 8,
+  subtype: "강남역",
+  image: "zones/test-zone.jpg",
+}
+
 describe("ZoneCard", () => {
   it("triggers onSelect and onToggleFavorite", () => {
     const onSelect = jest.fn()
@@ -30,6 +37,29 @@ describe("ZoneCard", () => {
 
     fireEvent.press(screen.getByText("시청 앞"))
     fireEvent.press(screen.getByText("☆"))
+
+    expect(onSelect).toHaveBeenCalledTimes(1)
+    expect(onToggleFavorite).toHaveBeenCalledTimes(1)
+  })
+
+  it("renders and handles a zone with an image", () => {
+    const onSelect = jest.fn()
+    const onToggleFavorite = jest.fn()
+
+    render(
+      <ZoneCard
+        zone={zoneWithImage}
+        isFavorite
+        onSelect={onSelect}
+        onToggleFavorite={onToggleFavorite}
+      />,
+    )
+
+    expect(screen.getByText("강남역")).toBeTruthy()
+    expect(screen.getByText("★")).toBeTruthy()
+
+    fireEvent.press(screen.getByText("강남역"))
+    fireEvent.press(screen.getByText("★"))
 
     expect(onSelect).toHaveBeenCalledTimes(1)
     expect(onToggleFavorite).toHaveBeenCalledTimes(1)

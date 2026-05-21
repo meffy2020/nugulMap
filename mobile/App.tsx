@@ -4,7 +4,6 @@ import {
   Alert,
   Image,
   Linking,
-  Modal,
   Pressable,
   Share,
   StyleSheet,
@@ -18,13 +17,19 @@ import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context"
 import { ZoneDetailModal } from "./src/components/ZoneDetailModal"
 import { MapScreen } from "./src/screens/MapScreen"
+import { ZoneListScreen } from "./src/screens/ZoneListScreen"
+import { BookmarkScreen } from "./src/screens/BookmarkScreen"
 import { useZoneExplorer } from "./src/features/zones/hooks/useZoneExplorer"
 import { AddZoneModal } from "./src/components/AddZoneModal"
 import { ProfileModal } from "./src/components/ProfileModal"
 import { AppMenuModal } from "./src/components/AppMenuModal"
+import { SimpleBottomTab } from "./src/components/SimpleBottomTab"
+import { ZoneReviewModal } from "./src/components/ZoneReviewModal"
+import type { TabKey } from "./src/navigation/tabs"
 import { useAuth } from "./src/hooks/useAuth"
 import { colors, radius } from "./src/theme/tokens"
 import { searchZones } from "./src/services/nugulApi"
+import type { SmokingZone } from "./src/types"
 
 const pinImage = require("./assets/images/pin.png")
 
@@ -38,13 +43,14 @@ export default function App() {
 
 function AppContent() {
   const insets = useSafeAreaInsets()
+  const [activeTab, setActiveTab] = useState<TabKey>("map")
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
-  const [isReviewOpen, setIsReviewOpen] = useState(false)
-  const [reviewText, setReviewText] = useState("")
+  const [reviewZone, setReviewZone] = useState<SmokingZone | null>(null)
+  const [editingZone, setEditingZone] = useState<SmokingZone | null>(null)
   const [reportSeed, setReportSeed] = useState<{
     latitude: number
     longitude: number
@@ -58,37 +64,59 @@ function AppContent() {
     selectedZone,
     detailZone,
     isLoading,
+    favoriteIds,
+    errorMessage,
     handleRegionChangeComplete,
+    toggleFavorite,
     openDetail,
     closeDetail,
     prependZone,
     refreshCurrentRegion,
+    clearError,
   } = useZoneExplorer()
 
   const {
     accessToken,
     user,
     isLoggedIn,
+    needsProfileSetup,
     clearToken,
     startSocialLogin,
+    refreshUser,
     authMessage,
     clearAuthMessage,
     isAuthenticating,
+    isLoading: isAuthLoading,
   } = useAuth()
 
   const moveToCurrentLocation = async () => {
-    const permission = await Location.requestForegroundPermissionsAsync()
-    if (permission.status !== "granted") {
-      Alert.alert("권한 필요", "현재 위치를 사용하려면 위치 권한이 필요합니다.")
-      return
-    }
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync()
+      if (permission.status !== "granted") {
+        Alert.alert("권한 필요", "현재 위치를 사용하려면 위치 권한이 필요합니다.")
+        return
+      }
 
-    const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+      handleRegionChangeComplete({
+        latitude: current.coords.latitude,
+        longitude: current.coords.longitude,
+        latitudeDelta: region.latitudeDelta,
+        longitudeDelta: region.longitudeDelta,
+      })
+    } catch {
+      Alert.alert("위치 확인 실패", "현재 위치를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.")
+    }
+  }
+
+  const focusZoneOnMap = (zone: SmokingZone) => {
+    setActiveTab("map")
+    openDetail(zone)
     handleRegionChangeComplete({
-      latitude: current.coords.latitude,
-      longitude: current.coords.longitude,
-      latitudeDelta: region.latitudeDelta,
-      longitudeDelta: region.longitudeDelta,
+      latitude: zone.latitude,
+      longitude: zone.longitude,
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
     })
   }
 
@@ -104,13 +132,9 @@ function AppContent() {
       }
 
       const first = results[0]
-      openDetail(first)
-      handleRegionChangeComplete({
-        latitude: first.latitude,
-        longitude: first.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      })
+      focusZoneOnMap(first)
+    } catch {
+      Alert.alert("검색 실패", "네트워크 상태를 확인한 뒤 다시 시도해 주세요.")
     } finally {
       setIsSearching(false)
     }
@@ -132,74 +156,150 @@ function AppContent() {
 
   const openReviewForZone = () => {
     if (!detailZone) return
-    setReviewText("")
-    setIsReviewOpen(true)
+    setReviewZone(detailZone)
+    closeDetail()
   }
 
   const openReportForZone = () => {
     if (!detailZone) return
+    setEditingZone(null)
     setReportSeed({
       latitude: detailZone.latitude,
       longitude: detailZone.longitude,
       address: detailZone.address,
       subtype: detailZone.subtype,
     })
+    closeDetail()
     setIsAddOpen(true)
   }
+
+  const openCreateZone = () => {
+    setEditingZone(null)
+    setReportSeed(null)
+    setIsAddOpen(true)
+  }
+
+  const openEditZone = (zone: SmokingZone) => {
+    setIsProfileOpen(false)
+    setEditingZone(zone)
+    setReportSeed(null)
+    setIsAddOpen(true)
+  }
+
+  const handleZoneSaved = (zone: SmokingZone) => {
+    prependZone(zone)
+    void refreshCurrentRegion()
+  }
+
+  const closeZoneModal = () => {
+    setIsAddOpen(false)
+    setReportSeed(null)
+    setEditingZone(null)
+  }
+
+  const activeScreenTitle = activeTab === "list" ? "전체 흡연구역" : "북마크한 장소"
 
   return (
     <View style={styles.root}>
       <StatusBar style="dark" translucent />
 
-      <MapScreen
-        region={region}
-        zones={zones}
-        selectedZone={selectedZone}
-        isLoading={isLoading}
-        onRegionChangeComplete={handleRegionChangeComplete}
-        onSelectZone={openDetail}
-      />
+      {activeTab === "map" ? (
+        <MapScreen
+          region={region}
+          zones={zones}
+          selectedZone={selectedZone}
+          isLoading={isLoading}
+          onRegionChangeComplete={handleRegionChangeComplete}
+          onSelectZone={openDetail}
+        />
+      ) : null}
+
+      {activeTab === "list" ? (
+        <ZoneListScreen
+          zones={zones}
+          favoriteIds={favoriteIds}
+          onSelectZone={focusZoneOnMap}
+          onToggleFavorite={(zoneId) => void toggleFavorite(zoneId)}
+        />
+      ) : null}
+
+      {activeTab === "bookmark" ? (
+        <BookmarkScreen
+          zones={zones}
+          favoriteIds={favoriteIds}
+          onSelectZone={focusZoneOnMap}
+          onToggleFavorite={(zoneId) => void toggleFavorite(zoneId)}
+        />
+      ) : null}
 
       <View style={[styles.topOverlay, { top: insets.top + 8 }]}>
-        <View style={styles.searchShell}>
-          <MaterialCommunityIcons name="magnify" size={18} color={colors.textMuted} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={() => void handleTopSearch()}
-            placeholder="장소, 주소 검색..."
-            placeholderTextColor={colors.textMuted}
-            style={styles.searchInput}
-          />
-          {searchQuery ? (
-            <Pressable onPress={() => setSearchQuery("")} style={styles.clearButton}>
-              <MaterialCommunityIcons name="close" size={15} color={colors.textMuted} />
+        {activeTab === "map" ? (
+          <View style={styles.searchShell}>
+            <MaterialCommunityIcons name="magnify" size={18} color={colors.textMuted} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={() => void handleTopSearch()}
+              placeholder="장소, 주소 검색..."
+              placeholderTextColor={colors.textMuted}
+              style={styles.searchInput}
+            />
+            {searchQuery ? (
+              <Pressable onPress={() => setSearchQuery("")} style={styles.clearButton}>
+                <MaterialCommunityIcons name="close" size={15} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+            <View style={styles.searchDivider} />
+            <Pressable onPress={() => void handleTopSearch()}>
+              {isSearching ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.searchAction}>검색</Text>
+              )}
             </Pressable>
-          ) : null}
-          <View style={styles.searchDivider} />
-          <Pressable onPress={() => void handleTopSearch()}>
-            {isSearching ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Text style={styles.searchAction}>검색</Text>
-            )}
-          </Pressable>
-        </View>
+          </View>
+        ) : (
+          <View style={styles.pageBadge}>
+            <Text style={styles.pageBadgeText}>{activeScreenTitle}</Text>
+          </View>
+        )}
 
         <Pressable style={styles.menuFab} onPress={() => setIsMenuOpen(true)}>
           <MaterialCommunityIcons name="menu" size={22} color={colors.text} />
         </Pressable>
       </View>
 
-      <View style={[styles.bottomOverlay, { bottom: insets.bottom + 18 }]}>
-        <Pressable style={[styles.roundFab, styles.locationFab]} onPress={() => void moveToCurrentLocation()}>
-          <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.surface} />
-        </Pressable>
+      {errorMessage ? (
+        <View style={[styles.errorBanner, { top: insets.top + 62 }]}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={17} color={colors.surface} />
+          <Text style={styles.errorBannerText}>{errorMessage}</Text>
+          <Pressable
+            style={styles.errorRetryButton}
+            onPress={() => {
+              clearError()
+              void refreshCurrentRegion()
+            }}
+          >
+            <Text style={styles.errorRetryButtonText}>재시도</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
-        <Pressable style={styles.addFab} onPress={() => setIsAddOpen(true)}>
-          <Image source={pinImage} style={styles.addFabIcon} resizeMode="contain" />
-          <Text style={styles.addFabText}>흡연구역 제보</Text>
-        </Pressable>
+      {activeTab === "map" ? (
+        <View style={[styles.mapActionOverlay, { bottom: insets.bottom + 86 }]}>
+          <Pressable style={[styles.roundFab, styles.locationFab]} onPress={() => void moveToCurrentLocation()}>
+            <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.surface} />
+          </Pressable>
+
+          <Pressable style={styles.addFab} onPress={openCreateZone}>
+            <Image source={pinImage} style={styles.addFabIcon} resizeMode="contain" />
+            <Text style={styles.addFabText}>흡연구역 제보</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <View style={[styles.tabOverlay, { bottom: insets.bottom + 8 }]}>
+        <SimpleBottomTab activeTab={activeTab} onChange={setActiveTab} />
       </View>
 
       <ZoneDetailModal
@@ -214,18 +314,14 @@ function AppContent() {
       <AddZoneModal
         visible={isAddOpen}
         accessToken={accessToken}
+        editingZone={editingZone}
         initialLatitude={reportSeed?.latitude}
         initialLongitude={reportSeed?.longitude}
         initialAddress={reportSeed?.address}
         initialSubtype={reportSeed?.subtype}
-        onClose={() => {
-          setIsAddOpen(false)
-          setReportSeed(null)
-        }}
-        onCreated={(zone) => {
-          prependZone(zone)
-          void refreshCurrentRegion()
-        }}
+        onClose={closeZoneModal}
+        onCreated={handleZoneSaved}
+        onUpdated={handleZoneSaved}
       />
 
       <ProfileModal
@@ -235,10 +331,22 @@ function AppContent() {
         onClose={() => setIsProfileOpen(false)}
         onClearToken={clearToken}
         onSocialLogin={startSocialLogin}
+        needsProfileSetup={needsProfileSetup}
+        onProfileUpdated={refreshUser}
+        onEditZone={openEditZone}
         authMessage={authMessage}
         onClearAuthMessage={clearAuthMessage}
         isAuthenticating={isAuthenticating}
       />
+
+      <ZoneReviewModal
+        visible={Boolean(reviewZone)}
+        zone={reviewZone}
+        accessToken={accessToken}
+        user={user}
+        onClose={() => setReviewZone(null)}
+      />
+
       <AppMenuModal
         visible={isMenuOpen}
         user={user}
@@ -249,41 +357,11 @@ function AppContent() {
         onLogout={clearToken}
       />
 
-      {isLoading ? (
-        <View style={[styles.initialLoading, { top: insets.top + 10 }]}> 
+      {isLoading || isAuthLoading ? (
+        <View style={[styles.initialLoading, { top: insets.top + 10 }]}>
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : null}
-
-      <Modal visible={isReviewOpen} animationType="slide" transparent={false}>
-        <View style={styles.reviewRoot}>
-          <View style={styles.reviewHeader}>
-            <Text style={styles.reviewTitle}>리뷰 작성</Text>
-            <Pressable onPress={() => setIsReviewOpen(false)}>
-              <Text style={styles.reviewClose}>닫기</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.reviewHint}>해당 위치에 대한 간단한 후기를 작성해 주세요.</Text>
-          <TextInput
-            value={reviewText}
-            onChangeText={setReviewText}
-            style={styles.reviewInput}
-            placeholder="좋은 점 / 개선점 / 혼잡도 ..."
-            multiline
-            textAlignVertical="top"
-          />
-          <Pressable
-            style={styles.reviewSubmit}
-            onPress={() => {
-              Alert.alert("리뷰 제출", "리뷰 API 연동 전이라 임시 저장되었습니다.")
-              setReviewText("")
-              setIsReviewOpen(false)
-            }}
-          >
-            <Text style={styles.reviewSubmitText}>제출</Text>
-          </Pressable>
-        </View>
-      </Modal>
     </View>
   )
 }
@@ -318,6 +396,26 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+  },
+  pageBadge: {
+    flex: 1,
+    height: 46,
+    borderRadius: radius.full,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.dark,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  pageBadgeText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "800",
   },
   searchInput: {
     flex: 1,
@@ -358,13 +456,50 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  bottomOverlay: {
+  errorBanner: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: radius.md,
+    backgroundColor: "rgba(23,23,23,0.92)",
+    zIndex: 25,
+  },
+  errorBannerText: {
+    flex: 1,
+    color: colors.surface,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  errorRetryButton: {
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  errorRetryButtonText: {
+    color: colors.surface,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  mapActionOverlay: {
     position: "absolute",
     left: 16,
     right: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    zIndex: 20,
+  },
+  tabOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
     zIndex: 20,
   },
   roundFab: {
@@ -411,51 +546,5 @@ const styles = StyleSheet.create({
   initialLoading: {
     position: "absolute",
     right: 16,
-  },
-  reviewRoot: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    paddingTop: 56,
-    paddingHorizontal: 16,
-  },
-  reviewHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  reviewTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: colors.text,
-  },
-  reviewClose: {
-    color: colors.text,
-    fontWeight: "700",
-  },
-  reviewHint: {
-    color: colors.textMuted,
-    marginBottom: 10,
-  },
-  reviewInput: {
-    minHeight: 180,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    color: colors.text,
-    backgroundColor: colors.surface,
-  },
-  reviewSubmit: {
-    marginTop: 12,
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  reviewSubmitText: {
-    color: colors.surface,
-    fontWeight: "700",
   },
 })

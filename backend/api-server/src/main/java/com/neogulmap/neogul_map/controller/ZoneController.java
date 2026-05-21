@@ -226,6 +226,7 @@ public class ZoneController {
     
     @PutMapping("/{id}")
     public ResponseEntity<?> updateZone(@PathVariable("id") Integer id,
+                                       @CurrentUser User user,
                                        @RequestPart(value = "image", required = false) MultipartFile image,
                                        @RequestPart("data") String zoneData) {
         // 1차 검증: Zone 데이터 검증
@@ -237,7 +238,7 @@ public class ZoneController {
         ZoneRequest request = parseZoneRequest(zoneData);
         
         // 서비스에서 이미지 처리와 함께 Zone 업데이트
-        ZoneResponse response = zoneService.updateZone(id, request, image);
+        ZoneResponse response = zoneService.updateZone(id, request, image, user);
         
         return ResponseEntity.ok(Map.of(
             "success", true,
@@ -250,8 +251,9 @@ public class ZoneController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteZone(@PathVariable("id") Integer id) {
-        zoneService.deleteZone(id);
+    public ResponseEntity<?> deleteZone(@PathVariable("id") Integer id,
+                                        @CurrentUser User user) {
+        zoneService.deleteZone(id, user);
         return ResponseEntity.ok(Map.of(
             "success", true,
             "message", "흡연구역 삭제 성공",

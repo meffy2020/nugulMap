@@ -36,6 +36,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
   const currentMarkers = useRef<any[]>([])
 
   const KAKAO_APP_KEY = process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY
+  const MARKER_IMAGE_SRC = process.env.NEXT_PUBLIC_MAP_MARKER_IMAGE_SRC || "/images/pin.png"
 
   // 1. 이미 스크립트가 로드되었는지 확인
   useEffect(() => {
@@ -131,7 +132,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       
       const markers = zones.map((zone) => {
         const markerPosition = new window.kakao.maps.LatLng(zone.latitude, zone.longitude)
-        const imageSrc = "/images/pin.png"
+        const imageSrc = MARKER_IMAGE_SRC
         const imageSize = new window.kakao.maps.Size(40, 40)
         const imageOption = { offset: new window.kakao.maps.Point(20, 40) }
         const markerImage = new window.kakao.maps.MarkerImage(imageSrc, imageSize, imageOption)
@@ -156,7 +157,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       }
       currentMarkers.current = markers
     }
-  }, [mapInstance, zones])
+  }, [mapInstance, zones, MARKER_IMAGE_SRC])
 
   useImperativeHandle(ref, () => ({
     handleZoneCreated: (newZone: SmokingZone) => {

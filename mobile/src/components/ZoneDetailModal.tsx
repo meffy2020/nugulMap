@@ -37,6 +37,7 @@ export function ZoneDetailModal({
   const genericDescription = normalizeText(`${zone.subtype || ""} 흡연구역`)
   const shouldShowDescription =
     description.length > 0 && description !== address && description !== genericDescription
+  const hasImage = Boolean(imageUrl)
 
   return (
     <Modal visible={Boolean(zone)} animationType="slide" transparent>
@@ -58,6 +59,11 @@ export function ZoneDetailModal({
                       <Text style={[styles.chipText, styles.chipTextMuted]}>{zone.region}</Text>
                     </View>
                   ) : null}
+                  <View style={[styles.chip, hasImage ? styles.chipPhoto : styles.chipMuted]}>
+                    <Text style={[styles.chipText, !hasImage && styles.chipTextMuted]}>
+                      {hasImage ? "현장 사진" : "사진 없음"}
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -68,11 +74,17 @@ export function ZoneDetailModal({
 
             <View style={styles.imageCard}>
               {imageUrl ? (
-                <Image source={{ uri: imageUrl }} style={styles.image} />
+                <>
+                  <Image source={{ uri: imageUrl }} style={styles.image} />
+                  <View style={styles.imageCaption}>
+                    <MaterialCommunityIcons name="image-outline" size={14} color={colors.surface} />
+                    <Text style={styles.imageCaptionText}>등록된 현장 사진</Text>
+                  </View>
+                </>
               ) : (
                 <View style={styles.imageEmpty}>
                   <MaterialCommunityIcons name="image-outline" size={20} color={colors.textMuted} />
-                  <Text style={styles.imageEmptyText}>이미지 준비중</Text>
+                  <Text style={styles.imageEmptyText}>아직 등록된 현장 사진이 없습니다.</Text>
                 </View>
               )}
             </View>
@@ -88,6 +100,12 @@ export function ZoneDetailModal({
                   <Text style={styles.infoText}>{description}</Text>
                 </View>
               ) : null}
+              <View style={styles.infoRow}>
+                <MaterialCommunityIcons name="crosshairs-gps" size={18} color={colors.textMuted} />
+                <Text style={styles.infoText}>
+                  {zone.latitude.toFixed(6)}, {zone.longitude.toFixed(6)}
+                </Text>
+              </View>
             </View>
 
             <Pressable style={styles.primaryButton} onPress={onOpenRoute}>
@@ -166,6 +184,10 @@ const styles = StyleSheet.create({
   chipMuted: {
     backgroundColor: colors.surfaceMuted,
   },
+  chipPhoto: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
   chipText: {
     color: colors.text,
     fontSize: 11,
@@ -201,15 +223,34 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 180,
   },
+  imageCaption: {
+    position: "absolute",
+    left: 10,
+    bottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: "rgba(23,23,23,0.78)",
+  },
+  imageCaptionText: {
+    color: colors.surface,
+    fontSize: 11,
+    fontWeight: "700",
+  },
   imageEmpty: {
     height: 130,
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    paddingHorizontal: 16,
   },
   imageEmptyText: {
     color: colors.textMuted,
     fontWeight: "600",
+    textAlign: "center",
   },
   infoCard: {
     borderRadius: radius.lg,

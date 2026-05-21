@@ -28,8 +28,11 @@ const config: ExpoConfig = {
       usesNonExemptEncryption: false,
     },
     infoPlist: {
-      NSLocationWhenInUseUsageDescription: "현재 내 위치를 기준으로 흡연구역을 가까운 순으로 보여주기 위해 위치 권한이 필요합니다."
-    }
+      NSLocationWhenInUseUsageDescription: "현재 내 위치를 기준으로 흡연구역을 가까운 순으로 보여주기 위해 위치 권한이 필요합니다.",
+      NSPhotoLibraryUsageDescription: "흡연구역 제보와 수정 시 사진을 선택하기 위해 사진 권한이 필요합니다.",
+      NSPhotoLibraryAddUsageDescription: "흡연구역 제보와 수정 시 사진을 저장하기 위해 사진 권한이 필요합니다.",
+      NSCameraUsageDescription: "흡연구역 제보와 수정 시 새 사진을 촬영하기 위해 카메라 권한이 필요합니다.",
+    },
   },
   android: {
     package: "com.nugulmap.mobile",
@@ -38,10 +41,10 @@ const config: ExpoConfig = {
       foregroundImage: "./assets/images/pin.png",
       backgroundColor: "#ffffff",
     },
-    permissions: ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+    permissions: ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "CAMERA", "READ_MEDIA_IMAGES", "READ_EXTERNAL_STORAGE"],
   },
   updates: {
-    fallbackToCacheTimeout: 0
+    fallbackToCacheTimeout: 0,
   },
   extra: {
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.nugulmap.com",

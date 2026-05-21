@@ -1,0 +1,36 @@
+# NugulMap AI Prompt Pack (Shape Essence)
+
+Use these prompt templates to generate new design assets while preserving identity.
+
+## Global prompt prefix
+"Create a flat vector icon in a warm brown mascot map-pin style. Use simple geometric primitives, centered composition, transparent background, no text, no photo texture, no heavy shadow."
+
+## 1) Zone marker
+"[Global prefix] Draw a map pin mascot with a teardrop brown body, circular amber face, dark rounded mask band, two circular eyes, and a small nose. Keep geometry crisp and symmetric."
+
+## 2) Current location marker
+"[Global prefix] Create a current-location variant of the mascot map pin. Add a teal circular target ring behind the pin and a small center dot highlight. Maintain the same mascot face geometry and proportions."
+
+## 3) Favorite marker
+"[Global prefix] Create a favorite variant of the mascot map pin. Add a small star badge at top-right using warm gold tone. Keep icon legible at 24px and 32px."
+
+## 4) Report marker
+"[Global prefix] Create a report variant of the mascot map pin. Add a rounded red-orange exclamation badge at top-right. Keep all other forms identical to base icon."
+
+## 5) Nearby cluster badge
+"[Global prefix] Create a circular cluster badge using the same warm palette and mask shape language. Include only a numeric placeholder area in the center (no actual text glyph)."
+
+## Negative prompt
+"No photorealism, no gradients unless subtle, no metallic effect, no handwritten style, no long shadows, no complex background scene."
+
+## Recommended generation specs
+- Canvas: 1024x1024 (master), export to 128/64/32.
+- Background: transparent.
+- Style: vector/flat.
+- Line: minimal; mostly filled geometry.
+
+## Post-checklist before adoption
+- Silhouette recognizable at 24px.
+- Eye-mask-nose alignment preserved.
+- Pin tip centered on vertical axis.
+- Color contrast works on light and dark maps.

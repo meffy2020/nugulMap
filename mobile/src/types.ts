@@ -16,9 +16,21 @@ export interface SmokingZone {
 export interface UserProfile {
   id: number
   email: string
-  nickname: string
+  nickname: string | null
   profileImage: string | null
   createdAt: string
+}
+
+export interface ZoneReview {
+  id: number
+  zoneId: number
+  authorId: number | null
+  authorNickname: string
+  authorEmail?: string
+  authorProfileImage: string | null
+  content: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface MapRegion {

@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Image, Pressable, StyleSheet, Text, View } from "react-native"
 import type { SmokingZone } from "../types"
+import { getImageUrl } from "../services/nugulApi"
 import { colors, radius } from "../theme/tokens"
 
 interface ZoneCardProps {
@@ -10,28 +11,56 @@ interface ZoneCardProps {
 }
 
 export function ZoneCard({ zone, isFavorite, onSelect, onToggleFavorite }: ZoneCardProps) {
+  const imageUrl = getImageUrl(zone.image)
+  const hasImage = Boolean(imageUrl)
+
   return (
     <Pressable style={styles.card} onPress={onSelect}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{zone.subtype || zone.region}</Text>
-        <Pressable onPress={onToggleFavorite} style={[styles.badgeWrap, isFavorite && styles.badgeWrapActive]}>
-          <Text style={[styles.badge, isFavorite && styles.badgeActive]}>{isFavorite ? "★" : "☆"}</Text>
-        </Pressable>
+      <View style={styles.cardBody}>
+        <View style={styles.previewWrap}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.previewImage} testID="zone-card-image" />
+          ) : (
+            <View style={styles.previewPlaceholder} testID="zone-card-image-placeholder">
+              <Text style={styles.previewPlaceholderText}>사진 없음</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{zone.subtype || zone.region}</Text>
+            <Pressable onPress={onToggleFavorite} style={[styles.badgeWrap, isFavorite && styles.badgeWrapActive]}>
+              <Text style={[styles.badge, isFavorite && styles.badgeActive]}>{isFavorite ? "★" : "☆"}</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.metaRow}>
+            <Text style={styles.meta}>{zone.type}</Text>
+            <Text style={styles.dot}>•</Text>
+            <Text style={styles.metaMuted}>{zone.region}</Text>
+            <View style={[styles.photoBadge, hasImage && styles.photoBadgeActive]}>
+              <Text style={[styles.photoBadgeText, hasImage && styles.photoBadgeTextActive]}>
+                {hasImage ? "사진 있음" : "사진 없음"}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.description} numberOfLines={2}>
+            {zone.description || "설명이 없습니다."}
+          </Text>
+          <Text style={styles.address} numberOfLines={2}>
+            {zone.address}
+          </Text>
+        </View>
       </View>
-      <View style={styles.metaRow}>
-        <Text style={styles.meta}>{zone.type}</Text>
-        <Text style={styles.dot}>•</Text>
-        <Text style={styles.metaMuted}>{zone.region}</Text>
-      </View>
-      <Text style={styles.description}>{zone.description || "설명이 없습니다."}</Text>
-      <Text style={styles.address}>{zone.address}</Text>
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
   card: {
-    padding: 16,
+    padding: 14,
     backgroundColor: colors.surface,
     borderRadius: 20,
     borderWidth: 1,
@@ -42,6 +71,37 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+  },
+  cardBody: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  previewWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
+  },
+  previewPlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  previewPlaceholderText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  content: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",
@@ -59,6 +119,7 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 6,
     marginBottom: 8,
   },
@@ -77,10 +138,12 @@ const styles = StyleSheet.create({
   description: {
     color: colors.textMuted,
     marginBottom: 8,
+    lineHeight: 19,
   },
   address: {
     fontSize: 12,
     color: colors.textMuted,
+    lineHeight: 18,
   },
   badge: {
     fontSize: 16,
@@ -102,5 +165,25 @@ const styles = StyleSheet.create({
   badgeWrapActive: {
     borderColor: colors.border,
     backgroundColor: colors.primarySoft,
+  },
+  photoBadge: {
+    marginLeft: "auto",
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  photoBadgeActive: {
+    backgroundColor: colors.primarySoft,
+  },
+  photoBadgeText: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  photoBadgeTextActive: {
+    color: colors.text,
   },
 })

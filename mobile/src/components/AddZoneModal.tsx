@@ -11,11 +11,18 @@ import {
   View,
 } from "react-native"
 import * as Location from "expo-location"
+import * as ImagePicker from "expo-image-picker"
 import Constants from "expo-constants"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import WebView, { type WebViewMessageEvent } from "react-native-webview"
-import { createZone, type CreateZonePayload } from "../services/nugulApi"
+import {
+  createZone,
+  getImageUrl,
+  updateZone,
+  type CreateZonePayload,
+  type UploadImageAsset,
+} from "../services/nugulApi"
 import type { SmokingZone } from "../types"
 import { colors, radius } from "../theme/tokens"
 
@@ -24,6 +31,8 @@ interface AddZoneModalProps {
   accessToken: string | null
   onClose: () => void
   onCreated: (zone: SmokingZone) => void
+  onUpdated?: (zone: SmokingZone) => void
+  editingZone?: SmokingZone | null
   initialLatitude?: number
   initialLongitude?: number
   initialAddress?: string
@@ -63,15 +72,34 @@ const TYPE_OPTIONS: Array<{ type: ZoneType; label: string }> = [
   { type: "INDOOR", label: "실내" },
 ]
 
-function getInitialType(initialSubtype?: string): { type: ZoneType; label: string } {
-  if (!initialSubtype) {
-    return TYPE_OPTIONS[0]
-  }
+function inferMimeType(fileName?: string | null): string {
+  const normalized = String(fileName || "").toLowerCase()
+  if (normalized.endsWith(".png")) return "image/png"
+  return "image/jpeg"
+}
 
-  if (initialSubtype.includes("실내")) {
+function toUploadImageAsset(asset: ImagePicker.ImagePickerAsset): UploadImageAsset {
+  const fallbackName = asset.uri.split("/").pop() || `zone-${Date.now()}.jpg`
+  return {
+    uri: asset.uri,
+    name: asset.fileName || fallbackName,
+    type: asset.mimeType || inferMimeType(asset.fileName || fallbackName),
+  }
+}
+
+function getInitialType(initialType?: string, initialSubtype?: string): { type: ZoneType; label: string } {
+  const normalizedType = String(initialType || "").trim().toUpperCase()
+  if (normalizedType === "INDOOR") return { type: "INDOOR", label: "실내" }
+  if (normalizedType === "OPEN") return { type: "OPEN", label: "개방" }
+  if (normalizedType === "BOOTH") return { type: "BOOTH", label: "부스" }
+
+  const normalizedSubtype = String(initialSubtype || "").trim()
+  if (!normalizedSubtype) return TYPE_OPTIONS[0]
+
+  if (normalizedSubtype.includes("실내")) {
     return { type: "INDOOR", label: "실내" }
   }
-  if (initialSubtype.includes("개방") || initialSubtype.includes("실외")) {
+  if (normalizedSubtype.includes("개방") || normalizedSubtype.includes("실외")) {
     return { type: "OPEN", label: "개방" }
   }
   return { type: "BOOTH", label: "부스" }
@@ -220,6 +248,8 @@ export function AddZoneModal({
   accessToken,
   onClose,
   onCreated,
+  onUpdated,
+  editingZone,
   initialLatitude,
   initialLongitude,
   initialAddress,
@@ -239,13 +269,32 @@ export function AddZoneModal({
   const [isMapReady, setIsMapReady] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
   const [mapKey, setMapKey] = useState(0)
+  const [selectedImage, setSelectedImage] = useState<UploadImageAsset | null>(null)
+  const isEditing = Boolean(editingZone)
+  const existingImageUri = getImageUrl(editingZone?.image)
+  const previewImageUri = selectedImage?.uri || existingImageUri
+  const imageStatusText = selectedImage
+    ? "저장하면 새 사진으로 교체됩니다."
+    : existingImageUri
+      ? "현재 등록된 사진이 유지됩니다."
+      : "현장 사진이 있으면 승인 속도가 빨라집니다."
 
   const seedCoords = useMemo<PickerCoords>(
     () => ({
-      latitude: typeof initialLatitude === "number" ? initialLatitude : DEFAULT_COORDS.latitude,
-      longitude: typeof initialLongitude === "number" ? initialLongitude : DEFAULT_COORDS.longitude,
+      latitude:
+        typeof editingZone?.latitude === "number"
+          ? editingZone.latitude
+          : typeof initialLatitude === "number"
+            ? initialLatitude
+            : DEFAULT_COORDS.latitude,
+      longitude:
+        typeof editingZone?.longitude === "number"
+          ? editingZone.longitude
+          : typeof initialLongitude === "number"
+            ? initialLongitude
+            : DEFAULT_COORDS.longitude,
     }),
-    [initialLatitude, initialLongitude],
+    [editingZone?.latitude, editingZone?.longitude, initialLatitude, initialLongitude],
   )
 
   const mapHtml = useMemo(
@@ -256,20 +305,28 @@ export function AddZoneModal({
   useEffect(() => {
     if (!visible) return
 
-    const initialType = getInitialType(initialSubtype)
-    setStep("location")
+    const initialType = getInitialType(editingZone?.type, editingZone?.subtype || initialSubtype)
+    const nextAddress = editingZone?.address || initialAddress || ""
+    setStep(editingZone ? "details" : "location")
     setType(initialType.type)
-    setSubtype(initialType.label)
-    setDescription("")
+    setSubtype(editingZone?.subtype || initialSubtype || initialType.label)
+    setDescription(editingZone?.description || "")
     setCoords(seedCoords)
-    setAddress(initialAddress || "")
-    setRegion("서울특별시")
-    setIsAddressLoading(!Boolean(initialAddress))
+    setAddress(nextAddress)
+    setRegion(editingZone?.region || "서울특별시")
+    setIsAddressLoading(!Boolean(nextAddress))
     setIsSubmitting(false)
     setIsMapReady(false)
     setMapError(KAKAO_JS_KEY ? null : "Kakao JavaScript key is missing. Check mobile/.env")
+    setSelectedImage(null)
     setMapKey((prev) => prev + 1)
-  }, [visible, seedCoords.latitude, seedCoords.longitude, initialAddress, initialSubtype])
+  }, [
+    editingZone,
+    initialAddress,
+    initialSubtype,
+    seedCoords,
+    visible,
+  ])
 
   const postMessageToMap = (payload: unknown) => {
     if (!isMapReady || !webViewRef.current) return
@@ -354,9 +411,56 @@ export function AddZoneModal({
     })
   }
 
+  const openImageLibrary = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
+      Alert.alert("권한 필요", "사진을 선택하려면 사진 라이브러리 권한이 필요합니다.")
+      return
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.8,
+      })
+
+      if (result.canceled || !result.assets?.length) return
+      setSelectedImage(toUploadImageAsset(result.assets[0]))
+    } catch {
+      Alert.alert("사진 선택 실패", "사진을 불러오지 못했습니다. 다시 시도해 주세요.")
+    }
+  }
+
+  const openCamera = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync()
+    if (!permission.granted) {
+      Alert.alert("권한 필요", "촬영하려면 카메라 권한이 필요합니다.")
+      return
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.8,
+        cameraType: ImagePicker.CameraType.back,
+      })
+
+      if (result.canceled || !result.assets?.length) return
+      setSelectedImage(toUploadImageAsset(result.assets[0]))
+    } catch {
+      Alert.alert("촬영 실패", "카메라를 열지 못했습니다. 다시 시도해 주세요.")
+    }
+  }
+
+  const clearSelectedImage = () => {
+    setSelectedImage(null)
+  }
+
   const submit = async () => {
     if (!accessToken) {
-      Alert.alert("로그인 필요", "로그인 후 제보 기능을 사용할 수 있습니다.")
+      Alert.alert("로그인 필요", isEditing ? "로그인 후 수정할 수 있습니다." : "로그인 후 제보 기능을 사용할 수 있습니다.")
       return
     }
 
@@ -370,24 +474,34 @@ export function AddZoneModal({
     setIsSubmitting(true)
     try {
       const payload: CreateZonePayload = {
-        region: region || "모바일",
+        region: region || editingZone?.region || "모바일",
         type,
         subtype,
-        description: description.trim() || `${subtype} 흡연구역`,
+        description: description.trim() || editingZone?.description || `${subtype} 흡연구역`,
         latitude: coords.latitude,
         longitude: coords.longitude,
-        size: "M",
+        size: editingZone?.size || "M",
         address: normalizedAddress,
-        user: "mobile-user",
+        user: editingZone?.user || "mobile-user",
       }
 
-      const created = await createZone(payload, accessToken)
-      onCreated(created)
-      Alert.alert("등록 완료", "흡연구역이 등록되었습니다.")
+      if (editingZone) {
+        const updated = await updateZone(editingZone.id, payload, accessToken, selectedImage)
+        if (onUpdated) {
+          onUpdated(updated)
+        } else {
+          onCreated(updated)
+        }
+        Alert.alert("수정 완료", "흡연구역 정보가 수정되었습니다.")
+      } else {
+        const created = await createZone(payload, accessToken, selectedImage)
+        onCreated(created)
+        Alert.alert("등록 완료", "흡연구역이 등록되었습니다.")
+      }
       onClose()
     } catch (error) {
-      Alert.alert("등록 실패", "등록 중 오류가 발생했습니다.")
-      console.warn("create zone failed", error)
+      Alert.alert(isEditing ? "수정 실패" : "등록 실패", isEditing ? "수정 중 오류가 발생했습니다." : "등록 중 오류가 발생했습니다.")
+      console.warn(isEditing ? "update zone failed" : "create zone failed", error)
     } finally {
       setIsSubmitting(false)
     }
@@ -430,12 +544,16 @@ export function AddZoneModal({
             </View>
             <View style={styles.identityTextWrap}>
               <Text style={styles.identityKicker}>NugulMap</Text>
-              <Text style={styles.identityHeadline}>우리 동네 흡연구역 제보</Text>
+              <Text style={styles.identityHeadline}>{isEditing ? "등록한 흡연구역 수정" : "우리 동네 흡연구역 제보"}</Text>
             </View>
           </View>
 
-          <Text style={styles.locationTitle}>핀 위치를 정확하게 맞춰주세요</Text>
-          <Text style={styles.locationDescription}>지도를 움직여 위치를 확인한 뒤 다음 단계로 진행합니다.</Text>
+          <Text style={styles.locationTitle}>{isEditing ? "수정할 위치를 확인해주세요" : "핀 위치를 정확하게 맞춰주세요"}</Text>
+          <Text style={styles.locationDescription}>
+            {isEditing
+              ? "필요하면 지도를 움직여 수정한 위치를 다시 지정할 수 있습니다."
+              : "지도를 움직여 위치를 확인한 뒤 다음 단계로 진행합니다."}
+          </Text>
 
           <View style={styles.currentAddressCard}>
             <View style={styles.currentAddressHeader}>
@@ -460,7 +578,7 @@ export function AddZoneModal({
             disabled={!address.trim() || isAddressLoading}
             onPress={() => setStep("details")}
           >
-            <Text style={styles.locationConfirmText}>이 위치로 다음 단계 진행</Text>
+            <Text style={styles.locationConfirmText}>{isEditing ? "이 위치로 수정 계속하기" : "이 위치로 다음 단계 진행"}</Text>
           </Pressable>
         </View>
       </View>
@@ -507,9 +625,39 @@ export function AddZoneModal({
         />
 
         <Text style={styles.fieldLabel}>이미지</Text>
-        <View style={styles.imagePlaceholder}>
-          <MaterialCommunityIcons name="image-outline" size={22} color={colors.textMuted} />
-          <Text style={styles.imagePlaceholderText}>이미지 업로드 기능 준비중</Text>
+        <View style={styles.imageCard}>
+          {previewImageUri ? (
+            <>
+              <Image source={{ uri: previewImageUri }} style={styles.previewImage} />
+              <View style={styles.imageMetaRow}>
+                <View style={styles.imageMetaTextWrap}>
+                  <Text style={styles.imageMetaTitle}>{selectedImage ? "선택한 사진" : "현재 등록된 사진"}</Text>
+                  <Text style={styles.imageMetaText}>{imageStatusText}</Text>
+                </View>
+                {selectedImage ? (
+                  <Pressable style={styles.imageResetButton} onPress={clearSelectedImage}>
+                    <Text style={styles.imageResetButtonText}>취소</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </>
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <MaterialCommunityIcons name="image-outline" size={22} color={colors.textMuted} />
+              <Text style={styles.imagePlaceholderText}>{imageStatusText}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.imageActionRow}>
+          <Pressable style={styles.imageActionButton} onPress={() => void openImageLibrary()} disabled={isSubmitting}>
+            <MaterialCommunityIcons name="image-multiple-outline" size={16} color={colors.text} />
+            <Text style={styles.imageActionButtonText}>사진 선택</Text>
+          </Pressable>
+          <Pressable style={styles.imageActionButton} onPress={() => void openCamera()} disabled={isSubmitting}>
+            <MaterialCommunityIcons name="camera-outline" size={16} color={colors.text} />
+            <Text style={styles.imageActionButtonText}>카메라 촬영</Text>
+          </Pressable>
         </View>
 
         <View style={styles.detailActionRow}>
@@ -517,7 +665,9 @@ export function AddZoneModal({
             <Text style={styles.outlineButtonText}>위치 다시 선택</Text>
           </Pressable>
           <Pressable style={styles.submitButton} onPress={() => void submit()} disabled={isSubmitting}>
-            <Text style={styles.submitButtonText}>{isSubmitting ? "등록 중..." : "흡연구역 등록"}</Text>
+            <Text style={styles.submitButtonText}>
+              {isSubmitting ? (isEditing ? "수정 중..." : "등록 중...") : isEditing ? "수정 완료하기" : "흡연구역 등록"}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -534,7 +684,7 @@ export function AddZoneModal({
           >
             <MaterialCommunityIcons name="arrow-left" size={29} color={colors.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>흡연구역 제보</Text>
+          <Text style={styles.headerTitle}>{isEditing ? "흡연구역 수정" : "흡연구역 제보"}</Text>
           <View style={styles.headerRightBadge}>
             <Image source={require("../../assets/images/pin.png")} style={styles.headerRightIcon} resizeMode="contain" />
           </View>
@@ -835,20 +985,86 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     fontSize: 14,
   },
-  imagePlaceholder: {
+  imageCard: {
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    borderStyle: "dashed",
+    backgroundColor: colors.surface,
+    overflow: "hidden",
+  },
+  previewImage: {
+    width: "100%",
+    height: 180,
     backgroundColor: colors.surfaceMuted,
+  },
+  imageMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  imageMetaTextWrap: {
+    flex: 1,
+    gap: 3,
+  },
+  imageMetaTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  imageMetaText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  imageResetButton: {
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  imageResetButtonText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  imagePlaceholder: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 24,
+    paddingHorizontal: 16,
     gap: 6,
+    backgroundColor: colors.surfaceMuted,
   },
   imagePlaceholderText: {
     color: colors.textMuted,
     fontWeight: "600",
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  imageActionRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  imageActionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingVertical: 12,
+  },
+  imageActionButtonText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700",
   },
   detailActionRow: {
     gap: 8,

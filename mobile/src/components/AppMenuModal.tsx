@@ -29,6 +29,7 @@ export function AppMenuModal({
   onLogout,
 }: AppMenuModalProps) {
   const [page, setPage] = useState<MenuPage>("main")
+  const needsProfileSetup = isLoggedIn && !String(user?.nickname || "").trim()
 
   useEffect(() => {
     if (!visible) {
@@ -44,8 +45,12 @@ export function AppMenuModal({
           style={styles.avatar}
         />
         <View style={styles.profileText}>
-          <Text style={styles.nick}>{user?.nickname || "게스트 사용자"}</Text>
-          <Text style={styles.email}>{user?.email || "로그인 후 더 많은 기능을 사용할 수 있어요."}</Text>
+          <Text style={styles.nick}>{needsProfileSetup ? "프로필 설정 필요" : user?.nickname || "게스트 사용자"}</Text>
+          <Text style={styles.email}>
+            {needsProfileSetup
+              ? "마이페이지에서 닉네임과 사진을 설정해 주세요."
+              : user?.email || "로그인 후 더 많은 기능을 사용할 수 있어요."}
+          </Text>
         </View>
       </View>
 
