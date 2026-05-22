@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'NeogulMapNative' in project 'NeogulMapNative' (no dependencies)
