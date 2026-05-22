@@ -9,8 +9,8 @@
 | Lane | 현재 상태 | 출시 blocker |
 | --- | --- | --- |
 | Expo `mobile/` | `release:verify` baseline 존재 | native Android/iOS 출시를 대체하지 않음 |
-| Android `android-native/` | targetSdk 36, OAuth deeplink, Kakao map SDK, production API 기본값 존재 | signed AAB, Play Console, Kakao key hash, real-device OAuth/map smoke, Data Safety |
-| iOS `ios-native/` | SwiftUI 앱, URL scheme, production API, location permission string, shared archive scheme 존재 | `DEVELOPMENT_TEAM` empty, TestFlight/archive, Apple Guideline 4.8 login policy, iOS account deletion UX, App Privacy, real-device OAuth smoke |
+| Android `android-native/` | targetSdk 36, OAuth deeplink, Kakao map SDK, production API 기본값, optional upload-key signing hook, Android-only readiness script 존재 | signed AAB credential injection, Play Console, Kakao key hash, 16KB AAB/device validation, real-device OAuth/map smoke, Data Safety |
+| iOS `ios-native/` | SwiftUI 앱, URL scheme, production API, location permission string 존재 | `DEVELOPMENT_TEAM` empty, TestFlight/archive, Apple social login policy, account deletion, App Privacy |
 
 ## 2. Store-blocker matrix
 
