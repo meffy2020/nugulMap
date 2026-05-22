@@ -4,6 +4,8 @@ struct ZoneDetailView: View {
     let zone: SmokingZone
     @ObservedObject var model: ZoneExplorerModel
     @Environment(\.openURL) private var openURL
+    @State private var reviewText = ""
+    @State private var isSubmittingReview = false
 
     var body: some View {
         ScrollView {
@@ -144,13 +146,59 @@ struct ZoneDetailView: View {
                     }
                 }
             }
+
+            reviewComposer
         }
         .padding(16)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.nugulBorder, lineWidth: 1)
+            .stroke(Color.nugulBorder, lineWidth: 1)
         )
+    }
+
+    private var reviewComposer: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(model.currentUser == nil ? "로그인 후 리뷰를 남길 수 있어요." : "리뷰 남기기")
+                .font(.system(size: 13, weight: .black))
+                .foregroundStyle(Color.nugulMutedText)
+
+            TextField("이 장소는 어땠나요?", text: $reviewText, axis: .vertical)
+                .lineLimit(2...4)
+                .font(.system(size: 14, weight: .medium))
+                .padding(12)
+                .background(Color.nugulMuted, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .disabled(model.currentUser == nil || isSubmittingReview)
+
+            Button {
+                submitReview()
+            } label: {
+                HStack {
+                    if isSubmittingReview {
+                        ProgressView()
+                            .tint(.white)
+                    }
+                    Text(model.currentUser == nil ? "로그인이 필요합니다" : "리뷰 등록")
+                        .font(.system(size: 14, weight: .black))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .foregroundStyle(.white)
+                .background(
+                    reviewSubmitDisabled ? Color.nugulMutedText.opacity(0.35) : Color.nugulPrimary,
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(reviewSubmitDisabled)
+        }
+        .padding(.top, 4)
+    }
+
+    private var reviewSubmitDisabled: Bool {
+        model.currentUser == nil
+            || isSubmittingReview
+            || reviewText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func openDirections() {
@@ -161,6 +209,21 @@ struct ZoneDetailView: View {
         }
 
         openURL(url)
+    }
+
+    private func submitReview() {
+        guard !reviewSubmitDisabled else {
+            return
+        }
+
+        isSubmittingReview = true
+        Task {
+            let didSubmit = await model.submitReview(for: zone, content: reviewText)
+            if didSubmit {
+                reviewText = ""
+            }
+            isSubmittingReview = false
+        }
     }
 }
 

@@ -50,6 +50,15 @@ struct SmokingZone: Decodable, Hashable, Identifiable {
     let address: String
     let user: String
     let image: String?
+    let imageUrl: String?
+
+    var preferredImagePath: String? {
+        if let imageUrl, !imageUrl.isEmpty {
+            return imageUrl
+        }
+
+        return image
+    }
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -89,7 +98,8 @@ struct SmokingZone: Decodable, Hashable, Identifiable {
         longitude: Double,
         address: String,
         user: String,
-        image: String? = nil
+        image: String? = nil,
+        imageUrl: String? = nil
     ) {
         self.id = id
         self.region = region
@@ -103,6 +113,7 @@ struct SmokingZone: Decodable, Hashable, Identifiable {
         self.address = address
         self.user = user
         self.image = image
+        self.imageUrl = imageUrl
     }
 
     enum CodingKeys: String, CodingKey {
@@ -118,6 +129,7 @@ struct SmokingZone: Decodable, Hashable, Identifiable {
         case address
         case user
         case image
+        case imageUrl
     }
 
     init(from decoder: Decoder) throws {
@@ -135,6 +147,7 @@ struct SmokingZone: Decodable, Hashable, Identifiable {
         address = container.decodeLossyString(forKey: .address)
         user = container.decodeLossyString(forKey: .user, fallback: "익명사용자")
         image = container.decodeLossyOptionalString(forKey: .image)
+        imageUrl = container.decodeLossyOptionalString(forKey: .imageUrl)
     }
 
     static let fallback: [SmokingZone] = [
@@ -185,7 +198,16 @@ struct UserProfile: Decodable, Hashable, Identifiable {
     let email: String
     let nickname: String?
     let profileImage: String?
+    let profileImageUrl: String?
     let createdAt: String
+
+    var preferredProfileImagePath: String? {
+        if let profileImageUrl, !profileImageUrl.isEmpty {
+            return profileImageUrl
+        }
+
+        return profileImage
+    }
 
     var displayName: String {
         if let nickname, !nickname.isEmpty {

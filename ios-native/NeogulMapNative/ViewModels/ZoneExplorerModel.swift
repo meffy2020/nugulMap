@@ -23,14 +23,16 @@ final class ZoneExplorerModel: ObservableObject {
     private let lastSubmitStorageKey = "nugul_last_submit"
     private let submissionCooldownSeconds: TimeInterval = 30
     private var zoneRequestSequence = 0
+    private var inFlightZoneBoundsKey: String?
+    private var lastLoadedZoneBoundsKey: String?
 
     init(apiClient: NugulAPIClient = NugulAPIClient()) {
         self.apiClient = apiClient
         self.zones = []
     }
 
-    func bootstrap() async {
-        await loadInitialZones()
+    func bootstrap(initialBounds: MapBounds = .centralSeoul) async {
+        await loadZones(in: initialBounds)
         currentUser = await apiClient.getCurrentUser()
         if currentUser != nil {
             await loadUserZones()
@@ -45,25 +47,47 @@ final class ZoneExplorerModel: ObservableObject {
         await loadZones(in: .around(latitude: latitude, longitude: longitude))
     }
 
-    func loadZones(in bounds: MapBounds) async {
+    func loadZones(in bounds: MapBounds, force: Bool = false) async {
+        let boundsKey = zoneBoundsKey(bounds)
+        if !force {
+            if inFlightZoneBoundsKey == boundsKey {
+                return
+            }
+
+            if lastLoadedZoneBoundsKey == boundsKey, !zones.isEmpty {
+                return
+            }
+        }
+
         zoneRequestSequence += 1
         let requestID = zoneRequestSequence
+        inFlightZoneBoundsKey = boundsKey
         isLoading = true
         errorMessage = nil
 
         do {
             let fetchedZones = try await apiClient.fetchZonesByBounds(bounds)
             guard requestID == zoneRequestSequence else {
+                if inFlightZoneBoundsKey == boundsKey {
+                    inFlightZoneBoundsKey = nil
+                }
                 return
             }
             zones = fetchedZones
+            lastLoadedZoneBoundsKey = boundsKey
         } catch {
             guard requestID == zoneRequestSequence else {
+                if inFlightZoneBoundsKey == boundsKey {
+                    inFlightZoneBoundsKey = nil
+                }
                 return
             }
             errorMessage = error.localizedDescription
         }
 
+        if inFlightZoneBoundsKey == boundsKey {
+            inFlightZoneBoundsKey = nil
+        }
         isLoading = false
     }
 
@@ -121,6 +145,16 @@ final class ZoneExplorerModel: ObservableObject {
     func resetSearch() async {
         query = ""
         await loadInitialZones()
+    }
+
+    private func zoneBoundsKey(_ bounds: MapBounds) -> String {
+        String(
+            format: "%.5f:%.5f:%.5f:%.5f",
+            bounds.minLat,
+            bounds.maxLat,
+            bounds.minLng,
+            bounds.maxLng
+        )
     }
 
     func submitZone(
@@ -219,12 +253,37 @@ final class ZoneExplorerModel: ObservableObject {
         loadingReviewZoneID = nil
     }
 
+    func submitReview(for zone: SmokingZone, content: String) async -> Bool {
+        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedContent.isEmpty else {
+            errorMessage = "리뷰 내용을 입력해주세요."
+            return false
+        }
+
+        guard AuthTokenStore.loadAccessToken() != nil else {
+            errorMessage = "리뷰를 작성하려면 로그인이 필요합니다."
+            return false
+        }
+
+        do {
+            let review = try await apiClient.createReview(zoneID: zone.id, content: trimmedContent)
+            var reviews = reviewsByZoneID[zone.id] ?? []
+            reviews.insert(review, at: 0)
+            reviewsByZoneID[zone.id] = reviews
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     func imageURL(for zone: SmokingZone) -> URL? {
-        apiClient.imageURL(for: zone.image)
+        apiClient.imageURL(for: zone.preferredImagePath)
     }
 
     func imageURL(for user: UserProfile?) -> URL? {
-        apiClient.imageURL(for: user?.profileImage)
+        apiClient.imageURL(for: user?.preferredProfileImagePath)
     }
 
     private func searchMapPlace(keyword: String) async -> CLLocationCoordinate2D? {
@@ -248,8 +307,8 @@ final class ZoneExplorerModel: ObservableObject {
         errorMessage = nil
 
         do {
-            let result = try await oauthSession.signIn(with: provider)
-            AuthTokenStore.saveAccessToken(result.accessToken)
+            let result = try await oauthSession.signIn(with: provider, apiClient: apiClient)
+            AuthTokenStore.saveTokens(accessToken: result.accessToken, refreshToken: result.refreshToken)
             pendingSignupEmail = result.profileComplete ? nil : result.email
             currentUser = await apiClient.getCurrentUser(accessToken: result.accessToken)
 
@@ -290,7 +349,7 @@ final class ZoneExplorerModel: ObservableObject {
     }
 
     func logout() {
-        AuthTokenStore.deleteAccessToken()
+        AuthTokenStore.deleteTokens()
         currentUser = nil
         userZones = []
         pendingSignupEmail = nil

@@ -17,10 +17,16 @@ enum AppConfig {
         return url
     }
 
-    static func oauthAuthorizationURL(provider: OAuthProvider) -> URL {
-        var components = URLComponents(url: apiBaseURL.appendingPathComponent("/api/oauth2/authorization/\(provider.rawValue)"), resolvingAgainstBaseURL: false)!
+    static func oauthAuthorizationURL(provider: OAuthProvider, codeChallenge: String) -> URL {
+        var components = URLComponents(
+            url: apiBaseURL.appendingPathComponent("api/oauth2/authorization/\(provider.rawValue)"),
+            resolvingAgainstBaseURL: false
+        )!
         components.queryItems = [
-            URLQueryItem(name: "redirect_uri", value: oauthCallbackURL.absoluteString)
+            URLQueryItem(name: "redirect_uri", value: oauthCallbackURL.absoluteString),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "code_challenge", value: codeChallenge),
+            URLQueryItem(name: "code_challenge_method", value: "S256")
         ]
         return components.url!
     }

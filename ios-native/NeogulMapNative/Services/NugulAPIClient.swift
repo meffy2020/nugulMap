@@ -1,4 +1,5 @@
 import AuthenticationServices
+import CryptoKit
 import Foundation
 import Security
 #if os(iOS)
@@ -57,23 +58,62 @@ enum OAuthProvider: String, CaseIterable, Identifiable {
 
 struct OAuthLoginResult {
     let accessToken: String
+    let refreshToken: String?
+    let profileComplete: Bool
+    let email: String?
+}
+
+private struct OAuthCallbackCode {
+    let code: String
     let profileComplete: Bool
     let email: String?
 
     init(callbackURL: URL) throws {
+        guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false) else {
+            throw NugulAPIError.invalidURL
+        }
+
+        if let error = components.queryItems?.first(where: { $0.name == "error" })?.value, !error.isEmpty {
+            throw NugulAPIError.server(statusCode: 400, message: error)
+        }
+
         guard
-            let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
-            let accessToken = components.queryItems?.first(where: { $0.name == "accessToken" })?.value,
-            !accessToken.isEmpty
+            let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
+            !code.isEmpty
         else {
             throw NugulAPIError.missingToken
         }
 
-        self.accessToken = accessToken
+        self.code = code
         self.profileComplete = components.queryItems?.first(where: { $0.name == "profileComplete" })?.value == "true"
         self.email = components.queryItems?.first(where: { $0.name == "email" })?.value
     }
 }
+
+struct PKCEPair {
+    let verifier: String
+    let challenge: String
+
+    static func make() -> PKCEPair {
+        let verifier = randomURLSafeString(byteCount: 32)
+        let digest = SHA256.hash(data: Data(verifier.utf8))
+        let challenge = Data(digest).base64URLEncodedString()
+        return PKCEPair(verifier: verifier, challenge: challenge)
+    }
+
+    private static func randomURLSafeString(byteCount: Int) -> String {
+        var bytes = [UInt8](repeating: 0, count: byteCount)
+        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+
+        if status == errSecSuccess {
+            return Data(bytes).base64URLEncodedString()
+        }
+
+        return UUID().uuidString.replacingOccurrences(of: "-", with: "")
+            + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+    }
+}
+
 
 struct NugulAPIClient {
     private let baseURL: URL
@@ -84,6 +124,37 @@ struct NugulAPIClient {
         self.baseURL = baseURL
         self.session = session
         self.decoder = JSONDecoder()
+    }
+
+    func exchangeMobileOAuthCode(code: String, codeVerifier: String) async throws -> OAuthLoginResult {
+        var request = URLRequest(url: try makeURL(path: "/api/auth/mobile/exchange", queryItems: []))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 10
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(MobileOAuthExchangeRequest(code: code, codeVerifier: codeVerifier))
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NugulAPIError.invalidResponse
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            let serverMessage = try? decoder.decode(ServerErrorPayload.self, from: data)
+            throw NugulAPIError.server(statusCode: httpResponse.statusCode, message: serverMessage?.message)
+        }
+
+        let result = try decoder.decode(APIEnvelope<MobileOAuthExchangePayload>.self, from: data)
+        guard let payload = result.data, !payload.accessToken.isEmpty else {
+            throw NugulAPIError.missingToken
+        }
+
+        return OAuthLoginResult(
+            accessToken: payload.accessToken,
+            refreshToken: payload.refreshToken,
+            profileComplete: payload.profileComplete,
+            email: payload.user?.email
+        )
     }
 
     func fetchZonesByBounds(_ bounds: MapBounds = .centralSeoul) async throws -> [SmokingZone] {
@@ -122,6 +193,37 @@ struct NugulAPIClient {
         )
 
         return response.data?.reviews ?? []
+    }
+
+    func createReview(
+        zoneID: Int,
+        content: String,
+        accessToken: String? = AuthTokenStore.loadAccessToken()
+    ) async throws -> ZoneReview {
+        var request = URLRequest(url: try makeURL(path: "/api/zones/\(zoneID)/reviews", queryItems: []))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 10
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        applyAuthHeader(accessToken, to: &request)
+        request.httpBody = try JSONEncoder().encode(CreateReviewPayload(content: content))
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NugulAPIError.invalidResponse
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            let serverMessage = try? decoder.decode(ServerErrorPayload.self, from: data)
+            throw NugulAPIError.server(statusCode: httpResponse.statusCode, message: serverMessage?.message)
+        }
+
+        let result = try decoder.decode(APIEnvelope<ReviewPayload>.self, from: data)
+        guard let review = result.data?.review else {
+            throw NugulAPIError.decodingFailed
+        }
+
+        return review
     }
 
     func getCurrentUser(accessToken: String? = AuthTokenStore.loadAccessToken()) async -> UserProfile? {
@@ -348,17 +450,30 @@ struct NugulAPIClient {
 final class OAuthWebSession: NSObject, ASWebAuthenticationPresentationContextProviding {
     private var session: ASWebAuthenticationSession?
 
-    func signIn(with provider: OAuthProvider) async throws -> OAuthLoginResult {
+    func signIn(with provider: OAuthProvider, apiClient: NugulAPIClient) async throws -> OAuthLoginResult {
+        let pkce = PKCEPair.make()
+        let callback = try await receiveAuthorizationCode(provider: provider, pkce: pkce)
+        let result = try await apiClient.exchangeMobileOAuthCode(code: callback.code, codeVerifier: pkce.verifier)
+
+        return OAuthLoginResult(
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+            profileComplete: result.profileComplete,
+            email: result.email ?? callback.email
+        )
+    }
+
+    private func receiveAuthorizationCode(provider: OAuthProvider, pkce: PKCEPair) async throws -> OAuthCallbackCode {
         try await withCheckedThrowingContinuation { continuation in
             let session = ASWebAuthenticationSession(
-                url: AppConfig.oauthAuthorizationURL(provider: provider),
+                url: AppConfig.oauthAuthorizationURL(provider: provider, codeChallenge: pkce.challenge),
                 callbackURLScheme: AppConfig.oauthCallbackScheme
             ) { callbackURL, error in
                 self.session = nil
 
                 if let callbackURL {
                     do {
-                        continuation.resume(returning: try OAuthLoginResult(callbackURL: callbackURL))
+                        continuation.resume(returning: try OAuthCallbackCode(callbackURL: callbackURL))
                     } catch {
                         continuation.resume(throwing: error)
                     }
@@ -399,26 +514,56 @@ final class OAuthWebSession: NSObject, ASWebAuthenticationPresentationContextPro
 enum AuthTokenStore {
     private static let service = "com.nugulmap.native.auth"
     private static let accessTokenAccount = "accessToken"
+    private static let refreshTokenAccount = "refreshToken"
 
     static func saveAccessToken(_ token: String) {
-        deleteAccessToken()
+        saveTokens(accessToken: token, refreshToken: nil)
+    }
+
+    static func saveTokens(accessToken: String, refreshToken: String?) {
+        saveToken(accessToken, account: accessTokenAccount)
+
+        if let refreshToken, !refreshToken.isEmpty {
+            saveToken(refreshToken, account: refreshTokenAccount)
+        }
+    }
+
+    static func loadAccessToken() -> String? {
+        loadToken(account: accessTokenAccount)
+    }
+
+    static func loadRefreshToken() -> String? {
+        loadToken(account: refreshTokenAccount)
+    }
+
+    static func deleteAccessToken() {
+        deleteToken(account: accessTokenAccount)
+    }
+
+    static func deleteTokens() {
+        deleteToken(account: accessTokenAccount)
+        deleteToken(account: refreshTokenAccount)
+    }
+
+    private static func saveToken(_ token: String, account: String) {
+        deleteToken(account: account)
 
         let data = Data(token.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: accessTokenAccount,
+            kSecAttrAccount as String: account,
             kSecValueData as String: data
         ]
 
         SecItemAdd(query as CFDictionary, nil)
     }
 
-    static func loadAccessToken() -> String? {
+    private static func loadToken(account: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: accessTokenAccount,
+            kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
@@ -435,16 +580,26 @@ enum AuthTokenStore {
         return String(data: data, encoding: .utf8)
     }
 
-    static func deleteAccessToken() {
+    private static func deleteToken(account: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: accessTokenAccount
+            kSecAttrAccount as String: account
         ]
 
         SecItemDelete(query as CFDictionary)
     }
 }
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+}
+
 
 private struct APIEnvelope<DataPayload: Decodable>: Decodable {
     let success: Bool?
@@ -464,8 +619,32 @@ private struct ReviewCollectionPayload: Decodable {
     let reviews: [ZoneReview]?
 }
 
+private struct ReviewPayload: Decodable {
+    let review: ZoneReview?
+}
+
+private struct CreateReviewPayload: Encodable {
+    let content: String
+}
+
 private struct UserPayload: Decodable {
     let user: UserProfile?
+}
+
+private struct MobileOAuthExchangeRequest: Encodable {
+    let code: String
+    let codeVerifier: String
+}
+
+private struct MobileOAuthExchangePayload: Decodable {
+    let accessToken: String
+    let refreshToken: String?
+    let profileComplete: Bool
+    let user: MobileOAuthUserSummary?
+}
+
+private struct MobileOAuthUserSummary: Decodable {
+    let email: String?
 }
 
 private struct ServerErrorPayload: Decodable {

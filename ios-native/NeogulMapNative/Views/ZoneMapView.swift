@@ -16,6 +16,7 @@ struct ZoneMapView: View {
     @State private var cameraCenter = CLLocationCoordinate2D(latitude: 37.5665, longitude: 126.9780)
     @State private var activeSheet: HomeSheet?
     @State private var didBootstrap = false
+    @State private var suppressNextSettledFetch = false
 
     var body: some View {
         ZStack {
@@ -83,6 +84,16 @@ struct ZoneMapView: View {
             onRegionChanged: { region in
                 cameraCenter = region.center
             },
+            onRegionSettled: { region in
+                if suppressNextSettledFetch {
+                    suppressNextSettledFetch = false
+                    return
+                }
+
+                Task {
+                    await model.loadZones(in: .visibleRegion(region))
+                }
+            },
             onSelectZone: { zone in
                 activeSheet = .zone(zone)
             }
@@ -103,15 +114,15 @@ struct ZoneMapView: View {
                     onClear: {
                         Task {
                             await model.resetSearch()
-                            centerOnFirstZoneIfPossible()
+                            centerOnFirstZoneIfPossible(reloadZones: false)
                         }
                     },
                     onSearch: {
                         Task {
                             if let coordinate = await model.search() {
-                                centerMap(on: coordinate)
+                                centerMap(on: coordinate, reloadZones: false)
                             } else {
-                                centerOnFirstZoneIfPossible()
+                                centerOnFirstZoneIfPossible(reloadZones: false)
                             }
                         }
                     }
@@ -223,14 +234,10 @@ struct ZoneMapView: View {
         }
 
         didBootstrap = true
-        await model.bootstrap()
-
-        if model.zones.isEmpty {
-            await model.loadZones(in: .visibleRegion(mapRegion))
-        }
+        await model.bootstrap(initialBounds: .visibleRegion(mapRegion))
     }
 
-    private func centerMap(on coordinate: CLLocationCoordinate2D) {
+    private func centerMap(on coordinate: CLLocationCoordinate2D, reloadZones: Bool = true) {
         cameraCenter = coordinate
         let focusedRegion = MKCoordinateRegion(
             center: coordinate,
@@ -241,17 +248,21 @@ struct ZoneMapView: View {
             mapRegion = focusedRegion
         }
 
-        Task {
-            await model.loadZones(in: .visibleRegion(focusedRegion))
+        if reloadZones {
+            Task {
+                await model.loadZones(in: .visibleRegion(focusedRegion))
+            }
+        } else {
+            suppressNextSettledFetch = true
         }
     }
 
-    private func centerOnFirstZoneIfPossible() {
+    private func centerOnFirstZoneIfPossible(reloadZones: Bool = true) {
         guard let firstZone = model.zones.first else {
             return
         }
 
-        centerMap(on: firstZone.coordinate)
+        centerMap(on: firstZone.coordinate, reloadZones: reloadZones)
     }
 
     private func handleDeepLink(_ url: URL) {
@@ -282,9 +293,9 @@ struct ZoneMapView: View {
             model.query = keyword
             Task {
                 if let coordinate = await model.search() {
-                    centerMap(on: coordinate)
+                    centerMap(on: coordinate, reloadZones: false)
                 } else {
-                    centerOnFirstZoneIfPossible()
+                    centerOnFirstZoneIfPossible(reloadZones: false)
                 }
             }
         }
@@ -411,6 +422,7 @@ private struct NugulMapKitView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     let zones: [SmokingZone]
     let onRegionChanged: (MKCoordinateRegion) -> Void
+    let onRegionSettled: (MKCoordinateRegion) -> Void
     let onSelectZone: (SmokingZone) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -427,7 +439,6 @@ private struct NugulMapKitView: UIViewRepresentable {
         mapView.register(MKMarkerAnnotationView.self, forAnnotationViewWithReuseIdentifier: Coordinator.clusterReuseIdentifier)
         context.coordinator.isApplyingRegionFromSwiftUI = true
         mapView.setRegion(region, animated: false)
-        context.coordinator.loadZones(in: .centralSeoul, on: mapView)
         return mapView
     }
 
@@ -438,7 +449,6 @@ private struct NugulMapKitView: UIViewRepresentable {
         if context.coordinator.shouldApply(region, to: mapView.region) {
             context.coordinator.isApplyingRegionFromSwiftUI = true
             mapView.setRegion(region, animated: context.transaction.animation != nil)
-            context.coordinator.loadZones(in: .visibleRegion(region), on: mapView)
         }
     }
 
@@ -449,39 +459,9 @@ private struct NugulMapKitView: UIViewRepresentable {
         var parent: NugulMapKitView
         var renderedZoneIDs: Set<Int> = []
         var isApplyingRegionFromSwiftUI = false
-        private let apiClient = NugulAPIClient()
-        private var zoneLoadRequestID = 0
 
         init(parent: NugulMapKitView) {
             self.parent = parent
-        }
-
-        func loadZones(in bounds: MapBounds, on mapView: MKMapView) {
-            zoneLoadRequestID += 1
-            let requestID = zoneLoadRequestID
-
-            Task { [weak self, weak mapView] in
-                guard let self else {
-                    return
-                }
-
-                do {
-                    let fetchedZones = try await apiClient.fetchZonesByBounds(bounds)
-                    await MainActor.run { [weak self, weak mapView] in
-                        guard
-                            let self,
-                            let mapView,
-                            requestID == self.zoneLoadRequestID
-                        else {
-                            return
-                        }
-
-                        self.syncAnnotations(fetchedZones, on: mapView)
-                    }
-                } catch {
-                    return
-                }
-            }
         }
 
         func syncAnnotations(_ zones: [SmokingZone], on mapView: MKMapView) {
@@ -511,7 +491,7 @@ private struct NugulMapKitView: UIViewRepresentable {
 
             parent.region = mapView.region
             parent.onRegionChanged(mapView.region)
-            loadZones(in: .visibleRegion(mapView.region), on: mapView)
+            parent.onRegionSettled(mapView.region)
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
