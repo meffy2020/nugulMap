@@ -1,11 +1,15 @@
 package com.nugulmap.nativeapp.ui.map
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -48,14 +53,13 @@ fun KakaoZoneMap(
     isLoading: Boolean,
     errorMessage: String?,
     onZoneSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.fillMaxSize(),
 ) {
     if (BuildConfig.KAKAO_NATIVE_APP_KEY.isBlank()) {
         MapFallback(
             zoneCount = zones.size,
             isLoading = isLoading,
-            errorMessage = "KAKAO_NATIVE_APP_KEY가 없어 지도 SDK 대신 기본 화면을 표시합니다." +
-                errorMessage?.let { "\n$it" }.orEmpty(),
+            statusMessage = errorMessage,
             modifier = modifier,
         )
         return
@@ -71,15 +75,11 @@ fun KakaoZoneMap(
 
     LaunchedEffect(BuildConfig.KAKAO_NATIVE_APP_KEY) {
         runCatching { KakaoMapSdk.init(context.applicationContext, BuildConfig.KAKAO_NATIVE_APP_KEY.trim()) }
-            .onFailure { throwable -> mapError = throwable.localizedMessage ?: "지도 SDK 초기화 실패" }
+            .onFailure { throwable -> mapError = throwable.localizedMessage ?: "지도를 불러오지 못했어요" }
     }
 
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .height(260.dp)
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(28.dp))
             .background(Color(0xFFE7F0E8)),
     ) {
         AndroidView(
@@ -92,7 +92,7 @@ fun KakaoZoneMap(
                             override fun onMapDestroy() = Unit
 
                             override fun onMapError(exception: Exception) {
-                                mapError = exception.localizedMessage ?: "지도 SDK 초기화 실패"
+                                mapError = exception.localizedMessage ?: "지도를 불러오지 못했어요"
                             }
                         },
                         object : KakaoMapReadyCallback() {
@@ -119,10 +119,10 @@ fun KakaoZoneMap(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(12.dp)
-                    .background(Color.White.copy(alpha = 0.88f), RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.90f), RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.bodySmall,
-                color = if (mapError != null || errorMessage != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -152,32 +152,73 @@ fun KakaoZoneMap(
 private fun MapFallback(
     zoneCount: Int,
     isLoading: Boolean,
-    errorMessage: String?,
-    modifier: Modifier = Modifier,
+    statusMessage: String?,
+    modifier: Modifier = Modifier.fillMaxSize(),
 ) {
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .height(260.dp)
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .background(Color(0xFFE7F0E8)),
+            .background(Color(0xFFEAF2EC)),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("MAP", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
-            Spacer(modifier = Modifier.height(8.dp))
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val gridColor = Color.White.copy(alpha = 0.42f)
+            val roadColor = Color(0xFFD8E1D9).copy(alpha = 0.7f)
+            repeat(7) { index ->
+                val y = size.height * (index + 1) / 8f
+                drawLine(gridColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 2f)
+            }
+            repeat(5) { index ->
+                val x = size.width * (index + 1) / 6f
+                drawLine(gridColor, Offset(x, 0f), Offset(x, size.height), strokeWidth = 2f)
+            }
+            drawLine(roadColor, Offset(size.width * 0.12f, size.height * 0.74f), Offset(size.width * 0.88f, size.height * 0.28f), strokeWidth = 18f)
+            drawLine(roadColor, Offset(size.width * 0.06f, size.height * 0.42f), Offset(size.width * 0.96f, size.height * 0.56f), strokeWidth = 14f)
+            val markerColor = Color(0xFF8A4B20)
+            val markerStroke = Color.White.copy(alpha = 0.9f)
+            val previewCount = zoneCount.coerceIn(1, 36)
+            repeat(previewCount) { index ->
+                val column = index % 6
+                val row = index / 6
+                val x = size.width * (0.18f + column * 0.13f + ((row % 2) * 0.035f))
+                val y = size.height * (0.30f + row * 0.075f)
+                drawCircle(markerStroke, radius = 13f, center = Offset(x, y))
+                drawCircle(markerColor, radius = 9f, center = Offset(x, y))
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 88.dp, start = 22.dp, end = 22.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color.White.copy(alpha = 0.90f))
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("지도 미리보기", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = if (isLoading) "구역 불러오는 중" else "운영 API에서 ${zoneCount}개 구역 로드",
-                style = MaterialTheme.typography.bodyMedium,
+                text = if (isLoading) "주변 흡연구역을 불러오는 중" else "서울 중심 ${zoneCount}개 구역을 표시 중",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (!errorMessage.isNullOrBlank()) {
+            if (!statusMessage.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color(0xFF8A4B20)),
+                    )
+                    Spacer(modifier = Modifier.size(7.dp))
+                    Text(statusMessage, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
     }
 }
+
 
 private fun firstZonePosition(zones: List<ZoneDto>): LatLng {
     val first = zones.firstOrNull()

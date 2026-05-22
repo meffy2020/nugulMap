@@ -39,24 +39,24 @@ struct ZoneMapView: View {
             switch sheet {
             case let .zone(zone):
                 ZoneDetailView(zone: zone, model: model)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
+                    .presentationDetents([.height(360), .medium, .large])
+                    .compactGlassSheet()
             case .report:
                 ReportZoneSheet(model: model, coordinate: cameraCenter)
                     .presentationDetents([.height(270), .medium])
-                    .presentationDragIndicator(.visible)
+                    .compactGlassSheet()
             case .login:
                 LoginSheet(model: model)
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
+                    .presentationDetents([.medium, .large])
+                    .compactGlassSheet()
             case .profile:
                 ProfileSheet(model: model)
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
+                    .presentationDetents([.medium, .large])
+                    .compactGlassSheet()
             case .profileSetup:
                 ProfileSetupSheet(model: model)
                     .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
+                    .compactGlassSheet()
             }
         }
         .onChange(of: model.pendingSignupEmail) { _, email in
@@ -103,61 +103,47 @@ struct ZoneMapView: View {
     }
 
     private var topHeader: some View {
-        VStack(spacing: 0) {
-            Color.white.opacity(0.82)
-                .frame(height: 0)
-                .background(.ultraThinMaterial)
-
-            HStack(spacing: 12) {
-                WebStyleSearchBar(
-                    query: $model.query,
-                    isLoading: model.isLoading,
-                    onClear: {
-                        Task {
-                            await model.resetSearch()
+        HStack(spacing: 12) {
+            WebStyleSearchBar(
+                query: $model.query,
+                isLoading: model.isLoading,
+                onClear: {
+                    Task {
+                        await model.resetSearch()
+                        centerOnFirstZoneIfPossible(reloadZones: false)
+                    }
+                },
+                onSearch: {
+                    Task {
+                        if let coordinate = await model.search() {
+                            centerMap(on: coordinate, reloadZones: false)
+                        } else {
                             centerOnFirstZoneIfPossible(reloadZones: false)
                         }
-                    },
-                    onSearch: {
-                        Task {
-                            if let coordinate = await model.search() {
-                                centerMap(on: coordinate, reloadZones: false)
-                            } else {
-                                centerOnFirstZoneIfPossible(reloadZones: false)
-                            }
-                        }
                     }
-                )
-
-                Button {
-                    activeSheet = model.currentUser == nil ? .login : .profile
-                } label: {
-                    ProfileAvatar(user: model.currentUser)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(model.currentUser == nil ? "로그인" : "프로필")
+            )
+
+            Button {
+                activeSheet = model.currentUser == nil ? .login : .profile
+            } label: {
+                ProfileAvatar(user: model.currentUser)
             }
-            .frame(height: 64)
-            .padding(.horizontal, 16)
-            .background(.ultraThinMaterial)
-            .overlay(alignment: .bottom) {
-                Rectangle()
-                    .fill(Color.nugulBorder)
-                    .frame(height: 1)
-            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(model.currentUser == nil ? "로그인" : "프로필")
         }
-        .padding(.top, safeAreaTop)
-        .background(.ultraThinMaterial)
+        .padding(.horizontal, 16)
+        .padding(.top, safeAreaTop + 12)
     }
 
     private var bottomControls: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             if let message = model.errorMessage ?? locationProvider.errorMessage {
                 WebToastBanner(message: message)
                     .padding(.horizontal, 16)
             }
 
-            HStack(alignment: .bottom) {
+            HStack(alignment: .bottom, spacing: 14) {
                 Button {
                     locationProvider.requestLocation { coordinate in
                         centerMap(on: coordinate)
@@ -165,16 +151,17 @@ struct ZoneMapView: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .fill(Color.black.opacity(0.24))
-                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                            .shadow(color: .black.opacity(0.18), radius: 14, x: 0, y: 8)
+                            .fill(.ultraThinMaterial)
+                            .overlay(Circle().fill(Color.black.opacity(0.18)))
+                            .overlay(Circle().stroke(Color.white.opacity(0.72), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 8)
 
                         if locationProvider.isLoading {
                             ProgressView()
                                 .tint(.white)
                         } else {
                             Image(systemName: "location.fill")
-                                .font(.system(size: 21, weight: .bold))
+                                .font(.system(size: 20, weight: .bold))
                                 .foregroundStyle(.white)
                         }
                     }
@@ -190,22 +177,30 @@ struct ZoneMapView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "plus")
-                            .font(.system(size: 20, weight: .black))
+                            .font(.system(size: 19, weight: .black))
                         Text("제보하기")
-                            .font(.system(size: 16, weight: .black))
+                            .font(.system(size: 15, weight: .black))
                     }
                     .foregroundStyle(.white)
-                    .frame(height: 56)
+                    .frame(height: 52)
                     .padding(.horizontal, 18)
-                    .background(Color.nugulPrimary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 10)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.nugulPrimary, Color.nugulPrimary.opacity(0.86)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        in: Capsule(style: .continuous)
+                    )
+                    .overlay(Capsule(style: .continuous).stroke(Color.white.opacity(0.24), lineWidth: 1))
+                    .shadow(color: Color.nugulPrimary.opacity(0.34), radius: 18, x: 0, y: 10)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("흡연구역 제보하기")
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 20)
         }
-        .padding(.bottom, safeAreaBottom + 34)
+        .padding(.bottom, safeAreaBottom + 24)
     }
 
     private var safeAreaTop: CGFloat {
@@ -381,12 +376,13 @@ private struct WebStyleSearchBar: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 56)
-        .background(Color.white.opacity(0.95), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+        .background(Color.white.opacity(0.72), in: Capsule(style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.nugulBorder, lineWidth: 1)
+            Capsule(style: .continuous)
+                .stroke(Color.white.opacity(0.82), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.12), radius: 14, x: 0, y: 8)
+        .shadow(color: .black.opacity(0.16), radius: 18, x: 0, y: 10)
     }
 }
 
@@ -396,14 +392,15 @@ private struct ProfileAvatar: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color.white.opacity(0.86))
-                .frame(width: 48, height: 48)
-                .overlay(Circle().stroke(Color.nugulBorder.opacity(0.7), lineWidth: 1))
-                .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 7)
+                .fill(.ultraThinMaterial)
+                .frame(width: 52, height: 52)
+                .background(Color.white.opacity(0.66), in: Circle())
+                .overlay(Circle().stroke(Color.white.opacity(0.82), lineWidth: 1))
+                .shadow(color: .black.opacity(0.14), radius: 16, x: 0, y: 8)
 
             Circle()
-                .fill(Color.nugulPrimary.opacity(0.1))
-                .frame(width: 40, height: 40)
+                .fill(Color.nugulPrimary.opacity(0.12))
+                .frame(width: 42, height: 42)
 
             if let first = user?.displayName.first {
                 Text(String(first))
@@ -594,6 +591,25 @@ private extension UIImage {
     }
 }
 #endif
+
+private extension View {
+    @ViewBuilder
+    func compactGlassSheet() -> some View {
+        #if os(iOS)
+        if #available(iOS 16.4, *) {
+            self
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.thinMaterial)
+                .presentationCornerRadius(28)
+        } else {
+            self
+                .presentationDragIndicator(.visible)
+        }
+        #else
+        self
+        #endif
+    }
+}
 
 private struct WebToastBanner: View {
     let message: String

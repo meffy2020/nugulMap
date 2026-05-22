@@ -1,30 +1,11 @@
-# Ultragoal Brief: NugulMap Android/iOS public launch readiness via Team
+NugulMap iOS-Parity Glass Mobile Release Buildout. Source of truth is .omx/plans/prd-mobile-ios-parity-glass-release-buildout.md and .omx/specs/mobile-ios-parity-glass-release-buildout.md.
 
-Use `.omx/plans/prd-nugulmap-mobile-public-launch.md` and `.omx/plans/test-spec-nugulmap-mobile-public-launch.md` as the source of truth.
+Create exactly four durable goals and do not split bullets into separate goals.
 
-Create exactly these durable goals:
+Goal 1 title: iOS glass parity lane. Objective: polish ZoneMapView for fullscreen map-first layout, rounded/glass search/profile chrome, compact glass selected-zone/report/profile modal treatment, preserve marker synchronization from commit 27a488a, and produce iOS build/run plus screenshot evidence.
 
-1. Android launch readiness lane
-   - Run/repair Android native static and build checks where possible.
-   - Track signed AAB, Play Console, Kakao key/hash, 16KB page-size, and device smoke blockers.
-   - Do not store credentials in repo.
+Goal 2 title: Android iOS-parity fullscreen map lane. Objective: finalize MapScreen and KakaoZoneMap as a fullscreen map-first UI with polished no-key fallback, key-present compatibility, no red missing-key failure panel, no MVP/MAP/test wording, correct top chrome divider, compact bottom card, and polished modal sheets.
 
-2. iOS launch readiness lane
-   - Run/repair iOS native static and simulator/build checks where possible.
-   - Track DEVELOPMENT_TEAM/signing, archive/TestFlight, Apple social login Guideline 4.8, account deletion, and device smoke blockers.
-   - Do not store credentials in repo.
+Goal 3 title: Cross-platform verification lane. Objective: run Android assembleDebug, install and launch the emulator APK, capture Android screenshot and API load evidence, run iOS simulator build/run where available, capture iOS screenshot and marker evidence, and record generated artifact paths without committing tmp screenshots/logs.
 
-3. Store-Privacy readiness lane
-   - Produce/maintain Play Data Safety and Apple App Privacy data inventory/checklist.
-   - Keep privacy policy URL, store metadata, account deletion, and review-risk blockers explicit.
-
-4. Verification and go-no-go lane
-   - Run baseline verification commands that are possible locally.
-   - Maintain evidence, blocker matrix, and final go/no-go report.
-   - Checkpoint Ultragoal from Team evidence.
-
-Constraints:
-- No new feature expansion except store-required compliance blockers.
-- No actual production store submission.
-- No secrets/credentials in repo.
-- Team lanes: Android, iOS, Store-Privacy, Verification.
+Goal 4 title: Final cleanup commit push lane. Objective: keep backend/API contracts unchanged, avoid feature expansion/store submission/new secrets/new dependencies, remove generated artifacts from git status, run final quality checks, commit with Lore protocol, push main to origin/main, and verify local branch is clean against origin.

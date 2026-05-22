@@ -1,173 +1,65 @@
 {
   "version": 1,
-  "createdAt": "2026-05-22T11:11:33.100Z",
-  "updatedAt": "2026-05-22T11:11:33.100Z",
+  "createdAt": "2026-05-22T13:41:47.261Z",
+  "updatedAt": "2026-05-22T13:41:47.261Z",
   "briefPath": ".omx/ultragoal/brief.md",
   "goalsPath": ".omx/ultragoal/goals.json",
   "ledgerPath": ".omx/ultragoal/ledger.jsonl",
   "codexGoalMode": "aggregate",
   "goals": [
     {
-      "id": "G001-android-launch-readiness-lane",
-      "title": "Android launch readiness lane",
-      "objective": "Android launch readiness lane",
+      "id": "G001-nugulmap-ios-parity-glass-mobile-rel",
+      "title": "NugulMap iOS-Parity Glass Mobile Release Buildout. Source of truth is...",
+      "objective": "NugulMap iOS-Parity Glass Mobile Release Buildout. Source of truth is .omx/plans/prd-mobile-ios-parity-glass-release-buildout.md and .omx/specs/mobile-ios-parity-glass-release-buildout.md.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
+      "createdAt": "2026-05-22T13:41:47.261Z",
+      "updatedAt": "2026-05-22T13:41:47.261Z"
     },
     {
-      "id": "G002-run-repair-android-native-static-and",
-      "title": "Run/repair Android native static and build checks where possible.",
-      "objective": "Run/repair Android native static and build checks where possible.",
+      "id": "G002-create-exactly-four-durable-goals-an",
+      "title": "Create exactly four durable goals and do not split bullets into separ...",
+      "objective": "Create exactly four durable goals and do not split bullets into separate goals.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
+      "createdAt": "2026-05-22T13:41:47.261Z",
+      "updatedAt": "2026-05-22T13:41:47.261Z"
     },
     {
-      "id": "G003-track-signed-aab-play-console-kakao",
-      "title": "Track signed AAB, Play Console, Kakao key/hash, 16KB page-size, and d...",
-      "objective": "Track signed AAB, Play Console, Kakao key/hash, 16KB page-size, and device smoke blockers.",
+      "id": "G003-goal-1-title-ios-glass-parity-lane-o",
+      "title": "Goal 1 title: iOS glass parity lane. Objective: polish ZoneMapView fo...",
+      "objective": "Goal 1 title: iOS glass parity lane. Objective: polish ZoneMapView for fullscreen map-first layout, rounded/glass search/profile chrome, compact glass selected-zone/report/profile modal treatment, preserve marker synchronization from commit 27a488a, and produce iOS build/run plus screenshot evidence.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
+      "createdAt": "2026-05-22T13:41:47.261Z",
+      "updatedAt": "2026-05-22T13:41:47.261Z"
     },
     {
-      "id": "G004-do-not-store-credentials-in-repo",
-      "title": "Do not store credentials in repo.",
-      "objective": "Do not store credentials in repo.",
+      "id": "G004-goal-2-title-android-ios-parity-full",
+      "title": "Goal 2 title: Android iOS-parity fullscreen map lane. Objective: fina...",
+      "objective": "Goal 2 title: Android iOS-parity fullscreen map lane. Objective: finalize MapScreen and KakaoZoneMap as a fullscreen map-first UI with polished no-key fallback, key-present compatibility, no red missing-key failure panel, no MVP/MAP/test wording, correct top chrome divider, compact bottom card, and polished modal sheets.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
+      "createdAt": "2026-05-22T13:41:47.261Z",
+      "updatedAt": "2026-05-22T13:41:47.261Z"
     },
     {
-      "id": "G005-ios-launch-readiness-lane",
-      "title": "iOS launch readiness lane",
-      "objective": "iOS launch readiness lane",
+      "id": "G005-goal-3-title-cross-platform-verifica",
+      "title": "Goal 3 title: Cross-platform verification lane. Objective: run Androi...",
+      "objective": "Goal 3 title: Cross-platform verification lane. Objective: run Android assembleDebug, install and launch the emulator APK, capture Android screenshot and API load evidence, run iOS simulator build/run where available, capture iOS screenshot and marker evidence, and record generated artifact paths without committing tmp screenshots/logs.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
+      "createdAt": "2026-05-22T13:41:47.261Z",
+      "updatedAt": "2026-05-22T13:41:47.261Z"
     },
     {
-      "id": "G006-run-repair-ios-native-static-and-sim",
-      "title": "Run/repair iOS native static and simulator/build checks where possible.",
-      "objective": "Run/repair iOS native static and simulator/build checks where possible.",
+      "id": "G006-goal-4-title-final-cleanup-commit-pu",
+      "title": "Goal 4 title: Final cleanup commit push lane. Objective: keep backend...",
+      "objective": "Goal 4 title: Final cleanup commit push lane. Objective: keep backend/API contracts unchanged, avoid feature expansion/store submission/new secrets/new dependencies, remove generated artifacts from git status, run final quality checks, commit with Lore protocol, push main to origin/main, and verify local branch is clean against origin.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G007-track-development-team-signing-archi",
-      "title": "Track DEVELOPMENT_TEAM/signing, archive/TestFlight, Apple social logi...",
-      "objective": "Track DEVELOPMENT_TEAM/signing, archive/TestFlight, Apple social login Guideline 4.8, account deletion, and device smoke blockers.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G008-store-privacy-readiness-lane",
-      "title": "Store-Privacy readiness lane",
-      "objective": "Store-Privacy readiness lane",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G009-produce-maintain-play-data-safety-an",
-      "title": "Produce/maintain Play Data Safety and Apple App Privacy data inventor...",
-      "objective": "Produce/maintain Play Data Safety and Apple App Privacy data inventory/checklist.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G010-keep-privacy-policy-url-store-metada",
-      "title": "Keep privacy policy URL, store metadata, account deletion, and review...",
-      "objective": "Keep privacy policy URL, store metadata, account deletion, and review-risk blockers explicit.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G011-verification-and-go-no-go-lane",
-      "title": "Verification and go-no-go lane",
-      "objective": "Verification and go-no-go lane",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G012-run-baseline-verification-commands-t",
-      "title": "Run baseline verification commands that are possible locally.",
-      "objective": "Run baseline verification commands that are possible locally.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G013-maintain-evidence-blocker-matrix-and",
-      "title": "Maintain evidence, blocker matrix, and final go/no-go report.",
-      "objective": "Maintain evidence, blocker matrix, and final go/no-go report.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G014-checkpoint-ultragoal-from-team-evide",
-      "title": "Checkpoint Ultragoal from Team evidence.",
-      "objective": "Checkpoint Ultragoal from Team evidence.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G015-no-new-feature-expansion-except-stor",
-      "title": "No new feature expansion except store-required compliance blockers.",
-      "objective": "No new feature expansion except store-required compliance blockers.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G016-no-actual-production-store-submissio",
-      "title": "No actual production store submission.",
-      "objective": "No actual production store submission.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G017-no-secrets-credentials-in-repo",
-      "title": "No secrets/credentials in repo.",
-      "objective": "No secrets/credentials in repo.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
-    },
-    {
-      "id": "G018-team-lanes-android-ios-store-privacy",
-      "title": "Team lanes: Android, iOS, Store-Privacy, Verification.",
-      "objective": "Team lanes: Android, iOS, Store-Privacy, Verification.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T11:11:33.100Z",
-      "updatedAt": "2026-05-22T11:11:33.100Z"
+      "createdAt": "2026-05-22T13:41:47.261Z",
+      "updatedAt": "2026-05-22T13:41:47.261Z"
     }
   ],
   "codexObjective": "Complete the durable ultragoal plan in .omx/ultragoal/goals.json, including later accepted/appended stories, under the original brief constraints; use .omx/ultragoal/ledger.jsonl as the audit trail."
