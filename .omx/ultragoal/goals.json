@@ -1,65 +1,110 @@
 {
   "version": 1,
-  "createdAt": "2026-05-22T13:41:47.261Z",
-  "updatedAt": "2026-05-22T13:41:47.261Z",
+  "createdAt": "2026-05-22T15:15:06.609Z",
+  "updatedAt": "2026-05-22T15:15:06.609Z",
   "briefPath": ".omx/ultragoal/brief.md",
   "goalsPath": ".omx/ultragoal/goals.json",
   "ledgerPath": ".omx/ultragoal/ledger.jsonl",
   "codexGoalMode": "aggregate",
   "goals": [
     {
-      "id": "G001-nugulmap-ios-parity-glass-mobile-rel",
-      "title": "NugulMap iOS-Parity Glass Mobile Release Buildout. Source of truth is...",
-      "objective": "NugulMap iOS-Parity Glass Mobile Release Buildout. Source of truth is .omx/plans/prd-mobile-ios-parity-glass-release-buildout.md and .omx/specs/mobile-ios-parity-glass-release-buildout.md.",
+      "id": "G001-remove-launch-screen-visible-copy-an",
+      "title": "Remove launch-screen visible copy \"지도 미리보기\" and \"N개 구역 표시 중\" from And...",
+      "objective": "Remove launch-screen visible copy \"지도 미리보기\" and \"N개 구역 표시 중\" from Android no-key fallback.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T13:41:47.261Z",
-      "updatedAt": "2026-05-22T13:41:47.261Z"
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
     },
     {
-      "id": "G002-create-exactly-four-durable-goals-an",
-      "title": "Create exactly four durable goals and do not split bullets into separ...",
-      "objective": "Create exactly four durable goals and do not split bullets into separate goals.",
+      "id": "G002-prevent-raw-api-dns-exception-messag",
+      "title": "Prevent raw API/DNS/exception messages from appearing on the launch m...",
+      "objective": "Prevent raw API/DNS/exception messages from appearing on the launch map surface or bottom toast.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T13:41:47.261Z",
-      "updatedAt": "2026-05-22T13:41:47.261Z"
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
     },
     {
-      "id": "G003-goal-1-title-ios-glass-parity-lane-o",
-      "title": "Goal 1 title: iOS glass parity lane. Objective: polish ZoneMapView fo...",
-      "objective": "Goal 1 title: iOS glass parity lane. Objective: polish ZoneMapView for fullscreen map-first layout, rounded/glass search/profile chrome, compact glass selected-zone/report/profile modal treatment, preserve marker synchronization from commit 27a488a, and produce iOS build/run plus screenshot evidence.",
+      "id": "G003-make-android-no-kakao-key-fallback-a",
+      "title": "Make Android no-Kakao-key fallback a quiet iOS-like fullscreen map sh...",
+      "objective": "Make Android no-Kakao-key fallback a quiet iOS-like fullscreen map shell with glass/rounded controls, not a diagnostic card.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T13:41:47.261Z",
-      "updatedAt": "2026-05-22T13:41:47.261Z"
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
     },
     {
-      "id": "G004-goal-2-title-android-ios-parity-full",
-      "title": "Goal 2 title: Android iOS-parity fullscreen map lane. Objective: fina...",
-      "objective": "Goal 2 title: Android iOS-parity fullscreen map lane. Objective: finalize MapScreen and KakaoZoneMap as a fullscreen map-first UI with polished no-key fallback, key-present compatibility, no red missing-key failure panel, no MVP/MAP/test wording, correct top chrome divider, compact bottom card, and polished modal sheets.",
+      "id": "G004-fix-fallback-marker-count-so-it-does",
+      "title": "Fix fallback marker count so it does not show fake markers inconsiste...",
+      "objective": "Fix fallback marker count so it does not show fake markers inconsistent with actual loaded zones; if zones are zero, show a quiet empty map shell.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T13:41:47.261Z",
-      "updatedAt": "2026-05-22T13:41:47.261Z"
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
     },
     {
-      "id": "G005-goal-3-title-cross-platform-verifica",
-      "title": "Goal 3 title: Cross-platform verification lane. Objective: run Androi...",
-      "objective": "Goal 3 title: Cross-platform verification lane. Objective: run Android assembleDebug, install and launch the emulator APK, capture Android screenshot and API load evidence, run iOS simulator build/run where available, capture iOS screenshot and marker evidence, and record generated artifact paths without committing tmp screenshots/logs.",
+      "id": "G005-if-a-real-local-kakao-native-app-key",
+      "title": "If a real local KAKAO_NATIVE_APP_KEY is available, validate real Kaka...",
+      "objective": "If a real local KAKAO_NATIVE_APP_KEY is available, validate real Kakao map path; otherwise record credential-gated verification and validate no-key fallback.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T13:41:47.261Z",
-      "updatedAt": "2026-05-22T13:41:47.261Z"
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
     },
     {
-      "id": "G006-goal-4-title-final-cleanup-commit-pu",
-      "title": "Goal 4 title: Final cleanup commit push lane. Objective: keep backend...",
-      "objective": "Goal 4 title: Final cleanup commit push lane. Objective: keep backend/API contracts unchanged, avoid feature expansion/store submission/new secrets/new dependencies, remove generated artifacts from git status, run final quality checks, commit with Lore protocol, push main to origin/main, and verify local branch is clean against origin.",
+      "id": "G006-android-ui-only-unless-verification",
+      "title": "Android UI only unless verification exposes shared defects.",
+      "objective": "Android UI only unless verification exposes shared defects.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T13:41:47.261Z",
-      "updatedAt": "2026-05-22T13:41:47.261Z"
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
+    },
+    {
+      "id": "G007-no-backend-api-contract-changes",
+      "title": "No backend/API contract changes.",
+      "objective": "No backend/API contract changes.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
+    },
+    {
+      "id": "G008-no-new-feature-expansion",
+      "title": "No new feature expansion.",
+      "objective": "No new feature expansion.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
+    },
+    {
+      "id": "G009-keep-changes-small-reversible-and-re",
+      "title": "Keep changes small, reversible, and release-oriented.",
+      "objective": "Keep changes small, reversible, and release-oriented.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
+    },
+    {
+      "id": "G010-verify-with-android-build-and-emulat",
+      "title": "Verify with Android build and emulator/screenshot when possible.",
+      "objective": "Verify with Android build and emulator/screenshot when possible.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
+    },
+    {
+      "id": "G011-commit-and-push-after-verified",
+      "title": "Commit and push after verified.",
+      "objective": "Commit and push after verified.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-05-22T15:15:06.609Z",
+      "updatedAt": "2026-05-22T15:15:06.609Z"
     }
   ],
   "codexObjective": "Complete the durable ultragoal plan in .omx/ultragoal/goals.json, including later accepted/appended stories, under the original brief constraints; use .omx/ultragoal/ledger.jsonl as the audit trail."

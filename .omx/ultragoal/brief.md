@@ -1,11 +1,16 @@
-NugulMap iOS-Parity Glass Mobile Release Buildout. Source of truth is .omx/plans/prd-mobile-ios-parity-glass-release-buildout.md and .omx/specs/mobile-ios-parity-glass-release-buildout.md.
+Fix Android launch screen release polish regression while preserving existing app contracts.
 
-Create exactly four durable goals and do not split bullets into separate goals.
+Scope:
+- Remove launch-screen visible copy "지도 미리보기" and "N개 구역 표시 중" from Android no-key fallback.
+- Prevent raw API/DNS/exception messages from appearing on the launch map surface or bottom toast.
+- Make Android no-Kakao-key fallback a quiet iOS-like fullscreen map shell with glass/rounded controls, not a diagnostic card.
+- Fix fallback marker count so it does not show fake markers inconsistent with actual loaded zones; if zones are zero, show a quiet empty map shell.
+- If a real local KAKAO_NATIVE_APP_KEY is available, validate real Kakao map path; otherwise record credential-gated verification and validate no-key fallback.
 
-Goal 1 title: iOS glass parity lane. Objective: polish ZoneMapView for fullscreen map-first layout, rounded/glass search/profile chrome, compact glass selected-zone/report/profile modal treatment, preserve marker synchronization from commit 27a488a, and produce iOS build/run plus screenshot evidence.
-
-Goal 2 title: Android iOS-parity fullscreen map lane. Objective: finalize MapScreen and KakaoZoneMap as a fullscreen map-first UI with polished no-key fallback, key-present compatibility, no red missing-key failure panel, no MVP/MAP/test wording, correct top chrome divider, compact bottom card, and polished modal sheets.
-
-Goal 3 title: Cross-platform verification lane. Objective: run Android assembleDebug, install and launch the emulator APK, capture Android screenshot and API load evidence, run iOS simulator build/run where available, capture iOS screenshot and marker evidence, and record generated artifact paths without committing tmp screenshots/logs.
-
-Goal 4 title: Final cleanup commit push lane. Objective: keep backend/API contracts unchanged, avoid feature expansion/store submission/new secrets/new dependencies, remove generated artifacts from git status, run final quality checks, commit with Lore protocol, push main to origin/main, and verify local branch is clean against origin.
+Constraints:
+- Android UI only unless verification exposes shared defects.
+- No backend/API contract changes.
+- No new feature expansion.
+- Keep changes small, reversible, and release-oriented.
+- Verify with Android build and emulator/screenshot when possible.
+- Commit and push after verified.

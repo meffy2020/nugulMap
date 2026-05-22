@@ -81,8 +81,6 @@ fun MapScreen(
             KakaoZoneMap(
                 zones = uiState.zones,
                 selectedZoneId = uiState.selectedZoneId,
-                isLoading = uiState.isLoading,
-                errorMessage = uiState.errorMessage,
                 onZoneSelected = viewModel::selectZone,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -98,7 +96,7 @@ fun MapScreen(
                 modifier = Modifier.align(Alignment.BottomCenter),
                 selectedZone = selectedZone,
                 reviewCount = uiState.selectedZoneReviews.size,
-                statusMessage = uiState.errorMessage ?: uiState.authMessage ?: uiState.actionMessage,
+                statusMessage = sanitizeStatusMessage(uiState.authMessage, uiState.actionMessage),
                 onCloseZone = viewModel::dismissZoneDetail,
                 onReviews = { activeSheet = HomeSheet.Reviews },
                 onReport = { activeSheet = if (uiState.isSignedIn) HomeSheet.Report else HomeSheet.Account },
@@ -546,6 +544,10 @@ private fun MyZoneRow(zone: ZoneDto, onClick: () -> Unit) {
         Text("${zone.latitude}, ${zone.longitude}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
+private fun sanitizeStatusMessage(authMessage: String?, actionMessage: String?): String? =
+    firstStatusMessage(authMessage, actionMessage)
+        ?.toUserFacingStatus("일시적으로 지도 데이터 로드에 실패했습니다. 잠시 후 다시 시도해 주세요.")
 
 @Composable
 private fun ReviewSheet(

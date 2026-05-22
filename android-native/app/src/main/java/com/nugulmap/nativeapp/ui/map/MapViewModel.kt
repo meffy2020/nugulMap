@@ -51,7 +51,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = throwable.localizedMessage ?: "구역을 불러오지 못했습니다.",
+                            errorMessage = throwable.userFacingMessage("구역을 불러오지 못했습니다."),
                         )
                     }
                 }
@@ -83,7 +83,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update {
                         it.copy(
                             isAuthLoading = false,
-                            authMessage = throwable.localizedMessage ?: "로그인에 실패했습니다.",
+                            authMessage = throwable.userFacingMessage("로그인에 실패했습니다."),
                         )
                     }
                 }
@@ -111,7 +111,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update {
                     it.copy(
                         isActionLoading = false,
-                        actionMessage = throwable.localizedMessage ?: "프로필/내 구역 동기화 실패",
+                        actionMessage = throwable.userFacingMessage("프로필/내 구역 동기화 실패"),
                     )
                 }
             }
@@ -137,7 +137,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update {
                         it.copy(
                             isActionLoading = false,
-                            actionMessage = throwable.localizedMessage ?: "프로필 저장 실패",
+                            actionMessage = throwable.userFacingMessage("프로필 저장 실패"),
                         )
                     }
                 }
@@ -164,7 +164,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update {
                         it.copy(
                             isActionLoading = false,
-                            actionMessage = throwable.localizedMessage ?: "구역 등록 실패",
+                            actionMessage = throwable.userFacingMessage("구역 등록 실패"),
                         )
                     }
                 }
@@ -201,7 +201,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                             current.copy(
                                 selectedZoneReviews = emptyList(),
                                 isReviewLoading = false,
-                                reviewErrorMessage = throwable.localizedMessage ?: "리뷰 조회 실패",
+                                reviewErrorMessage = throwable.userFacingMessage("리뷰 조회 실패"),
                             )
                         } else {
                             current
@@ -223,7 +223,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setMapError(message: String) {
-        _uiState.update { it.copy(errorMessage = message) }
+        _uiState.update { it.copy(errorMessage = message.toUserFacingStatus("지도를 표시하지 못했습니다.")) }
     }
 
     fun createReview(content: String) {
@@ -263,7 +263,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update {
                         it.copy(
                             isReviewSubmitting = false,
-                            reviewErrorMessage = throwable.localizedMessage ?: "리뷰 등록 실패",
+                            reviewErrorMessage = throwable.userFacingMessage("리뷰 등록 실패"),
                         )
                     }
                 }
