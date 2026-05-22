@@ -39,12 +39,37 @@ def match_int(pattern: str, text: str) -> int | None:
     return int(found.group(1)) if found else None
 
 
+def build_setting_values(name: str, text: str) -> list[str]:
+    return [value.strip().strip('"') for value in re.findall(rf"{re.escape(name)}\s*=\s*([^;]+);", text)]
+
+
+def has_nonempty_build_setting(name: str, text: str) -> bool:
+    values = build_setting_values(name, text)
+    return bool(values) and all(value not in {"", "$(inherited)"} for value in values)
+
+
 def add(checks: list[Check], status: str, area: str, item: str, detail: str, action: str = "") -> None:
     checks.append(Check(status=status, area=area, item=item, detail=detail, action=action))
 
 
 def detect_native_account_delete(paths: Iterable[str]) -> bool:
-    needles = ("delete account", "account deletion", "회원탈퇴", "계정 삭제", "탈퇴", "deleteUser", "deleteAccount")
+    # Keep this deliberately narrow: zone deletion (deleteUserZone/deleteZone),
+    # token clearing, or local logout must not satisfy store account deletion.
+    literal_needles = (
+        "delete account",
+        "account deletion",
+        "회원탈퇴",
+        "계정 삭제",
+        "탈퇴하기",
+        "DeleteAccount",
+        "deleteAccount",
+        "deleteCurrentUser",
+        "withdrawAccount",
+    )
+    endpoint_patterns = (
+        r'\bDELETE\b[^\n]{0,80}/(?:api/)?users/(?:me|\{id\}|:id)',
+        r'"/(?:api/)?users/(?:me|\\\(userId\\\)|\\\(id\\\))"',
+    )
     for rel in paths:
         base = ROOT / rel
         if not base.exists():
@@ -55,7 +80,10 @@ def detect_native_account_delete(paths: Iterable[str]) -> bool:
                     text = path.read_text(encoding="utf-8", errors="ignore")
                 except OSError:
                     continue
-                if any(needle in text for needle in needles):
+                lower_text = text.lower()
+                if any(needle.lower() in lower_text for needle in literal_needles):
+                    return True
+                if any(re.search(pattern, text) for pattern in endpoint_patterns):
                     return True
     return False
 
@@ -106,18 +134,50 @@ def main() -> int:
     if "isMinifyEnabled = false" in android_build:
         add(checks, "MANUAL", "android", "release-minify-policy", "Release minification is disabled", "Accept explicitly for v1 or enable and test ProGuard/R8")
 
-    if "DEVELOPMENT_TEAM = \"\"" in ios_project:
-        add(checks, "FAIL", "ios", "development-team", "DEVELOPMENT_TEAM is empty", "Configure Apple Developer Team ID outside secrets")
-    else:
+    if has_nonempty_build_setting("DEVELOPMENT_TEAM", ios_project):
         add(checks, "PASS", "ios", "development-team", "DEVELOPMENT_TEAM is set")
+    else:
+        add(checks, "FAIL", "ios", "development-team", "DEVELOPMENT_TEAM is empty for one or more target configurations", "Configure Apple Developer Team ID in local/Xcode signing settings; do not commit secrets")
+
+    code_sign_values = set(build_setting_values("CODE_SIGN_STYLE", ios_project))
+    if code_sign_values:
+        add(checks, "PASS", "ios", "code-sign-style", ", ".join(sorted(code_sign_values)))
+    else:
+        add(checks, "FAIL", "ios", "code-sign-style", "missing", "Configure signing style before archive")
 
     bundle = re.search(r"PRODUCT_BUNDLE_IDENTIFIER\s*=\s*([^;]+);", ios_project)
     add(checks, "PASS" if bundle else "FAIL", "ios", "bundle-id", bundle.group(1).strip() if bundle else "missing", "Register bundle id in App Store Connect" if bundle else "Set bundle id")
 
-    if "nugulmap://oauth/callback" in ios_app_config and "<string>nugulmap</string>" in ios_plist:
-        add(checks, "PASS", "ios", "oauth-url-scheme", "nugulmap://oauth/callback configured")
+    marketing_version = build_setting_values("MARKETING_VERSION", ios_project)
+    current_project_version = build_setting_values("CURRENT_PROJECT_VERSION", ios_project)
+    if marketing_version and current_project_version:
+        add(checks, "PASS", "ios", "versioning", f"MARKETING_VERSION={marketing_version[-1]}, CURRENT_PROJECT_VERSION={current_project_version[-1]}", "Increment CURRENT_PROJECT_VERSION for every TestFlight upload")
     else:
-        add(checks, "FAIL", "ios", "oauth-url-scheme", "callback URL scheme missing", "Register URL scheme and AppConfig callback")
+        add(checks, "FAIL", "ios", "versioning", "missing MARKETING_VERSION or CURRENT_PROJECT_VERSION", "Set App Store version/build numbers")
+
+    if has_file("ios-native/NeogulMapNative.xcodeproj/xcshareddata/xcschemes/NeogulMapNative.xcscheme"):
+        add(checks, "PASS", "ios", "shared-archive-scheme", "NeogulMapNative shared scheme exists")
+    else:
+        add(checks, "FAIL", "ios", "shared-archive-scheme", "shared scheme missing", "Share the app scheme before CI/archive verification")
+
+    if has_nonempty_build_setting("DEVELOPMENT_TEAM", ios_project):
+        add(checks, "MANUAL", "ios", "archive-testflight", "Signing team exists, but App Store Connect archive/upload is account-gated", "Run generic iOS archive, validate, and upload/TestFlight with the Developer account")
+    else:
+        add(checks, "FAIL", "ios", "archive-testflight", "Archive/TestFlight is blocked by empty DEVELOPMENT_TEAM", "Set signing team/profiles, then run archive validation")
+
+    if (
+        "nugulmap://oauth/callback" in ios_app_config
+        and "<string>nugulmap</string>" in ios_plist
+        and "callbackURLScheme: AppConfig.oauthCallbackScheme" in ios_api
+    ):
+        add(checks, "PASS", "ios", "oauth-url-scheme", "nugulmap://oauth/callback configured in plist, AppConfig, and ASWebAuthenticationSession")
+    else:
+        add(checks, "FAIL", "ios", "oauth-url-scheme", "callback URL scheme missing or not wired to ASWebAuthenticationSession", "Register URL scheme and AppConfig callback")
+
+    if has_file("ios-native/scripts/smoke-oauth-deeplink.sh"):
+        add(checks, "MANUAL", "ios", "oauth-device-smoke", "Local deeplink smoke script exists; token exchange still needs real provider/device verification", "Run simulator script and real iPhone OAuth callback/token persistence smoke")
+    else:
+        add(checks, "FAIL", "ios", "oauth-device-smoke", "No repeatable OAuth deeplink smoke script", "Add simulator/device OAuth smoke instructions")
 
     if "NSLocationWhenInUseUsageDescription" in ios_plist:
         add(checks, "PASS", "ios", "location-purpose-string", "Location usage description exists")
@@ -133,14 +193,19 @@ def main() -> int:
     else:
         add(checks, "MANUAL", "ios", "apple-login-review-risk", "No social login pattern detected by static scan")
 
-    backend_delete = "@DeleteMapping" in read("backend/api-server/src/main/java/com/neogulmap/neogul_map/controller/UserController.java")
-    native_delete = detect_native_account_delete(("android-native/app/src", "ios-native/NeogulMapNative"))
-    if backend_delete and native_delete:
-        add(checks, "PASS", "shared", "account-deletion", "Backend and native account deletion paths detected")
-    elif backend_delete:
-        add(checks, "FAIL", "shared", "account-deletion", "Backend delete endpoint exists, but native discoverable account deletion UX was not detected", "Add or document in-app account deletion path before public launch")
+    user_controller = read("backend/api-server/src/main/java/com/neogulmap/neogul_map/controller/UserController.java")
+    backend_delete = "@DeleteMapping" in user_controller and "deleteUser" in user_controller
+    ios_account_delete = detect_native_account_delete(("ios-native/NeogulMapNative",))
+    android_account_delete = detect_native_account_delete(("android-native/app/src",))
+    add(checks, "PASS" if backend_delete else "FAIL", "shared", "backend-account-delete", "UserController delete endpoint detected" if backend_delete else "No backend user delete endpoint detected", "Implement backend account deletion" if not backend_delete else "")
+    if ios_account_delete:
+        add(checks, "PASS", "ios", "account-deletion-ux", "Discoverable iOS account deletion path detected")
     else:
-        add(checks, "FAIL", "shared", "account-deletion", "No backend/native account deletion evidence detected", "Implement compliant account deletion")
+        add(checks, "FAIL", "ios", "account-deletion-ux", "No discoverable iOS account deletion path detected", "Add in-app account deletion initiation under profile/settings before App Store submission")
+    if android_account_delete:
+        add(checks, "PASS", "android", "account-deletion-ux", "Discoverable Android account deletion path detected")
+    else:
+        add(checks, "FAIL", "android", "account-deletion-ux", "No discoverable Android account deletion path detected", "Add in-app account deletion initiation before Play submission")
 
     privacy_candidates = ["privacy", "개인정보", "Privacy Policy", "privacy policy"]
     repo_privacy_text = "\n".join(
