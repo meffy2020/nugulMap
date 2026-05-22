@@ -1,0 +1,19 @@
+$ ./gradlew compileJava test
+Starting a Gradle Daemon (subsequent builds will be faster)
+
+> Task :compileJava
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :processResources
+> Task :classes
+> Task :compileTestJava
+> Task :processTestResources NO-SOURCE
+> Task :testClasses
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :test
+
+[Incubating] Problems report is available at: file:///Users/ksj/Desktop/02_Work/Projects/nugulmap/.omx/team/execute-nugulmap-andr-19246508/worktrees/worker-4/backend/api-server/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 24s
+4 actionable tasks: 4 executed
