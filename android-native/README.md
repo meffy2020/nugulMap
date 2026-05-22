@@ -27,6 +27,30 @@ NUGUL_API_BASE_URL=https://api.nugulmap.com
 KAKAO_NATIVE_APP_KEY=카카오_네이티브_앱_키
 ```
 
+`local.properties.example`을 복사해 로컬 SDK/운영 키/릴리즈 서명 값을 채울 수 있습니다. 실제 키와 keystore는 커밋하지 않습니다.
+
+## Android 공개 출시 readiness
+
+공개 출시 전 Android lane에서 로컬로 증명 가능한 항목은 targetSdk/패키지/버전, 릴리즈 AAB 생성, OAuth deeplink manifest, Kakao key 주입 여부, 16KB page-size 검증 준비 상태입니다. Play Console 등록, Kakao 콘솔 key hash, 실제 OAuth 성공, Data Safety는 계정/실기기 수동 gate로 남깁니다.
+
+```bash
+cd android-native
+ANDROID_HOME=$HOME/Library/Android/sdk ./gradlew :app:assembleDebug :app:bundleRelease
+python3 scripts/check-launch-readiness.py
+scripts/smoke-oauth-deeplink.sh
+```
+
+릴리즈 AAB를 Play 업로드 후보로 만들려면 `local.properties` 또는 환경 변수에 upload key 정보를 채웁니다.
+
+```properties
+NUGUL_RELEASE_STORE_FILE=release-upload-key.jks
+NUGUL_RELEASE_STORE_PASSWORD=...
+NUGUL_RELEASE_KEY_ALIAS=nugulmap-upload
+NUGUL_RELEASE_KEY_PASSWORD=...
+```
+
+Kakao Developers에는 Android 플랫폼 패키지명 `com.nugulmap.nativeapp`, Kakao Native App Key, upload/release key hash를 같은 조합으로 등록해야 합니다. 2026-05-22 기준 Google Play 신규 앱/업데이트는 targetSdk 35 이상이 필요하고, Android 15(API 35)+ 대상 앱은 16KB page-size 지원을 검증해야 하므로 release AAB를 `bundletool dump config --bundle=...` 또는 Play pre-launch report로 확인합니다.
+
 
 ## 보안 토큰 저장
 

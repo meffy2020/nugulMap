@@ -7,6 +7,17 @@ SMOKE_URI="nugulmap://oauth/callback?code=smoke-code"
 MERGED_MANIFEST="$ROOT_DIR/app/build/intermediates/merged_manifest/debug/processDebugMainManifest/AndroidManifest.xml"
 
 cd "$ROOT_DIR"
+
+if [[ -z "${ANDROID_HOME:-}" && -d "$HOME/Library/Android/sdk" ]]; then
+  export ANDROID_HOME="$HOME/Library/Android/sdk"
+fi
+
+if [[ -z "${JAVA_HOME:-}" ]] && command -v /usr/libexec/java_home >/dev/null 2>&1; then
+  if /usr/libexec/java_home -v 21 >/dev/null 2>&1; then
+    export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
+  fi
+fi
+
 ./gradlew :app:processDebugMainManifest >/dev/null
 
 python3 - "$MERGED_MANIFEST" <<'PY'

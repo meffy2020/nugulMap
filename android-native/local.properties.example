@@ -1,0 +1,17 @@
+# Copy to local.properties for local release-readiness checks.
+# Do not commit real secrets or keystore files.
+
+sdk.dir=/Users/ksj/Library/Android/sdk
+
+# Production API base. Defaults to https://api.nugulmap.com when omitted.
+NUGUL_API_BASE_URL=https://api.nugulmap.com
+
+# Kakao Android native app key from Kakao Developers.
+KAKAO_NATIVE_APP_KEY=
+
+# Optional upload-key signing for Play-ready release AABs.
+# Relative paths are resolved from android-native/.
+NUGUL_RELEASE_STORE_FILE=release-upload-key.jks
+NUGUL_RELEASE_STORE_PASSWORD=
+NUGUL_RELEASE_KEY_ALIAS=nugulmap-upload
+NUGUL_RELEASE_KEY_PASSWORD=

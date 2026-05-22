@@ -8,8 +8,12 @@ or manual gates for public launch readiness.
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
+import subprocess
 import sys
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -43,6 +47,52 @@ def add(checks: list[Check], status: str, area: str, item: str, detail: str, act
     checks.append(Check(status=status, area=area, item=item, detail=detail, action=action))
 
 
+def read_properties(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if not path.exists():
+        return values
+    for raw_line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip()
+    return values
+
+
+def prop_or_env(props: dict[str, str], name: str) -> str:
+    return (props.get(name) or os.environ.get(name) or "").strip()
+
+
+def bundletool_command() -> list[str] | None:
+    binary = shutil.which("bundletool")
+    if binary:
+        return [binary]
+    jar = os.environ.get("BUNDLETOOL_JAR")
+    if jar and Path(jar).exists():
+        return ["java", "-jar", jar]
+    return None
+
+
+def bundle_alignment_status(aab_path: Path) -> tuple[str, str]:
+    command = bundletool_command()
+    if command is None:
+        return ("MANUAL", "release AAB exists, but bundletool is unavailable")
+    result = subprocess.run(
+        [*command, "dump", "config", f"--bundle={aab_path}"],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    if result.returncode != 0:
+        return ("MANUAL", f"bundletool dump config failed with exit {result.returncode}")
+    if "PAGE_ALIGNMENT_16K" in result.stdout:
+        return ("PASS", "release AAB requests PAGE_ALIGNMENT_16K")
+    return ("FAIL", "release AAB did not report PAGE_ALIGNMENT_16K")
+
+
 def detect_native_account_delete(paths: Iterable[str]) -> bool:
     needles = ("delete account", "account deletion", "회원탈퇴", "계정 삭제", "탈퇴", "deleteUser", "deleteAccount")
     for rel in paths:
@@ -66,6 +116,7 @@ def main() -> int:
     android_build = read("android-native/app/build.gradle.kts")
     android_manifest = read("android-native/app/src/main/AndroidManifest.xml")
     android_libs = read("android-native/gradle/libs.versions.toml")
+    android_props = read_properties(ROOT / "android-native/local.properties")
     ios_project = read("ios-native/NeogulMapNative.xcodeproj/project.pbxproj")
     ios_plist = read("ios-native/NeogulMapNative/Info.plist")
     ios_app_config = read("ios-native/NeogulMapNative/AppConfig.swift")
@@ -89,19 +140,58 @@ def main() -> int:
     else:
         add(checks, "FAIL", "android", "production-config-hooks", "missing API/key config", "Add production API and key injection")
 
-    local_props = ROOT / "android-native/local.properties"
-    if local_props.exists() and re.search(r"^KAKAO_NATIVE_APP_KEY=\S+", local_props.read_text(encoding="utf-8", errors="ignore"), re.M):
+    if prop_or_env(android_props, "KAKAO_NATIVE_APP_KEY"):
         add(checks, "PASS", "android", "kakao-native-key-local", "KAKAO_NATIVE_APP_KEY present in local.properties")
     else:
         add(checks, "FAIL", "android", "kakao-native-key-local", "No local production Kakao native key detected", "Set local.properties and verify Kakao console package/key hash on device")
+
+    release_signing_names = [
+        "NUGUL_RELEASE_STORE_FILE",
+        "NUGUL_RELEASE_STORE_PASSWORD",
+        "NUGUL_RELEASE_KEY_ALIAS",
+        "NUGUL_RELEASE_KEY_PASSWORD",
+    ]
+    release_signing_values = {name: prop_or_env(android_props, name) for name in release_signing_names}
+    if all(release_signing_values.values()):
+        store_file = Path(release_signing_values["NUGUL_RELEASE_STORE_FILE"])
+        store_path = store_file if store_file.is_absolute() else ROOT / "android-native" / store_file
+        add(
+            checks,
+            "PASS" if store_path.exists() else "FAIL",
+            "android",
+            "release-signing-config",
+            f"upload-key properties present; keystore file {'exists' if store_path.exists() else 'missing'}",
+            "Provide the upload keystore file outside git" if not store_path.exists() else "",
+        )
+    else:
+        add(
+            checks,
+            "FAIL",
+            "android",
+            "release-signing-config",
+            "upload-key signing properties are incomplete or absent",
+            "Set NUGUL_RELEASE_* in android-native/local.properties or environment before Play upload",
+        )
 
     if all(token in android_manifest for token in ('android:scheme="nugulmap"', 'android:host="oauth"', 'android:path="/callback"')):
         add(checks, "PASS", "android", "oauth-deeplink", "nugulmap://oauth/callback registered")
     else:
         add(checks, "FAIL", "android", "oauth-deeplink", "callback intent-filter missing", "Register OAuth callback deeplink")
 
-    if "kakaoMap" in android_libs or "kakao-map" in android_libs:
-        add(checks, "MANUAL", "android", "16kb-page-size", "Native Kakao Maps dependency present; repo static check cannot prove 16KB page-size", "Validate signed AAB with bundletool/Play pre-launch report")
+    release_aab = ROOT / "android-native/app/build/outputs/bundle/release/app-release.aab"
+    if release_aab.exists():
+        add(checks, "PASS", "android", "release-aab-artifact", str(release_aab.relative_to(ROOT)))
+        with zipfile.ZipFile(release_aab) as archive:
+            native_libs = [name for name in archive.namelist() if name.startswith("base/lib/") and name.endswith(".so")]
+        if native_libs or "kakaoMap" in android_libs or "kakao-map" in android_libs:
+            status, detail = bundle_alignment_status(release_aab)
+            add(checks, status, "android", "16kb-page-size", detail, "Validate on 16KB Android 15+ device/Play pre-launch report" if status != "PASS" else "")
+        else:
+            add(checks, "PASS", "android", "16kb-page-size", "No native .so files detected in release AAB")
+    else:
+        add(checks, "FAIL", "android", "release-aab-artifact", "release AAB not found", "Run cd android-native && ./gradlew :app:bundleRelease")
+        if "kakaoMap" in android_libs or "kakao-map" in android_libs:
+            add(checks, "MANUAL", "android", "16kb-page-size", "Native Kakao Maps dependency present; no AAB artifact to inspect", "Build AAB and validate with bundletool/Play pre-launch report")
 
     if "isMinifyEnabled = false" in android_build:
         add(checks, "MANUAL", "android", "release-minify-policy", "Release minification is disabled", "Accept explicitly for v1 or enable and test ProGuard/R8")
