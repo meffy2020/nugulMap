@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.KakaoMapReadyCallback
+import com.kakao.vectormap.KakaoMapSdk
 import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.MapView
@@ -59,12 +61,18 @@ fun KakaoZoneMap(
         return
     }
 
+    val context = LocalContext.current
     val latestZones by rememberUpdatedState(zones)
     val latestOnZoneSelected by rememberUpdatedState(onZoneSelected)
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var mapError by remember { mutableStateOf<String?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(BuildConfig.KAKAO_NATIVE_APP_KEY) {
+        runCatching { KakaoMapSdk.init(context.applicationContext, BuildConfig.KAKAO_NATIVE_APP_KEY.trim()) }
+            .onFailure { throwable -> mapError = throwable.localizedMessage ?: "지도 SDK 초기화 실패" }
+    }
 
     Box(
         modifier = modifier
