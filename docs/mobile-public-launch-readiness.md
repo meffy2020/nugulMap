@@ -42,6 +42,11 @@
 - Hold: 하나라도 OAuth, map, account deletion, privacy declaration, signing이 불완전하다.
 - Staged fallback: 한 플랫폼이 runtime smoke fail이면 해당 플랫폼만 internal-test-only로 남기고 별도 go/no-go review를 연다.
 
+## 5. Store/privacy readiness inventory
+
+- 상세 데이터 인벤토리와 제출 전 체크리스트: [`docs/store-privacy-readiness.md`](./store-privacy-readiness.md)
+- 현재 판정: privacy policy URL, Play Data Safety/App Privacy console forms, account deletion path, store metadata, iOS social-login review risk가 모두 public-launch HOLD gate다.
+
 ## 5. 공식 기준 참조
 
 - Google Play target API: https://developer.android.com/google/play/requirements/target-sdk
