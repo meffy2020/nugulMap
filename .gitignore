@@ -60,3 +60,7 @@ uploads/
 backend/api-server/uploads/  # 백엔드 내부 uploads 폴더도 무시
 backend/uploads/profiles/  # 프로필 이미지 업로드 폴더
 backend/uploads/zones/  # Zone 이미지 업로드 폴더
+
+# Local verification/build artifacts
+/tmp/DerivedData-*/
+/tmp/xcodebuildmcp-derived/
