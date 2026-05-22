@@ -57,7 +57,7 @@ jobs:
       - name: Deploy to AWS EC2 via SSH
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SSH_HOST }} # api.nugulmap.com
+          host: ${{ secrets.SSH_HOST || 'api.nugulmap.com' }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
