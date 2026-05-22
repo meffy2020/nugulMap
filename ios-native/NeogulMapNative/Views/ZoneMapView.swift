@@ -1,3 +1,4 @@
+import Combine
 import CoreLocation
 import MapKit
 import PhotosUI
@@ -80,7 +81,7 @@ struct ZoneMapView: View {
     private var mapLayer: some View {
         NugulMapKitView(
             region: $mapRegion,
-            zones: model.zones,
+            model: model,
             onRegionChanged: { region in
                 cameraCenter = region.center
             },
@@ -420,7 +421,7 @@ private struct ProfileAvatar: View {
 #if os(iOS)
 private struct NugulMapKitView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
-    let zones: [SmokingZone]
+    let model: ZoneExplorerModel
     let onRegionChanged: (MKCoordinateRegion) -> Void
     let onRegionSettled: (MKCoordinateRegion) -> Void
     let onSelectZone: (SmokingZone) -> Void
@@ -439,12 +440,14 @@ private struct NugulMapKitView: UIViewRepresentable {
         mapView.register(MKMarkerAnnotationView.self, forAnnotationViewWithReuseIdentifier: Coordinator.clusterReuseIdentifier)
         context.coordinator.isApplyingRegionFromSwiftUI = true
         mapView.setRegion(region, animated: false)
+        context.coordinator.bind(to: model, on: mapView)
         return mapView
     }
 
     func updateUIView(_ mapView: MKMapView, context: Context) {
         context.coordinator.parent = self
-        context.coordinator.syncAnnotations(zones, on: mapView)
+        context.coordinator.bind(to: model, on: mapView)
+        context.coordinator.syncAnnotations(model.zones, on: mapView)
 
         if context.coordinator.shouldApply(region, to: mapView.region) {
             context.coordinator.isApplyingRegionFromSwiftUI = true
@@ -459,9 +462,29 @@ private struct NugulMapKitView: UIViewRepresentable {
         var parent: NugulMapKitView
         var renderedZoneIDs: Set<Int> = []
         var isApplyingRegionFromSwiftUI = false
+        private var zonesCancellable: AnyCancellable?
+        private var boundModelID: ObjectIdentifier?
 
         init(parent: NugulMapKitView) {
             self.parent = parent
+        }
+
+        func bind(to model: ZoneExplorerModel, on mapView: MKMapView) {
+            let modelID = ObjectIdentifier(model)
+            guard boundModelID != modelID else {
+                return
+            }
+
+            boundModelID = modelID
+            zonesCancellable = model.$zones
+                .receive(on: RunLoop.main)
+                .sink { [weak self, weak mapView] zones in
+                    guard let self, let mapView else {
+                        return
+                    }
+
+                    self.syncAnnotations(zones, on: mapView)
+                }
         }
 
         func syncAnnotations(_ zones: [SmokingZone], on mapView: MKMapView) {
