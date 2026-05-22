@@ -3,3 +3,12 @@ $ npm run check:release:strict:prod
 > nugulmap-mobile@1.0.0 check:release:strict:prod
 > NODE_ENV=production node ./scripts/check-release.js --strict
 
+
+release check (strict)
+----------------------
+
+warnings
+1. Command failed: npx expo config --type public --json
+
+errors
+1. failed to read expo config (run `npm install` in mobile first)

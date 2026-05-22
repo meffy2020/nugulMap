@@ -1,0 +1,15 @@
+$ npm run release:verify
+
+> nugulmap-mobile@1.0.0 release:verify
+> npm run check:release:strict:prod && NODE_ENV=production npx tsc --noEmit && npm run test -- --runInBand
+
+
+> nugulmap-mobile@1.0.0 check:release:strict:prod
+> NODE_ENV=production node ./scripts/check-release.js --strict
+
+
+release check (strict)
+----------------------
+
+errors
+1. extra.kakaoJavascriptKey is missing
