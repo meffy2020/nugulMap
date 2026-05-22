@@ -1,0 +1,5 @@
+$ npm run check:release:strict:prod
+
+> nugulmap-mobile@1.0.0 check:release:strict:prod
+> NODE_ENV=production node ./scripts/check-release.js --strict
+
