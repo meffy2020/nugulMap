@@ -1,0 +1,20 @@
+$ python3 scripts/check-native-public-launch-readiness.py
+[PASS] android:target-sdk - targetSdk=36 satisfies current Play target API floor
+[PASS] android:application-id - com.nugulmap.nativeapp | action: Confirm Play Console package id
+[PASS] android:version-code - versionCode=1 | action: Increment before each upload
+[PASS] android:production-config-hooks - API base and Kakao native key are build-configurable
+[FAIL] android:kakao-native-key-local - No local production Kakao native key detected | action: Set local.properties and verify Kakao console package/key hash on device
+[PASS] android:oauth-deeplink - nugulmap://oauth/callback registered
+[MANUAL] android:16kb-page-size - Native Kakao Maps dependency present; repo static check cannot prove 16KB page-size | action: Validate signed AAB with bundletool/Play pre-launch report
+[MANUAL] android:release-minify-policy - Release minification is disabled | action: Accept explicitly for v1 or enable and test ProGuard/R8
+[FAIL] ios:development-team - DEVELOPMENT_TEAM is empty | action: Configure Apple Developer Team ID outside secrets
+[PASS] ios:bundle-id - com.nugulmap.native | action: Register bundle id in App Store Connect
+[PASS] ios:oauth-url-scheme - nugulmap://oauth/callback configured
+[PASS] ios:location-purpose-string - Location usage description exists
+[FAIL] ios:apple-login-review-risk - Kakao/Naver/Google login are present but Apple-equivalent login was not detected | action: Resolve App Store Review Guideline 4.8 or document a valid exception
+[PASS] shared:account-deletion - Backend and native account deletion paths detected
+[MANUAL] shared:privacy-policy-and-store-forms - Privacy/store checklist exists, but final public URL/forms are account-gated | action: Complete Play Data Safety and Apple App Privacy from data inventory
+
+Summary: {"FAIL": 3, "MANUAL": 3, "PASS": 9}
+Result: NOT PUBLIC-LAUNCH READY (expected until store/account/device blockers are resolved)
+native-readiness exit=0
