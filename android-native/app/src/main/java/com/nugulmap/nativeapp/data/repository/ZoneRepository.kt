@@ -1,0 +1,86 @@
+package com.nugulmap.nativeapp.data.repository
+
+import com.google.gson.Gson
+import com.nugulmap.nativeapp.core.auth.AuthTokenStore
+import com.nugulmap.nativeapp.data.api.NugulApiClient
+import com.nugulmap.nativeapp.data.api.NugulApiService
+import com.nugulmap.nativeapp.data.dto.ZoneCreatePayload
+import com.nugulmap.nativeapp.data.dto.ZoneDto
+import com.nugulmap.nativeapp.data.dto.ZoneReviewCreateRequest
+import com.nugulmap.nativeapp.data.dto.ZoneReviewDto
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+
+class ZoneRepository(
+    private val apiService: NugulApiService = NugulApiClient.service,
+    private val tokenStore: AuthTokenStore? = null,
+    private val gson: Gson = Gson(),
+) {
+    suspend fun loadCentralSeoulZones(): List<ZoneDto> {
+        val response = apiService.getZonesByBounds(
+            minLat = 37.55,
+            maxLat = 37.58,
+            minLng = 126.96,
+            maxLng = 127.02,
+        )
+
+        if (!response.success) {
+            error(response.message ?: "구역 조회에 실패했습니다.")
+        }
+
+        return response.data?.zones.orEmpty()
+    }
+
+    suspend fun loadMyZones(): List<ZoneDto> {
+        val token = requireAccessToken()
+        val response = apiService.getMyZones(token.bearer())
+        if (!response.success) {
+            error(response.message ?: "내 구역 조회에 실패했습니다.")
+        }
+        return response.data?.zones.orEmpty()
+    }
+
+    suspend fun createZone(payload: ZoneCreatePayload): ZoneDto {
+        val token = requireAccessToken()
+        val response = apiService.createZone(
+            authorization = token.bearer(),
+            data = gson.toJson(payload).toRequestBody(MULTIPART_JSON),
+        )
+        if (!response.success) {
+            error(response.message ?: "구역 등록에 실패했습니다.")
+        }
+        return response.data?.zone ?: error("구역 등록 응답이 올바르지 않습니다.")
+    }
+
+    suspend fun loadReviews(zoneId: Int): List<ZoneReviewDto> {
+        val response = apiService.getZoneReviews(zoneId)
+        if (!response.success) {
+            error(response.message ?: "리뷰 조회에 실패했습니다.")
+        }
+        return response.data?.reviews.orEmpty()
+    }
+
+    suspend fun createReview(zoneId: Int, content: String): ZoneReviewDto {
+        val normalized = content.trim()
+        require(normalized.isNotBlank()) { "리뷰 내용을 입력해 주세요." }
+        val token = requireAccessToken()
+        val response = apiService.createZoneReview(
+            authorization = token.bearer(),
+            zoneId = zoneId,
+            request = ZoneReviewCreateRequest(content = normalized),
+        )
+        if (!response.success) {
+            error(response.message ?: "리뷰 등록에 실패했습니다.")
+        }
+        return response.data?.review ?: error("리뷰 등록 응답이 올바르지 않습니다.")
+    }
+
+    private fun requireAccessToken(): String = tokenStore?.accessToken()?.takeIf { it.isNotBlank() }
+        ?: error("로그인이 필요합니다.")
+
+    private fun String.bearer(): String = "Bearer $this"
+
+    companion object {
+        private val MULTIPART_JSON = "application/json; charset=utf-8".toMediaType()
+    }
+}
