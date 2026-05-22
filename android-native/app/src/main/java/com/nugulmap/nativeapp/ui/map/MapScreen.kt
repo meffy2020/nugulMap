@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -365,24 +367,51 @@ private fun ReviewPanel(
             when {
                 selectedZone == null -> Text("지도 마커 또는 목록에서 구역을 선택하세요.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 isLoading -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(modifier = Modifier.padding(2.dp))
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
                     Text("리뷰 불러오는 중", style = MaterialTheme.typography.bodySmall)
                 }
                 !errorMessage.isNullOrBlank() -> {
                     Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     OutlinedButton(onClick = onRetry) { Text("다시 시도") }
                 }
-                reviews.isEmpty() -> Text("아직 등록된 리뷰가 없습니다.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                else -> reviews.take(3).forEach { review -> ReviewRow(review) }
+                reviews.isEmpty() -> Text(
+                    "아직 등록된 리뷰가 없습니다. 첫 리뷰를 남겨보세요.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    reviews.forEach { review -> ReviewRow(review) }
+                }
             }
-            OutlinedTextField(value = reviewText, onValueChange = { reviewText = it }, label = { Text("리뷰 내용") }, enabled = isSignedIn && selectedZone != null && !isSubmitting, modifier = Modifier.fillMaxWidth())
+            Text(
+                text = if (isSignedIn) "리뷰 남기기" else "로그인 후 리뷰를 남길 수 있어요.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold,
+            )
+            OutlinedTextField(
+                value = reviewText,
+                onValueChange = { reviewText = it.take(REVIEW_MAX_LENGTH) },
+                label = { Text(if (isSignedIn) "접근성, 청결도, 혼잡도 등을 남겨주세요." else "로그인이 필요합니다") },
+                enabled = isSignedIn && selectedZone != null && !isSubmitting,
+                minLines = 2,
+                maxLines = 4,
+                supportingText = { Text("${normalizedReview.length}/$REVIEW_MAX_LENGTH") },
+                modifier = Modifier.fillMaxWidth(),
+            )
             Button(
                 onClick = {
                     onCreateReview(normalizedReview)
                     reviewText = ""
                 },
                 enabled = isSignedIn && selectedZone != null && normalizedReview.isNotBlank() && !isSubmitting,
-            ) { Text(if (isSubmitting) "등록 중" else "리뷰 등록") }
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(modifier = Modifier.size(8.dp))
+                }
+                Text(if (isSubmitting) "등록 중" else "리뷰 등록")
+            }
         }
     }
 }
@@ -421,3 +450,5 @@ private fun ZoneCard(zone: ZoneDto, selected: Boolean, onClick: () -> Unit) {
         }
     }
 }
+
+private const val REVIEW_MAX_LENGTH = 500
