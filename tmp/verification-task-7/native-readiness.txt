@@ -1,4 +1,3 @@
-$ python3 scripts/check-native-public-launch-readiness.py
 [PASS] android:target-sdk - targetSdk=36 satisfies current Play target API floor
 [PASS] android:application-id - com.nugulmap.nativeapp | action: Confirm Play Console package id
 [PASS] android:version-code - versionCode=1 | action: Increment before each upload
@@ -7,14 +6,22 @@ $ python3 scripts/check-native-public-launch-readiness.py
 [PASS] android:oauth-deeplink - nugulmap://oauth/callback registered
 [MANUAL] android:16kb-page-size - Native Kakao Maps dependency present; repo static check cannot prove 16KB page-size | action: Validate signed AAB with bundletool/Play pre-launch report
 [MANUAL] android:release-minify-policy - Release minification is disabled | action: Accept explicitly for v1 or enable and test ProGuard/R8
-[FAIL] ios:development-team - DEVELOPMENT_TEAM is empty | action: Configure Apple Developer Team ID outside secrets
+[FAIL] ios:development-team - DEVELOPMENT_TEAM is empty for one or more target configurations | action: Configure Apple Developer Team ID in local/Xcode signing settings; do not commit secrets
+[PASS] ios:code-sign-style - Automatic
 [PASS] ios:bundle-id - com.nugulmap.native | action: Register bundle id in App Store Connect
-[PASS] ios:oauth-url-scheme - nugulmap://oauth/callback configured
+[PASS] ios:versioning - MARKETING_VERSION=1.0, CURRENT_PROJECT_VERSION=1 | action: Increment CURRENT_PROJECT_VERSION for every TestFlight upload
+[PASS] ios:shared-archive-scheme - NeogulMapNative shared scheme exists
+[FAIL] ios:archive-testflight - Archive/TestFlight is blocked by empty DEVELOPMENT_TEAM | action: Set signing team/profiles, then run archive validation
+[PASS] ios:oauth-url-scheme - nugulmap://oauth/callback configured in plist, AppConfig, and ASWebAuthenticationSession
+[MANUAL] ios:oauth-device-smoke - Local deeplink smoke script exists; token exchange still needs real provider/device verification | action: Run simulator script and real iPhone OAuth callback/token persistence smoke
 [PASS] ios:location-purpose-string - Location usage description exists
 [FAIL] ios:apple-login-review-risk - Kakao/Naver/Google login are present but Apple-equivalent login was not detected | action: Resolve App Store Review Guideline 4.8 or document a valid exception
-[PASS] shared:account-deletion - Backend and native account deletion paths detected
+[PASS] shared:backend-account-delete - UserController delete endpoint detected
+[FAIL] ios:account-deletion-ux - No discoverable iOS account deletion path detected | action: Add in-app account deletion initiation under profile/settings before App Store submission
+[FAIL] android:account-deletion-ux - No discoverable Android account deletion path detected | action: Add in-app account deletion initiation before Play submission
+[PASS] shared:privacy-data-inventory - Store privacy inventory covers Play, Apple, metadata, deletion, review risks, and core data types
+[FAIL] shared:privacy-policy-url - No public NugulMap privacy/account-deletion URL recorded | action: Publish privacy policy and account-deletion URL before public submission
 [MANUAL] shared:privacy-policy-and-store-forms - Privacy/store checklist exists, but final public URL/forms are account-gated | action: Complete Play Data Safety and Apple App Privacy from data inventory
 
-Summary: {"FAIL": 3, "MANUAL": 3, "PASS": 9}
+Summary: {"FAIL": 7, "MANUAL": 4, "PASS": 13}
 Result: NOT PUBLIC-LAUNCH READY (expected until store/account/device blockers are resolved)
-native-readiness exit=0
