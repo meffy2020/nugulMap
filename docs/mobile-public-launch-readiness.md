@@ -47,7 +47,7 @@
 - 상세 데이터 인벤토리와 제출 전 체크리스트: [`docs/store-privacy-readiness.md`](./store-privacy-readiness.md)
 - 현재 판정: privacy policy URL, Play Data Safety/App Privacy console forms, account deletion path, store metadata, iOS social-login review risk가 모두 public-launch HOLD gate다.
 
-## 5. 공식 기준 참조
+## 6. 공식 기준 참조
 
 - Google Play target API: https://developer.android.com/google/play/requirements/target-sdk
 - Play Data Safety: https://support.google.com/googleplay/android-developer/answer/10787469

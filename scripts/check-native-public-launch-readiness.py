@@ -34,6 +34,13 @@ def has_file(path: str) -> bool:
     return (ROOT / path).exists()
 
 
+def read_optional(path: str) -> str:
+    target = ROOT / path
+    if not target.exists():
+        return ""
+    return target.read_text(encoding="utf-8", errors="ignore")
+
+
 def match_int(pattern: str, text: str) -> int | None:
     found = re.search(pattern, text)
     return int(found.group(1)) if found else None
@@ -53,23 +60,8 @@ def add(checks: list[Check], status: str, area: str, item: str, detail: str, act
 
 
 def detect_native_account_delete(paths: Iterable[str]) -> bool:
-    # Keep this deliberately narrow: zone deletion (deleteUserZone/deleteZone),
-    # token clearing, or local logout must not satisfy store account deletion.
-    literal_needles = (
-        "delete account",
-        "account deletion",
-        "회원탈퇴",
-        "계정 삭제",
-        "탈퇴하기",
-        "DeleteAccount",
-        "deleteAccount",
-        "deleteCurrentUser",
-        "withdrawAccount",
-    )
-    endpoint_patterns = (
-        r'\bDELETE\b[^\n]{0,80}/(?:api/)?users/(?:me|\{id\}|:id)',
-        r'"/(?:api/)?users/(?:me|\\\(userId\\\)|\\\(id\\\))"',
-    )
+    literal_needles = ("delete account", "account deletion", "회원탈퇴", "회원 탈퇴", "계정 삭제", "탈퇴")
+    call_patterns = (r"\bdeleteAccount\s*\(", r"\bdeleteUser\s*\(")
     for rel in paths:
         base = ROOT / rel
         if not base.exists():
@@ -80,10 +72,10 @@ def detect_native_account_delete(paths: Iterable[str]) -> bool:
                     text = path.read_text(encoding="utf-8", errors="ignore")
                 except OSError:
                     continue
-                lower_text = text.lower()
-                if any(needle.lower() in lower_text for needle in literal_needles):
+                lowered = text.lower()
+                if any(needle in lowered for needle in literal_needles[:2]) or any(needle in text for needle in literal_needles[2:]):
                     return True
-                if any(re.search(pattern, text) for pattern in endpoint_patterns):
+                if any(re.search(pattern, text) for pattern in call_patterns):
                     return True
     return False
 
@@ -207,13 +199,45 @@ def main() -> int:
     else:
         add(checks, "FAIL", "android", "account-deletion-ux", "No discoverable Android account deletion path detected", "Add in-app account deletion initiation before Play submission")
 
-    privacy_candidates = ["privacy", "개인정보", "Privacy Policy", "privacy policy"]
-    repo_privacy_text = "\n".join(
-        path.read_text(encoding="utf-8", errors="ignore")
-        for path in [ROOT / "mobile/README.md", ROOT / "TODO.md", ROOT / "docs/mobile-public-launch-readiness.md"]
-        if path.exists()
+    privacy_inventory = read_optional("docs/store-privacy-readiness.md")
+    required_privacy_sections = (
+        "Google Play Data Safety checklist",
+        "Apple App Privacy checklist",
+        "Store metadata checklist",
+        "Account deletion acceptance checklist",
+        "Review-risk gates before public submission",
     )
-    if any(token in repo_privacy_text for token in privacy_candidates):
+    required_data_terms = (
+        "OAuth email",
+        "OAuth provider ID",
+        "Nickname",
+        "Profile image",
+        "Device current location",
+        "Zone photo/image",
+        "Review content",
+        "Access/refresh tokens",
+        "Diagnostics/logs/IP",
+    )
+    missing_sections = [section for section in required_privacy_sections if section not in privacy_inventory]
+    missing_terms = [term for term in required_data_terms if term not in privacy_inventory]
+    if privacy_inventory and not missing_sections and not missing_terms:
+        add(checks, "PASS", "shared", "privacy-data-inventory", "Store privacy inventory covers Play, Apple, metadata, deletion, review risks, and core data types")
+    else:
+        detail = "missing " + ", ".join(missing_sections + missing_terms) if privacy_inventory else "docs/store-privacy-readiness.md missing"
+        add(checks, "FAIL", "shared", "privacy-data-inventory", detail, "Create/update store privacy data inventory before submission")
+
+    public_url_pattern = re.compile(r"https://(?!support\.google\.com|developer\.apple\.com)[^\s)]+", re.I)
+    public_urls = public_url_pattern.findall(privacy_inventory)
+    if public_urls:
+        add(checks, "MANUAL", "shared", "privacy-policy-url", f"candidate public URL(s): {', '.join(sorted(set(public_urls)))}", "Confirm URL is public, non-placeholder, and entered in both store consoles")
+    else:
+        add(checks, "FAIL", "shared", "privacy-policy-url", "No public NugulMap privacy/account-deletion URL recorded", "Publish privacy policy and account-deletion URL before public submission")
+
+    repo_privacy_text = "\n".join(
+        read_optional(path)
+        for path in ["mobile/README.md", "TODO.md", "docs/mobile-public-launch-readiness.md", "docs/store-privacy-readiness.md"]
+    )
+    if "Play Data Safety" in repo_privacy_text and "Apple App Privacy" in repo_privacy_text:
         add(checks, "MANUAL", "shared", "privacy-policy-and-store-forms", "Privacy/store checklist exists, but final public URL/forms are account-gated", "Complete Play Data Safety and Apple App Privacy from data inventory")
     else:
         add(checks, "FAIL", "shared", "privacy-policy-and-store-forms", "No privacy/store checklist evidence", "Create privacy policy and store form drafts")
