@@ -12,6 +12,22 @@ if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
 
+fun localPropertyOrEnv(name: String): String =
+    localProperties.getProperty(name)?.trim()?.takeIf { it.isNotBlank() }
+        ?: System.getenv(name)?.trim()?.takeIf { it.isNotBlank() }
+        ?: ""
+
+val releaseStoreFile = localPropertyOrEnv("NUGUL_RELEASE_STORE_FILE")
+val releaseStorePassword = localPropertyOrEnv("NUGUL_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = localPropertyOrEnv("NUGUL_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = localPropertyOrEnv("NUGUL_RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { it.isNotBlank() }
+
 android {
     namespace = "com.nugulmap.nativeapp"
     compileSdk = 36
@@ -23,17 +39,31 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        val apiBaseUrl = localProperties.getProperty("NUGUL_API_BASE_URL", "https://api.nugulmap.com")
+        val apiBaseUrl = localPropertyOrEnv("NUGUL_API_BASE_URL").ifBlank { "https://api.nugulmap.com" }
             .trim()
             .trimEnd('/')
-        val kakaoNativeAppKey = localProperties.getProperty("KAKAO_NATIVE_APP_KEY", "")
+        val kakaoNativeAppKey = localPropertyOrEnv("KAKAO_NATIVE_APP_KEY")
             .trim()
         buildConfigField("String", "NUGUL_API_BASE_URL", "\"$apiBaseUrl\"")
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$kakaoNativeAppKey\"")
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
