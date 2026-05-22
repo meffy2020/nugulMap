@@ -1,0 +1,66 @@
+apiVersion: ssu/v1
+nlu:
+  shortcuts:
+    bundleIdentifier: com.nugulmap.native
+    intents:
+    - metadata:
+        name: OpenNugulMapIntent_0
+        title: 너굴맵 열기
+      corpuses:
+        training:
+        - locale: en
+          utterances:
+          - '{${+prefix} }${+applicationName} 열어'
+          - '{${+prefix} }${+applicationName} 지도 보여줘'
+    - metadata:
+        name: OpenNugulMapIntent_1
+        title: 너굴맵 열기
+      corpuses:
+        training:
+        - locale: en
+          utterances:
+          - '{${+prefix} }${+applicationName} 제보 시작'
+          - '{${+prefix} }${+applicationName} 흡연구역 제보'
+    - metadata:
+        name: SearchNugulZonesIntent_2
+        title: 흡연구역 검색
+      corpuses:
+        training:
+        - locale: en
+          utterances:
+          - '{${+prefix} }${+applicationName}에서 흡연구역 검색'
+          - '{${+prefix} }${+applicationName}에서 장소 검색'
+    - metadata:
+        name: +negative
+      corpuses:
+        training:
+        - locale: en
+          utterances:
+          - '{${+prefix} }${+standardAppShortcutNegatives}'
+variables:
+- name: +applicationName
+  type: ssu/expansion
+  definitions:
+  - locale: en
+    synomyms:
+    - 너굴맵
+- name: NugulIntentDestination
+  type: ssu/parameter
+  definitions:
+  - locale: en
+    synomyms:
+    - 지도
+    - 제보하기
+    - 프로필
+- name: +prefix
+  type: ssu/expansion
+  definitions:
+  - locale: en
+    synomyms:
+      $ref: ssu://Resources/prefix/en.yaml
+- name: +standardAppShortcutNegatives
+  type: ssu/expansion
+  definitions:
+  - locale: en
+    synomyms:
+      $ref: ssu://Resources/standardAppShortcutNegatives/en.yaml
