@@ -1,6 +1,7 @@
 package com.neogulmap.neogul_map.dto;
 
 import com.neogulmap.neogul_map.domain.Zone;
+import com.neogulmap.neogul_map.config.web.PublicUrlBuilder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Builder;
@@ -24,6 +25,7 @@ public class ZoneResponse {
     private String address;
     private String user;
     private String image;
+    private String imageUrl;
 
     public static ZoneResponse from(Zone zone) {
         if (zone == null) return null;
@@ -53,6 +55,7 @@ public class ZoneResponse {
                 .address(zone.getAddress())
                 .user(userEmail)
                 .image(zone.getImage())
+                .imageUrl(PublicUrlBuilder.imageUrl(zone.getImage()))
                 .build();
     }
 }

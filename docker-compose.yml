@@ -76,6 +76,7 @@ services:
       - ./backend/api-server/.env.local
     environment:
       SPRING_PROFILES_ACTIVE: dev,mysql,s3
+      APP_TEST_ENDPOINTS_ENABLED: "false"
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_DATABASE: ${MYSQL_DATABASE:-mydb}

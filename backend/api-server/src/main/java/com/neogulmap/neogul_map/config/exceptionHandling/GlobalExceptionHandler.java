@@ -34,7 +34,7 @@ public class GlobalExceptionHandler {
         log.error("[Business Exception] {}: {}", e.getErrorCode().getCode(), e.getMessage(), e);
         return ResponseEntity
                 .status(e.getErrorCode().getStatus())
-                .body(ErrorResponse.of(e.getErrorCode()));
+                .body(ErrorResponse.of(e.getErrorCode(), e.getMessage()));
     }
 
     /**
@@ -100,7 +100,7 @@ public class GlobalExceptionHandler {
         log.error("[Not Found Exception] {}: {}", e.getErrorCode().getCode(), e.getMessage(), e);
         return ResponseEntity
                 .status(e.getErrorCode().getStatus())
-                .body(ErrorResponse.of(e.getErrorCode()));
+                .body(ErrorResponse.of(e.getErrorCode(), e.getMessage()));
     }
 
     /**
@@ -122,7 +122,7 @@ public class GlobalExceptionHandler {
         log.error("[Validation Exception] {}: {}", e.getErrorCode().getCode(), e.getMessage(), e);
         return ResponseEntity
                 .status(e.getErrorCode().getStatus())
-                .body(ErrorResponse.of(e.getErrorCode()));
+                .body(ErrorResponse.of(e.getErrorCode(), e.getMessage()));
     }
 
     /**

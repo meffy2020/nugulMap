@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ErrorResponse {
     
+    @Builder.Default
+    private boolean success = false;
     private LocalDateTime timestamp;
     private int status;
     private String code;

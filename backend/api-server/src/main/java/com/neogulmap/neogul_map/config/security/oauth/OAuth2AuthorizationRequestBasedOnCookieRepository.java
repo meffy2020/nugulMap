@@ -24,6 +24,9 @@ public class OAuth2AuthorizationRequestBasedOnCookieRepository
     
     public static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
     public static final String REDIRECT_URI_PARAM_COOKIE_NAME = "redirect_uri";
+    public static final String RESPONSE_TYPE_PARAM_COOKIE_NAME = "response_type";
+    public static final String CODE_CHALLENGE_PARAM_COOKIE_NAME = "code_challenge";
+    public static final String CODE_CHALLENGE_METHOD_PARAM_COOKIE_NAME = "code_challenge_method";
     private static final int COOKIE_EXPIRE_SECONDS = 180;
     
     @Value("${app.cookie.secure:false}")
@@ -58,6 +61,24 @@ public class OAuth2AuthorizationRequestBasedOnCookieRepository
             String encodedRedirectUri = URLEncoder.encode(redirectUriAfterLogin, StandardCharsets.UTF_8);
             addCookie(response, REDIRECT_URI_PARAM_COOKIE_NAME, encodedRedirectUri, COOKIE_EXPIRE_SECONDS);
         }
+
+        String responseType = request.getParameter(RESPONSE_TYPE_PARAM_COOKIE_NAME);
+        if (responseType != null && !responseType.isBlank()) {
+            String encodedResponseType = URLEncoder.encode(responseType.trim(), StandardCharsets.UTF_8);
+            addCookie(response, RESPONSE_TYPE_PARAM_COOKIE_NAME, encodedResponseType, COOKIE_EXPIRE_SECONDS);
+        }
+
+        String codeChallenge = request.getParameter(CODE_CHALLENGE_PARAM_COOKIE_NAME);
+        if (codeChallenge != null && !codeChallenge.isBlank()) {
+            String encodedCodeChallenge = URLEncoder.encode(codeChallenge.trim(), StandardCharsets.UTF_8);
+            addCookie(response, CODE_CHALLENGE_PARAM_COOKIE_NAME, encodedCodeChallenge, COOKIE_EXPIRE_SECONDS);
+        }
+
+        String codeChallengeMethod = request.getParameter(CODE_CHALLENGE_METHOD_PARAM_COOKIE_NAME);
+        if (codeChallengeMethod != null && !codeChallengeMethod.isBlank()) {
+            String encodedCodeChallengeMethod = URLEncoder.encode(codeChallengeMethod.trim(), StandardCharsets.UTF_8);
+            addCookie(response, CODE_CHALLENGE_METHOD_PARAM_COOKIE_NAME, encodedCodeChallengeMethod, COOKIE_EXPIRE_SECONDS);
+        }
     }
     
     @Override
@@ -71,6 +92,9 @@ public class OAuth2AuthorizationRequestBasedOnCookieRepository
     public void removeAuthorizationRequestCookies(HttpServletRequest request, HttpServletResponse response) {
         deleteCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
         deleteCookie(request, response, REDIRECT_URI_PARAM_COOKIE_NAME);
+        deleteCookie(request, response, RESPONSE_TYPE_PARAM_COOKIE_NAME);
+        deleteCookie(request, response, CODE_CHALLENGE_PARAM_COOKIE_NAME);
+        deleteCookie(request, response, CODE_CHALLENGE_METHOD_PARAM_COOKIE_NAME);
     }
     
     private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {

@@ -1,10 +1,12 @@
 import csv
+import json
 import requests
 import os
 import glob
 
 # API URL
-BASE_URL = "https://api.nugulmap.com/api/test/zones"
+BASE_URL = os.getenv("NUGULMAP_ZONE_API_URL", "https://api.nugulmap.com/api/zones")
+API_TOKEN = os.getenv("NUGULMAP_API_TOKEN", "").strip()
 
 def get_column_mapping(headers):
     mapping = {
@@ -39,6 +41,9 @@ def get_column_mapping(headers):
     return mapping
 
 def upload_csv(file_path):
+    if not API_TOKEN:
+        raise RuntimeError("NUGULMAP_API_TOKEN is required because production /api/test/** endpoints are closed.")
+
     print(f"\n📂 Processing: {os.path.basename(file_path)}")
     
     try:
@@ -69,8 +74,7 @@ def upload_csv(file_path):
                         "region": row.get(mapping["region"], "서울특별시") if mapping["region"] else "서울특별시",
                         "type": row.get(mapping["type"], "흡연구역") if mapping["type"] else "흡연구역",
                         "subtype": row.get(mapping["subtype"], "") if mapping["subtype"] else "",
-                        "size": row.get(mapping["size"], "중형") if mapping["size"] else "중형",
-                        "creator": "system@nugulmap.com"
+                        "size": row.get(mapping["size"], "중형") if mapping["size"] else "중형"
                     }
                     
                     if mapping["latitude"] and mapping["longitude"]:
@@ -85,8 +89,12 @@ def upload_csv(file_path):
                     if data['latitude'] == 0 or data['longitude'] == 0:
                         continue
 
-                    response = requests.post(BASE_URL, data=data, files={'image': (None, '')})
-                    if response.status_code == 200:
+                    response = requests.post(
+                        BASE_URL,
+                        headers={"Authorization": f"Bearer {API_TOKEN}"},
+                        files={"data": (None, json.dumps(data, ensure_ascii=False), "text/plain")}
+                    )
+                    if response.status_code in (200, 201):
                         count += 1
                     elif response.status_code == 409:
                         duplicates += 1

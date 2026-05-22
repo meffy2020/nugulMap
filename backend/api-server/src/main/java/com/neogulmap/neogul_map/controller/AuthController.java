@@ -1,11 +1,17 @@
 package com.neogulmap.neogul_map.controller;
 
 import com.neogulmap.neogul_map.config.security.jwt.TokenProvider;
+import com.neogulmap.neogul_map.config.security.oauth.NativeOAuthCodeStore;
 import com.neogulmap.neogul_map.config.annotation.CurrentUser;
 import com.neogulmap.neogul_map.domain.User;
 import com.neogulmap.neogul_map.domain.enums.ImageType;
+import com.neogulmap.neogul_map.dto.ApiResponse;
+import com.neogulmap.neogul_map.dto.ErrorResponse;
 import com.neogulmap.neogul_map.dto.UserRequest;
 import com.neogulmap.neogul_map.dto.UserResponse;
+import com.neogulmap.neogul_map.dto.auth.AuthTokenResponse;
+import com.neogulmap.neogul_map.dto.auth.MobileOAuthExchangeRequest;
+import com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode;
 import com.neogulmap.neogul_map.service.UserService;
 import com.neogulmap.neogul_map.service.ImageService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +42,7 @@ public class AuthController {
     private final TokenProvider tokenProvider;
     private final UserService userService;
     private final ImageService imageService;
+    private final NativeOAuthCodeStore nativeOAuthCodeStore;
     
     /**
      * Refresh 토큰으로 새로운 Access Token과 Refresh Token 발급
@@ -140,6 +147,35 @@ public class AuthController {
                 "message", "토큰 검증 중 오류가 발생했습니다: " + e.getMessage()
             ));
         }
+    }
+
+    /**
+     * 네이티브 앱 OAuth 딥링크용 일회성 code 교환.
+     * 앱은 /oauth2/authorization/{provider}?redirect_uri=...&response_type=code 로 시작하고,
+     * 딥링크로 받은 code를 이 엔드포인트에 제출해 토큰을 수령한다.
+     */
+    @PostMapping("/mobile/exchange")
+    @ResponseBody
+    public ResponseEntity<?> exchangeMobileOAuthCode(@RequestBody MobileOAuthExchangeRequest request) {
+        return nativeOAuthCodeStore.consume(
+                        request != null ? request.getCode() : null,
+                        request != null ? request.getCodeVerifier() : null
+                )
+                .<ResponseEntity<?>>map(entry -> ResponseEntity.ok(ApiResponse.ok(
+                        "모바일 OAuth code 교환 성공",
+                        AuthTokenResponse.builder()
+                                .accessToken(entry.getAccessToken())
+                                .refreshToken(entry.getRefreshToken())
+                                .profileComplete(entry.isProfileComplete())
+                                .user(AuthTokenResponse.UserSummary.builder()
+                                        .id(entry.getUserId())
+                                        .email(entry.getEmail())
+                                        .nickname(entry.getNickname())
+                                        .build())
+                                .build()
+                )))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ErrorResponse.of(ErrorCode.INVALID_FORMAT, "유효하지 않거나 만료된 OAuth code입니다.")));
     }
     
     /**
@@ -270,4 +306,3 @@ public class AuthController {
         }
     }
 }
-

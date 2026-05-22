@@ -57,6 +57,9 @@ public class SecurityConfig {
     @Value("${app.security.csrf.enabled:true}")
     private boolean csrfEnabled;
 
+    @Value("${app.test-endpoints.enabled:false}")
+    private boolean testEndpointsEnabled;
+
     /**
      * 통합 보안 필터 체인
      * - OAuth2 로그인 플로우와 JWT 인증을 하나의 필터 체인에서 관리
@@ -72,15 +75,18 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-            .authorizeHttpRequests(authz -> authz
-                // 테스트 엔드포인트 허용 (최우선 순위)
-                .requestMatchers("/test/**", "/api/test/**").permitAll()
+            .authorizeHttpRequests(authz -> {
+                if (testEndpointsEnabled) {
+                    // 로컬/개발에서 명시적으로 켠 경우에만 테스트 엔드포인트 허용
+                    authz.requestMatchers("/test/**", "/api/test/**").permitAll();
+                }
 
+                authz
                 // 공개 엔드포인트 (인증 불필요)
                 .requestMatchers("/login").permitAll() // 로그인 선택 페이지
                 .requestMatchers("/login/**").permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll() // OAuth2 인증 시작/콜백
-                .requestMatchers("/auth/refresh", "/auth/validate").permitAll()
+                .requestMatchers("/auth/refresh", "/auth/validate", "/auth/mobile/exchange").permitAll()
                 .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/health").permitAll()
                 
@@ -116,8 +122,8 @@ public class SecurityConfig {
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 
                 // 나머지는 인증 필요
-                .anyRequest().authenticated()
-            )
+                .anyRequest().authenticated();
+            })
             // OAuth2 로그인 설정
             .oauth2Login(oauth2 -> oauth2
                 .authorizationEndpoint(authorization -> authorization

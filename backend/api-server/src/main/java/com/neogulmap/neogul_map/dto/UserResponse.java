@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.Builder;
 import com.neogulmap.neogul_map.domain.User;
+import com.neogulmap.neogul_map.config.web.PublicUrlBuilder;
 
 @Getter
 @Setter
@@ -13,6 +14,7 @@ public class UserResponse {
     private String email;
     private String nickname;
     private String profileImage;
+    private String profileImageUrl;
     private String createdAt;
 
     public static UserResponse from(User user) {
@@ -21,6 +23,7 @@ public class UserResponse {
                 .email(user.getEmail())
                 .nickname(user.getNickname())
                 .profileImage(user.getProfileImage() != null ? "/images/" + user.getProfileImage() : null)
+                .profileImageUrl(PublicUrlBuilder.imageUrl(user.getProfileImage()))
                 .createdAt(user.getCreatedAt())
                 .build();
     }

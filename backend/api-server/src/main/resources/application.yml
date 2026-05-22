@@ -139,6 +139,8 @@ app:
   security:
     csrf:
       enabled: ${APP_SECURITY_CSRF_ENABLED:false}  # OAuth2와 JWT 사용 시 CSRF 비활성화
+  test-endpoints:
+    enabled: ${APP_TEST_ENDPOINTS_ENABLED:false}  # 운영에서는 /api/test/** 비활성화
 
 # JWT 설정
 jwt:

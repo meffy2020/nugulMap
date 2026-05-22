@@ -63,6 +63,7 @@ services:
     environment:
       # Spring Boot 프로파일 (dev 프로필 활성화 - MinIO 사용)
       SPRING_PROFILES_ACTIVE: dev,mysql
+      APP_TEST_ENDPOINTS_ENABLED: "false"
       # MySQL 연결 정보 (Docker Compose 서비스 이름 'mysql' 사용)
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
@@ -94,6 +95,5 @@ volumes:
 
 # volumes:
 #   mysql_data:  # 데이터 영구 저장용 (테스트용이므로 주석 처리)
-
 
 

@@ -14,10 +14,12 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.WebUtils;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.nio.charset.StandardCharsets;
+import java.net.URLDecoder;
 
 @Slf4j
 @Component
@@ -28,6 +30,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final UserService userService;
     private final OAuth2AuthorizationRequestBasedOnCookieRepository authorizationRequestRepository;
     private final OAuth2RedirectUrlResolver redirectUrlResolver;
+    private final NativeOAuthCodeStore nativeOAuthCodeStore;
 
     @Value("${app.frontend-url}")
     private String frontendUrl; // 예: http://localhost
@@ -60,7 +63,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             addHttpOnlyCookie(response, REFRESH_TOKEN_COOKIE_NAME, refreshToken, 2592000);
 
             // 3. 리다이렉트 경로 결정
-            String targetUrl = determineTargetUrl(request, user, accessToken);
+            String targetUrl = determineTargetUrl(request, user, accessToken, refreshToken);
 
             log.info("OAuth2 로그인 성공: {}, 리다이렉트 경로: {}", user.getEmail(), targetUrl);
             authorizationRequestRepository.removeAuthorizationRequestCookies(request, response);
@@ -74,9 +77,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         }
     }
 
-   private String determineTargetUrl(HttpServletRequest request, User user, String accessToken) {
+   private String determineTargetUrl(HttpServletRequest request, User user, String accessToken, String refreshToken) {
     String mobileRedirectUrl = redirectUrlResolver.resolveRedirectUri(request)
-            .map(redirectUri -> buildMobileRedirectUrl(redirectUri, accessToken, user))
+            .map(redirectUri -> buildMobileRedirectUrl(request, redirectUri, accessToken, refreshToken, user))
             .orElse(null);
     if (mobileRedirectUrl != null) {
         return mobileRedirectUrl;
@@ -102,16 +105,51 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     return isBackendTest ? baseUrl + "/test" : baseUrl;
 }
 
-    private String buildMobileRedirectUrl(String redirectUri, String accessToken, User user) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(redirectUri)
-                .queryParam("accessToken", accessToken)
-                .queryParam("profileComplete", user.isProfileComplete());
+    private String buildMobileRedirectUrl(HttpServletRequest request, String redirectUri, String accessToken, String refreshToken, User user) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(redirectUri);
+
+        if (usesCodeResponseType(request)) {
+            String codeChallenge = getDecodedCookieValue(request, OAuth2AuthorizationRequestBasedOnCookieRepository.CODE_CHALLENGE_PARAM_COOKIE_NAME);
+            if (codeChallenge == null || codeChallenge.isBlank()) {
+                return builder
+                        .queryParam("error", "missing_code_challenge")
+                        .build()
+                        .encode(StandardCharsets.UTF_8)
+                        .toUriString();
+            }
+
+            String codeChallengeMethod = getDecodedCookieValue(request, OAuth2AuthorizationRequestBasedOnCookieRepository.CODE_CHALLENGE_METHOD_PARAM_COOKIE_NAME);
+            String code = nativeOAuthCodeStore.issue(accessToken, refreshToken, user, codeChallenge, codeChallengeMethod);
+            builder.queryParam("code", code);
+        } else {
+            // 기존 Expo/iOS 클라이언트 호환 경로. 신규 네이티브 앱은 response_type=code를 사용한다.
+            builder.queryParam("accessToken", accessToken);
+        }
+
+        builder.queryParam("profileComplete", user.isProfileComplete());
 
         if (!user.isProfileComplete()) {
             builder.queryParam("email", user.getEmail());
         }
 
         return builder.build().encode(StandardCharsets.UTF_8).toUriString();
+    }
+
+    private boolean usesCodeResponseType(HttpServletRequest request) {
+        return "code".equalsIgnoreCase(getDecodedCookieValue(request, OAuth2AuthorizationRequestBasedOnCookieRepository.RESPONSE_TYPE_PARAM_COOKIE_NAME));
+    }
+
+    private String getDecodedCookieValue(HttpServletRequest request, String name) {
+        var cookie = WebUtils.getCookie(request, name);
+        if (cookie == null || cookie.getValue() == null || cookie.getValue().isBlank()) {
+            return null;
+        }
+
+        try {
+            return URLDecoder.decode(cookie.getValue(), StandardCharsets.UTF_8);
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private void addHttpOnlyCookie(HttpServletResponse response, String name, String value, int maxAge) {

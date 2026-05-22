@@ -18,6 +18,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,7 +44,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/test")
 @RequiredArgsConstructor
-@Profile("dev")
+@Profile("!prod & !mysql")
+@ConditionalOnProperty(name = "app.test-endpoints.enabled", havingValue = "true")
 public class TestController {
 
     private final UserService userService;
