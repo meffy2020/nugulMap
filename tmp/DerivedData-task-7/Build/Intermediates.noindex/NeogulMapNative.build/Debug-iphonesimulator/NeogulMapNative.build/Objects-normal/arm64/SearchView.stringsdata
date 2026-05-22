@@ -1,0 +1,48 @@
+{
+  "source": "/Users/ksj/Desktop/02_Work/Projects/nugulmap/.omx/team/execute-nugulmap-andr-19246508/worktrees/worker-4/ios-native/NeogulMapNative/Views/SearchView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "검색",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "다른 장소명이나 주소로 다시 검색해보세요.",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 15
+        }
+      },
+      {
+        "comment": "",
+        "key": "검색 결과 없음",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 13
+        }
+      },
+      {
+        "comment": "",
+        "key": "예: 강남, 시청, 공원",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "검색",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 59
+        }
+      }
+    ]
+  },
+  "version": 1
+}

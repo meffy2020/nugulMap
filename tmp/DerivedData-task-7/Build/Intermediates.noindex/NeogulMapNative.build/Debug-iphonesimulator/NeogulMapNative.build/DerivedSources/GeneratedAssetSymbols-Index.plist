@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>colors</key>
+	<array>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/ksj/Desktop/02_Work/Projects/nugulmap/.omx/team/execute-nugulmap-andr-19246508/worktrees/worker-4/ios-native/NeogulMapNative/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameAccentColor</string>
+			<key>relativePath</key>
+			<string>./AccentColor.colorset</string>
+			<key>swiftSymbol</key>
+			<string>accent</string>
+		</dict>
+	</array>
+	<key>images</key>
+	<array>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/ksj/Desktop/02_Work/Projects/nugulmap/.omx/team/execute-nugulmap-andr-19246508/worktrees/worker-4/ios-native/NeogulMapNative/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACImageNameNugulMarker</string>
+			<key>relativePath</key>
+			<string>./NugulMarker.imageset</string>
+			<key>swiftSymbol</key>
+			<string>nugulMarker</string>
+		</dict>
+	</array>
+	<key>symbols</key>
+	<array/>
+</dict>
+</plist>

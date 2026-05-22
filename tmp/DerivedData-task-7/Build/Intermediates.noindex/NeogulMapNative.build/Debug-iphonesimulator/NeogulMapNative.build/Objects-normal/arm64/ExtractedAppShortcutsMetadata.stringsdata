@@ -1,0 +1,88 @@
+{
+  "version" : 2,
+  "source" : "\/Users\/ksj\/Desktop\/02_Work\/Projects\/nugulmap\/.omx\/team\/execute-nugulmap-andr-19246508\/worktrees\/worker-4\/ios-native\/NeogulMapNative\/Intents\/NugulMapIntents.swift",
+  "tables" : {
+    "AppShortcuts" : [
+      {
+        "key" : "${applicationName} 열어",
+        "values" : [
+          "${applicationName} 열어",
+          "${applicationName} 지도 보여줘"
+        ],
+        "location" : {
+          "startingLine" : 190,
+          "startingColumn" : 0
+        },
+        "appShortcutMetadata" : [
+          {
+            "index" : 0,
+            "parameterTypes" : {
+              "destination" : "NugulIntentDestination"
+            },
+            "actionIdentifier" : "OpenNugulMapIntent",
+            "parameterDisplayRepresentations" : {
+              "NugulIntentDestination" : [
+                "지도",
+                "제보하기",
+                "프로필"
+              ]
+            },
+            "title" : "너굴맵 열기"
+          }
+        ]
+      },
+      {
+        "key" : "${applicationName} 제보 시작",
+        "values" : [
+          "${applicationName} 제보 시작",
+          "${applicationName} 흡연구역 제보"
+        ],
+        "location" : {
+          "startingLine" : 190,
+          "startingColumn" : 0
+        },
+        "appShortcutMetadata" : [
+          {
+            "index" : 1,
+            "parameterTypes" : {
+              "destination" : "NugulIntentDestination"
+            },
+            "actionIdentifier" : "OpenNugulMapIntent",
+            "parameterDisplayRepresentations" : {
+              "NugulIntentDestination" : [
+                "지도",
+                "제보하기",
+                "프로필"
+              ]
+            },
+            "title" : "너굴맵 열기"
+          }
+        ]
+      },
+      {
+        "key" : "${applicationName}에서 흡연구역 검색",
+        "values" : [
+          "${applicationName}에서 흡연구역 검색",
+          "${applicationName}에서 장소 검색"
+        ],
+        "location" : {
+          "startingLine" : 190,
+          "startingColumn" : 0
+        },
+        "appShortcutMetadata" : [
+          {
+            "index" : 2,
+            "parameterTypes" : {
+
+            },
+            "actionIdentifier" : "SearchNugulZonesIntent",
+            "parameterDisplayRepresentations" : {
+
+            },
+            "title" : "흡연구역 검색"
+          }
+        ]
+      }
+    ]
+  }
+}

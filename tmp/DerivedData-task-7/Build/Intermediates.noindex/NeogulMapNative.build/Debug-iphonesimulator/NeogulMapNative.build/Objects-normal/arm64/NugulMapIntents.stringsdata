@@ -1,0 +1,136 @@
+{
+  "source": "/Users/ksj/Desktop/02_Work/Projects/nugulmap/.omx/team/execute-nugulmap-andr-19246508/worktrees/worker-4/ios-native/NeogulMapNative/Intents/NugulMapIntents.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "너굴맵 화면",
+        "location": {
+          "startingColumn": 76,
+          "startingLine": 87
+        }
+      },
+      {
+        "comment": "",
+        "key": "지도",
+        "location": {
+          "startingColumn": 15,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "제보하기",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "프로필",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 91
+        }
+      },
+      {
+        "comment": "",
+        "key": "너굴맵 열기",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "너굴맵을 원하는 화면으로 엽니다.",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 108
+        }
+      },
+      {
+        "comment": "",
+        "key": "화면",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 111
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ 화면을 엽니다.",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 124
+        }
+      },
+      {
+        "comment": "",
+        "key": "흡연구역 검색",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 140
+        }
+      },
+      {
+        "comment": "",
+        "key": "너굴맵에서 장소명이나 주소로 흡연구역을 검색합니다.",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 141
+        }
+      },
+      {
+        "comment": "",
+        "key": "검색어",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 144
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@을 검색합니다.",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 157
+        }
+      },
+      {
+        "comment": "",
+        "key": "흡연구역",
+        "location": {
+          "startingColumn": 76,
+          "startingLine": 162
+        }
+      },
+      {
+        "comment": "",
+        "key": "지도 열기",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 197
+        }
+      },
+      {
+        "comment": "",
+        "key": "제보하기",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 207
+        }
+      },
+      {
+        "comment": "",
+        "key": "흡연구역 검색",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 217
+        }
+      }
+    ]
+  },
+  "version": 1
+}
