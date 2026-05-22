@@ -9,8 +9,8 @@
 | Lane | 현재 상태 | 출시 blocker |
 | --- | --- | --- |
 | Expo `mobile/` | `release:verify` baseline 존재 | native Android/iOS 출시를 대체하지 않음 |
-| Android `android-native/` | targetSdk 36, OAuth deeplink, Kakao map SDK, production API 기본값, optional upload-key signing hook, Android-only readiness script 존재 | signed AAB credential injection, Play Console, Kakao key hash, 16KB AAB/device validation, real-device OAuth/map smoke, Data Safety |
-| iOS `ios-native/` | SwiftUI 앱, URL scheme, production API, location permission string 존재 | `DEVELOPMENT_TEAM` empty, TestFlight/archive, Apple social login policy, account deletion, App Privacy |
+| Android `android-native/` | targetSdk 36, OAuth deeplink, Kakao map SDK, production API 기본값 존재 | signed AAB, Play Console, Kakao key hash, real-device OAuth/map smoke, Data Safety |
+| iOS `ios-native/` | SwiftUI 앱, URL scheme, production API, location permission string, shared archive scheme 존재 | `DEVELOPMENT_TEAM` empty, TestFlight/archive, Apple Guideline 4.8 login policy, iOS account deletion UX, App Privacy, real-device OAuth smoke |
 
 ## 2. Store-blocker matrix
 
@@ -23,9 +23,9 @@
 | OAuth | `nugulmap://oauth/callback` | `nugulmap://oauth/callback` | static pass, real-device 필요 |
 | Map SDK | Kakao native key 필요 | MapKit | Android console/key hash blocker |
 | Social login | Provider console 확인 | Kakao/Naver/Google, Apple login risk | iOS review blocker |
-| Account deletion | native UX 확인 필요 | native UX 확인 필요 | blocker/manual |
+| Account deletion | native UX 확인 필요 | 백엔드 삭제 endpoint는 있으나 iOS 앱 내 계정 삭제 진입점 없음 | blocker |
 | Privacy | Play Data Safety + policy URL | App Privacy + policy URL | blocker/manual |
-| Device smoke | Android physical device | iPhone/TestFlight | blocker/manual |
+| Device smoke | Android physical device | iPhone/TestFlight OAuth → callback → token persistence | blocker/manual |
 
 ## 3. 즉시 실행 순서
 
@@ -55,3 +55,21 @@
 - Android 16KB page size: https://developer.android.com/guide/practices/page-sizes
 - Apple App Privacy: https://developer.apple.com/app-store/app-privacy-details/
 - Apple App Review Guidelines: https://developer.apple.com/app-store/review/guidelines/
+
+
+## 6. iOS lane 세부 blocker evidence
+
+| iOS gate | Repository evidence | 판정 | Required before App Store/TestFlight release |
+| --- | --- | --- | --- |
+| Development Team / signing | `ios-native/NeogulMapNative.xcodeproj/project.pbxproj` Debug/Release target configs have `DEVELOPMENT_TEAM = ""` | FAIL | Apple Developer Team과 provisioning profile을 로컬/Xcode/App Store Connect에서 설정합니다. Team ID 자체는 secret은 아니지만 개인/조직 계정값이므로 자동 커밋하지 않습니다. |
+| Archive/TestFlight | `ios-native/NeogulMapNative.xcodeproj/xcshareddata/xcschemes/NeogulMapNative.xcscheme` exists, but signing team is empty | FAIL | `xcodebuild archive -destination 'generic/platform=iOS'` 후 Organizer/App Store Connect validate/upload와 TestFlight internal smoke를 수행합니다. |
+| OAuth URL scheme | `Info.plist` URL scheme `nugulmap`, `AppConfig.oauthCallbackURL`, `ASWebAuthenticationSession(callbackURLScheme:)` 연결 존재 | STATIC PASS | `ios-native/scripts/smoke-oauth-deeplink.sh`와 실제 provider OAuth/device token persistence smoke를 모두 실행합니다. |
+| Apple Guideline 4.8 | iOS login UI exposes Kakao/Naver/Google only | FAIL | Sign in with Apple 또는 guideline 4.8을 만족하는 동등 옵션을 제공하고 App Review notes를 준비합니다. |
+| Account deletion | backend `UserController` has delete endpoint, but iOS native app has no discoverable account deletion UX | FAIL | Profile/Settings에서 계정 삭제 시작 UX와 인증된 API 호출을 제공합니다. |
+| App Privacy | 문서 checklist만 있고 App Store Connect form/public privacy URL은 account-gated | MANUAL | App Privacy details와 privacy policy URL을 실제 제출값으로 확정합니다. |
+
+공식 기준:
+
+- Apple App Review Guideline 4.8 Login Services: https://developer.apple.com/app-store/review/guidelines/#login-services
+- Apple account deletion support: https://developer.apple.com/support/offering-account-deletion-in-your-app/
+- Apple App Privacy details: https://developer.apple.com/app-store/app-privacy-details/

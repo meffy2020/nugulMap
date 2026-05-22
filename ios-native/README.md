@@ -76,6 +76,34 @@ ios-native/scripts/smoke-oauth-deeplink.sh
 - 제공자 인증 후 `nugulmap://oauth/callback?code=...`로 돌아오면 앱이 `/api/auth/mobile/exchange`에 code + PKCE verifier를 전송합니다.
 - 기대 결과: 로그인 완료 후 프로필 버튼이 사용자 상태로 전환되고, 프로필 미완료 계정은 프로필 설정 시트가 열립니다.
 
+
+## App Store / TestFlight launch readiness
+
+정적 확인 기준으로 iOS 앱은 아직 App Store 공개 출시 준비가 완료되지 않았습니다. 로컬에서 확인된 핵심 blocker는 아래와 같습니다.
+
+| 항목 | 현재 근거 | 판정 | 다음 조치 |
+| --- | --- | --- | --- |
+| Signing Team | `project.pbxproj`의 Debug/Release `DEVELOPMENT_TEAM = ""` | blocker | Xcode Signing & Capabilities에서 Apple Developer Team을 로컬로 지정하고, 팀/프로비저닝 값은 저장소에 secret으로 커밋하지 않습니다. |
+| Archive/TestFlight | shared scheme은 있지만 signing team이 비어 있음 | blocker | Team 설정 후 `generic/platform=iOS` archive, App Store Connect validate/upload, TestFlight 내부 테스트를 수행합니다. |
+| Bundle ID | `com.nugulmap.native` | 확인 필요 | App Store Connect에 동일 bundle id를 등록합니다. |
+| OAuth callback | `nugulmap://oauth/callback`이 `Info.plist`, `AppConfig`, `ASWebAuthenticationSession`에 연결됨 | static pass | 실제 iPhone/TestFlight에서 provider OAuth → callback → token persistence를 검증합니다. |
+| App Review Guideline 4.8 | Kakao/Naver/Google social login만 노출됨 | review blocker | Sign in with Apple 또는 Apple 기준을 만족하는 동등한 개인정보 중심 로그인 옵션을 추가하거나, 유효한 예외 사유를 App Review notes에 문서화합니다. |
+| Account deletion | 백엔드 `DELETE /users/{id}`는 있으나 iOS 앱 내 계정 삭제 진입점은 없음 | blocker | 프로필/설정 화면에서 사용자가 계정 삭제를 시작할 수 있는 UX와 API 호출을 추가합니다. |
+| App Privacy | 저장소 문서에 체크리스트만 있음 | manual blocker | App Store Connect App Privacy 입력과 공개 Privacy Policy URL을 최종 확정합니다. |
+
+반복 가능한 정적 확인은 저장소 루트에서 실행합니다.
+
+```bash
+python3 scripts/check-native-public-launch-readiness.py
+ios-native/scripts/smoke-oauth-deeplink.sh
+```
+
+공식 기준 확인용 링크:
+
+- App Review Guideline 4.8 Login Services: https://developer.apple.com/app-store/review/guidelines/#login-services
+- In-app account deletion support: https://developer.apple.com/support/offering-account-deletion-in-your-app/
+- App Privacy details: https://developer.apple.com/app-store/app-privacy-details/
+
 ## 현재 검증 상태
 
 아래 명령으로 iOS Simulator 대상 빌드와 프로젝트 설정 검증을 통과했습니다.

@@ -60,8 +60,23 @@ def add(checks: list[Check], status: str, area: str, item: str, detail: str, act
 
 
 def detect_native_account_delete(paths: Iterable[str]) -> bool:
-    literal_needles = ("delete account", "account deletion", "회원탈퇴", "회원 탈퇴", "계정 삭제", "탈퇴")
-    call_patterns = (r"\bdeleteAccount\s*\(", r"\bdeleteUser\s*\(")
+    # Keep this deliberately narrow: zone deletion (deleteUserZone/deleteZone),
+    # token clearing, or local logout must not satisfy store account deletion.
+    literal_needles = (
+        "delete account",
+        "account deletion",
+        "회원탈퇴",
+        "계정 삭제",
+        "탈퇴하기",
+        "DeleteAccount",
+        "deleteAccount",
+        "deleteCurrentUser",
+        "withdrawAccount",
+    )
+    endpoint_patterns = (
+        r'\bDELETE\b[^\n]{0,80}/(?:api/)?users/(?:me|\{id\}|:id)',
+        r'"/(?:api/)?users/(?:me|\\\(userId\\\)|\\\(id\\\))"',
+    )
     for rel in paths:
         base = ROOT / rel
         if not base.exists():
@@ -72,10 +87,10 @@ def detect_native_account_delete(paths: Iterable[str]) -> bool:
                     text = path.read_text(encoding="utf-8", errors="ignore")
                 except OSError:
                     continue
-                lowered = text.lower()
-                if any(needle in lowered for needle in literal_needles[:2]) or any(needle in text for needle in literal_needles[2:]):
+                lower_text = text.lower()
+                if any(needle.lower() in lower_text for needle in literal_needles):
                     return True
-                if any(re.search(pattern, text) for pattern in call_patterns):
+                if any(re.search(pattern, text) for pattern in endpoint_patterns):
                     return True
     return False
 
