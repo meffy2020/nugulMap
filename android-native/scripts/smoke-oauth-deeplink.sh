@@ -26,8 +26,17 @@ else:
     raise SystemExit(f"FAIL manifest deeplink: missing {expected} in {manifest_path}")
 PY
 
-if command -v adb >/dev/null 2>&1 && adb get-state >/dev/null 2>&1; then
-  adb shell am start -W -a android.intent.action.VIEW -d "$SMOKE_URI" "$PACKAGE_NAME"
+ADB_BIN="${ADB:-}"
+if [[ -z "$ADB_BIN" ]]; then
+  if command -v adb >/dev/null 2>&1; then
+    ADB_BIN="$(command -v adb)"
+  elif [[ -x "$HOME/Library/Android/sdk/platform-tools/adb" ]]; then
+    ADB_BIN="$HOME/Library/Android/sdk/platform-tools/adb"
+  fi
+fi
+
+if [[ -n "$ADB_BIN" ]] && "$ADB_BIN" get-state >/dev/null 2>&1; then
+  "$ADB_BIN" shell am start -W -a android.intent.action.VIEW -d "$SMOKE_URI" "$PACKAGE_NAME"
   echo "PASS adb deeplink smoke: launched $SMOKE_URI"
 else
   echo "SKIP adb deeplink smoke: adb device unavailable; static manifest smoke passed"
