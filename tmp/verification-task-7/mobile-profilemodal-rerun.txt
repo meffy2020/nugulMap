@@ -1,0 +1,19 @@
+$ npm run test -- src/components/ProfileModal.test.tsx --runInBand
+
+> nugulmap-mobile@1.0.0 test
+> jest src/components/ProfileModal.test.tsx --runInBand
+
+jest-haste-map: Watchman crawl failed. Retrying once with node crawler.
+  Usually this happens when watchman isn't running. Create an empty `.watchmanconfig` file in your project's root folder or initialize a git or hg repository in your project.
+  Error: Watchman error: std::__1::system_error: open: /Users/ksj/Desktop/02_Work/Projects/nugulmap/.omx/team/execute-nugulmap-andr-19246508/worktrees/worker-4/mobile: Operation not permitted. Make sure watchman is running for this project. See https://facebook.github.io/watchman/docs/troubleshooting.
+PASS src/components/ProfileModal.test.tsx
+  ProfileModal
+    ✓ submits profile setup when login is complete but profile is missing (630 ms)
+    ✓ loads my zones and renders image thumbnail and placeholder states (167 ms)
+    ✓ forwards edit requests and confirms delete actions (76 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       3 passed, 3 total
+Snapshots:   0 total
+Time:        1.967 s, estimated 17 s
+Ran all test suites matching /src\/components\/ProfileModal.test.tsx/i.

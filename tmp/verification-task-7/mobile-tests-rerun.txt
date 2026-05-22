@@ -1,0 +1,20 @@
+$ npm run test -- --runInBand (rerun)
+
+> nugulmap-mobile@1.0.0 test
+> jest --runInBand
+
+jest-haste-map: Watchman crawl failed. Retrying once with node crawler.
+  Usually this happens when watchman isn't running. Create an empty `.watchmanconfig` file in your project's root folder or initialize a git or hg repository in your project.
+  Error: Watchman error: std::__1::system_error: open: /Users/ksj/Desktop/02_Work/Projects/nugulmap/.omx/team/execute-nugulmap-andr-19246508/worktrees/worker-4/mobile: Operation not permitted. Make sure watchman is running for this project. See https://facebook.github.io/watchman/docs/troubleshooting.
+PASS src/services/nugulApi.test.ts
+PASS src/components/ProfileModal.test.tsx
+PASS src/components/ZoneReviewModal.test.tsx
+PASS src/components/SimpleBottomTab.test.tsx
+PASS src/components/ZoneDetailModal.test.tsx
+PASS src/components/ZoneCard.test.tsx
+
+Test Suites: 6 passed, 6 total
+Tests:       34 passed, 34 total
+Snapshots:   0 total
+Time:        4.4 s, estimated 9 s
+Ran all test suites.

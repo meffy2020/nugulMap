@@ -7,3 +7,30 @@ jest-haste-map: Watchman crawl failed. Retrying once with node crawler.
   Usually this happens when watchman isn't running. Create an empty `.watchmanconfig` file in your project's root folder or initialize a git or hg repository in your project.
   Error: Watchman error: std::__1::system_error: open: /Users/ksj/Desktop/02_Work/Projects/nugulmap/.omx/team/execute-nugulmap-andr-19246508/worktrees/worker-4/mobile: Operation not permitted. Make sure watchman is running for this project. See https://facebook.github.io/watchman/docs/troubleshooting.
 PASS src/services/nugulApi.test.ts
+FAIL src/components/ProfileModal.test.tsx (16.84 s)
+  ● ProfileModal › submits profile setup when login is complete but profile is missing
+
+    thrown: "Exceeded timeout of 5000 ms for a test.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      71 |   })
+      72 |
+    > 73 |   it("submits profile setup when login is complete but profile is missing", async () => {
+         |   ^
+      74 |     const onProfileUpdated = jest.fn().mockResolvedValue(undefined)
+      75 |
+      76 |     render(
+
+      at it (src/components/ProfileModal.test.tsx:73:3)
+      at Object.describe (src/components/ProfileModal.test.tsx:62:1)
+
+PASS src/components/ZoneReviewModal.test.tsx
+PASS src/components/ZoneDetailModal.test.tsx
+PASS src/components/ZoneCard.test.tsx
+PASS src/components/SimpleBottomTab.test.tsx
+
+Test Suites: 1 failed, 5 passed, 6 total
+Tests:       1 failed, 33 passed, 34 total
+Snapshots:   0 total
+Time:        25.252 s
+Ran all test suites.
