@@ -1,5 +1,6 @@
 package com.nugulmap.nativeapp.ui.map
 
+import android.graphics.Color as AndroidColor
 import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -29,8 +30,11 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.MapView
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import com.kakao.vectormap.label.LabelOptions
+import com.kakao.vectormap.label.LabelStyle
+import com.kakao.vectormap.label.LabelStyles
 import com.kakao.vectormap.label.LabelTextBuilder
 import com.nugulmap.nativeapp.BuildConfig
+import com.nugulmap.nativeapp.R
 import com.nugulmap.nativeapp.data.dto.ZoneDto
 
 @Composable
@@ -52,9 +56,9 @@ fun KakaoZoneMap(
     val latestZones by rememberUpdatedState(zones)
     val latestOnZoneSelected by rememberUpdatedState(onZoneSelected)
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
-    var mapView by remember { mutableStateOf<MapView?>(null) }
     var shouldShowFallback by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val mapView = remember(context) { MapView(context) }
 
     LaunchedEffect(BuildConfig.KAKAO_NATIVE_APP_KEY) {
         runCatching { KakaoMapSdk.init(context.applicationContext, BuildConfig.KAKAO_NATIVE_APP_KEY.trim()) }
@@ -76,56 +80,73 @@ fun KakaoZoneMap(
         } else {
             AndroidView(
                 modifier = Modifier.matchParentSize(),
-                factory = { context ->
-                    MapView(context).also { view ->
-                        mapView = view
-                        view.start(
-                            object : MapLifeCycleCallback() {
-                                override fun onMapDestroy() = Unit
-
-                                override fun onMapError(exception: Exception) {
-                                    Log.w(KAKAO_MAP_TAG, "Kakao map runtime failed (${exception::class.java.simpleName}); showing quiet fallback")
-                                    shouldShowFallback = true
-                                }
-                            },
-                            object : KakaoMapReadyCallback() {
-                                override fun getPosition(): LatLng = firstZonePosition(latestZones)
-
-                                override fun getZoomLevel(): Int = 15
-
-                                override fun onMapReady(map: KakaoMap) {
-                                    kakaoMap = map
-                                    map.setOnLabelClickListener { _, _, label ->
-                                        (label.tag as? Int)?.let(latestOnZoneSelected)
-                                        true
-                                    }
-                                }
-                            },
-                        )
-                    }
-                },
+                factory = { mapView },
             )
         }
     }
 
     DisposableEffect(lifecycleOwner, mapView) {
+        Log.i(KAKAO_MAP_TAG, "Starting Kakao MapView")
+        mapView.start(
+            object : MapLifeCycleCallback() {
+                override fun onMapDestroy() {
+                    Log.i(KAKAO_MAP_TAG, "Kakao map destroyed")
+                }
+
+                override fun onMapError(exception: Exception) {
+                    Log.w(KAKAO_MAP_TAG, "Kakao map runtime failed (${exception::class.java.simpleName}); showing quiet fallback")
+                    shouldShowFallback = true
+                }
+
+                override fun onMapResumed() {
+                    Log.i(KAKAO_MAP_TAG, "Kakao map resumed")
+                }
+
+                override fun onMapPaused() {
+                    Log.i(KAKAO_MAP_TAG, "Kakao map paused")
+                }
+            },
+            object : KakaoMapReadyCallback() {
+                override fun getPosition(): LatLng = firstZonePosition(latestZones)
+
+                override fun getZoomLevel(): Int = 15
+
+                override fun onMapReady(map: KakaoMap) {
+                    Log.i(KAKAO_MAP_TAG, "Kakao map ready")
+                    kakaoMap = map
+                    map.setOnLabelClickListener { _, _, label ->
+                        (label.tag as? Int)?.let(latestOnZoneSelected)
+                        true
+                    }
+                }
+            },
+        )
+
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> mapView?.resume()
-                Lifecycle.Event.ON_PAUSE -> mapView?.pause()
-                Lifecycle.Event.ON_DESTROY -> mapView?.finish()
+                Lifecycle.Event.ON_RESUME -> mapView.resume()
+                Lifecycle.Event.ON_PAUSE -> mapView.pause()
+                Lifecycle.Event.ON_DESTROY -> mapView.finish()
                 else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            mapView.resume()
+        }
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            mapView?.finish()
+            mapView.finish()
         }
     }
 
     LaunchedEffect(kakaoMap, zones, selectedZoneId) {
-        kakaoMap?.renderZones(zones, selectedZoneId)
+        kakaoMap?.let { map ->
+            runCatching { map.renderZones(zones, selectedZoneId) }
+                .onFailure { throwable ->
+                    Log.w(KAKAO_MAP_TAG, "Kakao zone label render failed (${throwable::class.java.simpleName})")
+                }
+        }
     }
 }
 
@@ -178,19 +199,39 @@ private fun firstZonePosition(zones: List<ZoneDto>): LatLng {
 }
 
 private fun KakaoMap.renderZones(zones: List<ZoneDto>, selectedZoneId: Int?) {
-    val layer = labelManager?.layer ?: return
+    val labelManager = labelManager ?: return
+    val layer = labelManager.layer ?: return
     layer.removeAll()
     if (zones.isEmpty()) {
         moveCamera(CameraUpdateFactory.newCenterPosition(LatLng.from(SEOUL_LATITUDE, SEOUL_LONGITUDE), 14))
         return
     }
 
+    val normalStyle = labelManager.addLabelStyles(
+        LabelStyles.from(
+            LabelStyle
+                .from(R.drawable.ic_zone_marker)
+                .setAnchorPoint(0.5f, 1.0f)
+                .setTextStyles(12, AndroidColor.rgb(22, 22, 22), 3, AndroidColor.WHITE),
+        ),
+    )
+    val selectedStyle = labelManager.addLabelStyles(
+        LabelStyles.from(
+            LabelStyle
+                .from(R.drawable.ic_zone_marker_selected)
+                .setAnchorPoint(0.5f, 1.0f)
+                .setTextStyles(13, AndroidColor.rgb(10, 10, 10), 4, AndroidColor.WHITE),
+        ),
+    )
+
     zones.forEach { zone ->
+        val isSelected = zone.id == selectedZoneId
         val options = LabelOptions
             .from("zone-${zone.id}", LatLng.from(zone.latitude, zone.longitude))
             .setClickable(true)
             .setTag(zone.id)
-            .setTexts(LabelTextBuilder().setTexts(if (zone.id == selectedZoneId) "● ${zone.title}" else zone.title))
+            .setStyles(if (isSelected) selectedStyle else normalStyle)
+            .setTexts(LabelTextBuilder().setTexts(if (isSelected) zone.title else ""))
         layer.addLabel(options)
     }
 
