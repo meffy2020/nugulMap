@@ -27,8 +27,8 @@ NUGUL_API_BASE_URL = http://127.0.0.1:8080
 - 웹 버전처럼 전체 화면 지도 첫 화면
 - 상단 플로팅 검색바와 프로필 버튼
 - 하단 현재 위치 버튼과 `제보하기` 버튼
-- MapKit 지도에 흡연구역 마커 표시
-- 웹 버전의 상세 바텀시트 스타일: 장소명, 타입 배지, 이미지, 설명, 길찾기
+- MapKit fallback 지도에 흡연구역 마커 표시
+- 지도 위 선택 카드 스타일: 장소명, 타입 배지, 주소, 좌표, 길찾기
 - 웹 add 화면의 슬림 등록 바텀시트 스타일: 주소, 타입 선택, 사진 선택, 팁 입력, 등록 버튼
 - 제보 이미지 1280px JPEG 압축 및 30초 중복 등록 제한
 - 장소 상세 리뷰 조회
@@ -47,6 +47,17 @@ NUGUL_API_BASE_URL = http://127.0.0.1:8080
 - 내 등록 장소: `GET /api/zones/my`
 - 장소 삭제: `DELETE /api/zones/{id}`
 - 네트워크 실패 시 서울 기본 샘플 데이터 표시
+
+## KakaoMap 전환 상태 (2026-05-23)
+
+현재 iOS 프로젝트는 KakaoMapsSDK 전환이 setup blocked 상태입니다. `NeogulMapNative.xcodeproj/project.pbxproj`에 Swift Package/CocoaPods 의존성 참조가 없고, `Info.plist`/`AppConfig.swift`에도 Kakao iOS 지도용 native app key 또는 `KAKAO_APP_KEY` 주입 경로가 없습니다. Kakao 공식 iOS 지도 문서는 KakaoMapsSDK를 SPM/CocoaPods로 추가한 뒤 `import KakaoMapsSDK`를 사용하고, Kakao Developers에서 발급한 `KAKAO_APP_KEY`로 사용 등록을 해야 한다고 안내합니다.
+
+따라서 이번 release-polish 범위에서는 키를 노출하거나 프로젝트 의존성을 임의 추가하지 않고, 기존 MapKit 경로를 안전한 fallback으로 유지했습니다. 대신 지도 마커 선택 시 sheet를 띄우던 흐름을 지도 위 bottom card로 바꿔 iOS UI parity를 먼저 검증할 수 있게 했습니다. KakaoMap 전환을 완료하려면 다음 setup이 선행되어야 합니다.
+
+1. `https://github.com/kakao-mapsSDK/KakaoMapsSDK-SPM.git` Swift Package 추가
+2. Kakao Developers iOS platform 등록 및 bundle id `com.nugulmap.native`용 native app key 발급
+3. secret-safe build setting 또는 xcconfig로 Kakao 지도 키 주입
+4. `ZoneMapView.swift`의 MapKit `UIViewRepresentable`을 KakaoMapsSDK view/controller로 교체하고 label/selection/event 흐름 재검증
 
 
 ## OAuth 딥링크 로컬 smoke test

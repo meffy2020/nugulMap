@@ -1,16 +1,21 @@
-Fix Android launch screen release polish regression while preserving existing app contracts.
+Android/iOS native map parity and verification task.
 
-Scope:
-- Remove launch-screen visible copy "지도 미리보기" and "N개 구역 표시 중" from Android no-key fallback.
-- Prevent raw API/DNS/exception messages from appearing on the launch map surface or bottom toast.
-- Make Android no-Kakao-key fallback a quiet iOS-like fullscreen map shell with glass/rounded controls, not a diagnostic card.
-- Fix fallback marker count so it does not show fake markers inconsistent with actual loaded zones; if zones are zero, show a quiet empty map shell.
-- If a real local KAKAO_NATIVE_APP_KEY is available, validate real Kakao map path; otherwise record credential-gated verification and validate no-key fallback.
+Split into Android and iOS lanes.
 
-Constraints:
-- Android UI only unless verification exposes shared defects.
-- No backend/API contract changes.
-- No new feature expansion.
-- Keep changes small, reversible, and release-oriented.
-- Verify with Android build and emulator/screenshot when possible.
-- Commit and push after verified.
+Android lane:
+- Run and verify on Android emulator while working.
+- Confirm Kakao map markers render and basic selection behavior works.
+- Remove visible explanatory/diagnostic copy on map/menu/settings surfaces such as "지도 위에는 ...", "지도, 검색, 프로필...", "키가 없으면 ...", and similar “뭐 어쩌구로 됩니다” style guide text.
+- Keep Android already using KakaoMap; no backend/API contract changes.
+
+iOS lane:
+- Convert iOS map surface from Apple MapKit to KakaoMap if feasible in current native project.
+- Make markers and existing map selection/report/search-adjacent behavior work normally after conversion.
+- Replace bottom modal/sheet selection presentation with an on-map bottom card style.
+- Keep UI close to Android/iOS glass card launch quality; no unrelated feature expansion.
+
+Verification and completion:
+- Build Android and iOS.
+- Launch Android emulator and iOS simulator, capture screenshots/evidence.
+- Record blockers honestly if Kakao iOS SDK requires credential/package setup not present locally.
+- Commit and push verified changes.

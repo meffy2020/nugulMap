@@ -23,12 +23,14 @@ struct ZoneMapView: View {
     var body: some View {
         ZStack {
             mapLayer
-
-            VStack(spacing: 0) {
-                topHeader
-                Spacer()
-                bottomControls
-            }
+                .overlay(alignment: .top) {
+                    topHeader
+                        .padding(.horizontal, 16)
+                        .padding(.top, safeAreaTop + 12)
+                }
+                .overlay(alignment: .bottom) {
+                    bottomControls
+                }
 
             if model.isLoading {
                 LoadingOverlay()
@@ -44,10 +46,6 @@ struct ZoneMapView: View {
         .ignoresSafeArea()
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
-            case let .zone(zone):
-                ZoneDetailView(zone: zone, model: model)
-                    .presentationDetents([.height(360), .medium, .large])
-                    .compactGlassSheet()
             case .report:
                 ReportZoneSheet(model: model, coordinate: cameraCenter)
                     .presentationDetents([.height(270), .medium])
@@ -109,7 +107,9 @@ struct ZoneMapView: View {
                 }
             },
             onSelectZone: { zone in
-                activeSheet = .zone(zone)
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.88)) {
+                    model.select(zone)
+                }
             }
         )
         .ignoresSafeArea()
@@ -140,8 +140,6 @@ struct ZoneMapView: View {
                 }
             }
         )
-        .padding(.horizontal, 16)
-        .padding(.top, safeAreaTop + 12)
     }
 
     private var sideMenuOverlay: some View {
@@ -257,6 +255,19 @@ struct ZoneMapView: View {
                     .padding(.horizontal, 16)
             }
 
+            if let selectedZone = model.selectedZone {
+                SelectedZoneMapCard(
+                    zone: selectedZone,
+                    onClose: {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                            model.selectedZone = nil
+                        }
+                    }
+                )
+                .padding(.horizontal, 16)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
             HStack(alignment: .bottom, spacing: 14) {
                 Button {
                     locationProvider.requestLocation { coordinate in
@@ -287,6 +298,7 @@ struct ZoneMapView: View {
                 Spacer()
 
                 Button {
+                    model.selectedZone = nil
                     activeSheet = model.currentUser == nil ? .login : .report
                 } label: {
                     HStack(spacing: 8) {
@@ -413,7 +425,6 @@ struct ZoneMapView: View {
 }
 
 private enum HomeSheet: Identifiable {
-    case zone(SmokingZone)
     case report
     case login
     case profile
@@ -422,8 +433,6 @@ private enum HomeSheet: Identifiable {
 
     var id: String {
         switch self {
-        case let .zone(zone):
-            return "zone-\(zone.id)"
         case .report:
             return "report"
         case .login:
@@ -605,6 +614,10 @@ private struct NugulMapKitView: UIViewRepresentable {
         mapView.showsScale = true
         mapView.register(MKAnnotationView.self, forAnnotationViewWithReuseIdentifier: Coordinator.zoneReuseIdentifier)
         mapView.register(MKMarkerAnnotationView.self, forAnnotationViewWithReuseIdentifier: Coordinator.clusterReuseIdentifier)
+        let tapRecognizer = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleMapTap(_:)))
+        tapRecognizer.cancelsTouchesInView = false
+        tapRecognizer.delegate = context.coordinator
+        mapView.addGestureRecognizer(tapRecognizer)
         context.coordinator.isApplyingRegionFromSwiftUI = true
         mapView.setRegion(region, animated: false)
         context.coordinator.bind(to: model, on: mapView)
@@ -622,7 +635,7 @@ private struct NugulMapKitView: UIViewRepresentable {
         }
     }
 
-    final class Coordinator: NSObject, MKMapViewDelegate {
+    final class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         static let zoneReuseIdentifier = "NugulZoneAnnotation"
         static let clusterReuseIdentifier = "NugulZoneClusterAnnotation"
 
@@ -664,6 +677,53 @@ private struct NugulMapKitView: UIViewRepresentable {
             mapView.removeAnnotations(existingZoneAnnotations)
             mapView.addAnnotations(zones.map(ZonePointAnnotation.init))
             renderedZoneIDs = nextIDs
+        }
+
+        @objc func handleMapTap(_ recognizer: UITapGestureRecognizer) {
+            guard recognizer.state == .ended, let mapView = recognizer.view as? MKMapView else {
+                return
+            }
+
+            let tapPoint = recognizer.location(in: mapView)
+            guard let nearestZone = parent.model.zones.min(by: { lhs, rhs in
+                let lhsPoint = mapView.convert(lhs.coordinate, toPointTo: mapView)
+                let rhsPoint = mapView.convert(rhs.coordinate, toPointTo: mapView)
+                return lhsPoint.distance(to: tapPoint) < rhsPoint.distance(to: tapPoint)
+            }) else {
+                return
+            }
+
+            let nearestPoint = mapView.convert(nearestZone.coordinate, toPointTo: mapView)
+            guard nearestPoint.distance(to: tapPoint) <= 44 else {
+                return
+            }
+
+            parent.onSelectZone(nearestZone)
+        }
+
+        @objc func handleAnnotationTap(_ recognizer: UITapGestureRecognizer) {
+            guard recognizer.state == .ended,
+                  let annotationView = recognizer.view as? MKAnnotationView,
+                  let annotation = annotationView.annotation as? ZonePointAnnotation else {
+                return
+            }
+
+            parent.onSelectZone(annotation.zone)
+        }
+
+        private func installAnnotationTap(on view: MKAnnotationView) {
+            view.gestureRecognizers?
+                .filter { $0.name == "NugulAnnotationTap" }
+                .forEach(view.removeGestureRecognizer)
+
+            let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleAnnotationTap(_:)))
+            recognizer.name = "NugulAnnotationTap"
+            recognizer.cancelsTouchesInView = false
+            view.addGestureRecognizer(recognizer)
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            true
         }
 
         func shouldApply(_ target: MKCoordinateRegion, to current: MKCoordinateRegion) -> Bool {
@@ -711,10 +771,15 @@ private struct NugulMapKitView: UIViewRepresentable {
             let markerImage = UIImage(named: "NugulMarker")
             view.image = markerImage?.resized(to: CGSize(width: 42, height: 42))
             view.centerOffset = CGPoint(x: 0, y: -21)
+            view.isEnabled = true
             view.canShowCallout = false
             view.clusteringIdentifier = nil
             view.displayPriority = .required
             view.collisionMode = .none
+            view.accessibilityLabel = zoneAnnotation.zone.title
+            view.accessibilityHint = "선택한 흡연구역 카드를 엽니다"
+            view.accessibilityTraits = [.button]
+            installAnnotationTap(on: view)
             return view
         }
 
@@ -752,6 +817,13 @@ private final class ZonePointAnnotation: NSObject, MKAnnotation {
     }
 }
 
+
+private extension CGPoint {
+    func distance(to other: CGPoint) -> CGFloat {
+        hypot(x - other.x, y - other.y)
+    }
+}
+
 private extension UIImage {
     func resized(to targetSize: CGSize) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: targetSize)
@@ -778,6 +850,116 @@ private extension View {
         #else
         self
         #endif
+    }
+}
+
+
+
+private struct MapTypeBadge: View {
+    let zone: SmokingZone
+
+    var body: some View {
+        Text(zone.subtype.isEmpty ? zone.type : zone.subtype)
+            .font(.system(size: 10, weight: .black))
+            .foregroundStyle(Color.nugulPrimary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.nugulPrimary.opacity(0.08), in: Capsule())
+    }
+}
+
+private struct SelectedZoneMapCard: View {
+    let zone: SmokingZone
+    let onClose: () -> Void
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.nugulPrimary.opacity(0.12))
+                    Image(systemName: "mappin.circle.fill")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(Color.nugulPrimary)
+                }
+                .frame(width: 42, height: 42)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(zone.title)
+                            .font(.system(size: 17, weight: .black))
+                            .foregroundStyle(Color.nugulPrimary)
+                            .lineLimit(1)
+
+                        MapTypeBadge(zone: zone)
+                    }
+
+                    Text(zone.address.isEmpty ? zone.summary : zone.address)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.nugulMutedText)
+                        .lineLimit(2)
+
+                    if !zone.summary.isEmpty {
+                        Text(zone.summary)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color.nugulMutedText.opacity(0.82))
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .black))
+                        .foregroundStyle(Color.nugulMutedText)
+                        .frame(width: 30, height: 30)
+                        .background(Color.nugulMuted, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("선택한 흡연구역 닫기")
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    openDirections()
+                } label: {
+                    Label("길찾기", systemImage: "location.north.fill")
+                        .font(.system(size: 14, weight: .black))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 42)
+                        .foregroundStyle(.white)
+                        .background(Color.nugulPrimary, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                }
+                .buttonStyle(.plain)
+
+                Text(String(format: "%.5f, %.5f", zone.latitude, zone.longitude))
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.nugulMutedText)
+                    .padding(.horizontal, 10)
+                    .frame(height: 42)
+                    .background(Color.nugulMuted, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .accessibilityLabel("좌표")
+            }
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(Color.white.opacity(0.86), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.white.opacity(0.72), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.18), radius: 22, x: 0, y: 12)
+    }
+
+    private func openDirections() {
+        let encodedName = zone.title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "NugulMap"
+        guard let url = URL(string: "http://maps.apple.com/?daddr=\(zone.latitude),\(zone.longitude)&q=\(encodedName)") else {
+            return
+        }
+
+        openURL(url)
     }
 }
 

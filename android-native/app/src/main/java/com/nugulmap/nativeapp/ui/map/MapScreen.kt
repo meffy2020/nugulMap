@@ -301,7 +301,7 @@ private fun MapMenuDrawer(
         ) {
             Text("너굴맵", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
             Text(
-                if (isSignedIn) userName ?: "프로필 설정 필요" else "로그인하고 내 구역과 리뷰를 관리하세요.",
+                if (isSignedIn) userName.orEmpty() else "로그인",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -310,17 +310,12 @@ private fun MapMenuDrawer(
             }
 
             Spacer(Modifier.height(10.dp))
-            MenuActionRow(title = if (isSignedIn) "내 프로필 / 내 구역 ${myZoneCount}개" else "로그인 / 프로필", subtitle = "계정, 닉네임, 내가 등록한 구역", onClick = onAccount)
-            MenuActionRow(title = "흡연구역 제보", subtitle = "현재 지도 기준으로 새 구역 등록", onClick = onReport)
-            MenuActionRow(title = "지도 새로고침", subtitle = "현재 화면의 흡연구역 다시 불러오기", onClick = onRefresh)
-            MenuActionRow(title = "설정", subtitle = "앱 정보와 API 환경 확인", onClick = onSettings)
+            MenuActionRow(title = if (isSignedIn) "내 프로필 / 내 구역 ${myZoneCount}개" else "로그인 / 프로필", onClick = onAccount)
+            MenuActionRow(title = "흡연구역 제보", onClick = onReport)
+            MenuActionRow(title = "지도 새로고침", onClick = onRefresh)
+            MenuActionRow(title = "설정", onClick = onSettings)
 
             Spacer(Modifier.weight(1f))
-            Text(
-                "지도 위에는 통합 검색창만 남기고, 계정과 설정은 메뉴에서 관리합니다.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -328,7 +323,6 @@ private fun MapMenuDrawer(
 @Composable
 private fun MenuActionRow(
     title: String,
-    subtitle: String,
     onClick: () -> Unit,
 ) {
     Column(
@@ -338,10 +332,8 @@ private fun MenuActionRow(
             .clickable(onClick = onClick)
             .background(Color(0xFFF7F7F2))
             .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Black)
-        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -499,22 +491,7 @@ private fun SettingsSheet() {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         SheetTitle("설정")
-        Text("너굴맵 Native", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
-        Text(
-            "지도, 검색, 프로필, 제보 설정은 이 메뉴에서 확장합니다.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        MenuActionRow(
-            title = "지도 제공자",
-            subtitle = "Kakao Map SDK / 키가 없으면 조용한 지도 셸로 표시",
-            onClick = {},
-        )
-        MenuActionRow(
-            title = "API 환경",
-            subtitle = "빌드 설정에 포함된 NugulMap API 서버 사용",
-            onClick = {},
-        )
+        Text("너굴맵", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
     }
 }
 
@@ -546,7 +523,7 @@ private fun AccountSheet(
     ) {
         SheetTitle("프로필")
         Text(
-            if (isSignedIn) userName ?: "프로필 설정 필요" else "로그인 후 리뷰와 제보 기능을 사용할 수 있어요.",
+            if (isSignedIn) userName.orEmpty() else "로그인",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -599,10 +576,10 @@ private fun ReportSheet(
     isActionLoading: Boolean,
     onCreateZone: (ZoneCreatePayload) -> Unit,
 ) {
-    var address by remember { mutableStateOf("서울특별시 중구 세종대로 110") }
-    var description by remember { mutableStateOf("Android 앱에서 등록한 흡연구역") }
-    var latitude by remember { mutableStateOf("37.5665") }
-    var longitude by remember { mutableStateOf("126.9780") }
+    var address by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var latitude by remember { mutableStateOf("") }
+    var longitude by remember { mutableStateOf("") }
     var validationMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
@@ -614,7 +591,6 @@ private fun ReportSheet(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         SheetTitle("흡연구역 제보")
-        Text("주소와 좌표를 확인해 새 구역을 등록합니다.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("구역 주소") }, enabled = !isActionLoading, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("설명") }, enabled = !isActionLoading, modifier = Modifier.fillMaxWidth())
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -669,13 +645,12 @@ private fun MyZoneRow(zone: ZoneDto, onClick: () -> Unit) {
     ) {
         Text(zone.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (zone.summary.isNotBlank()) Text(zone.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("${zone.latitude}, ${zone.longitude}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 private fun sanitizeStatusMessage(authMessage: String?, actionMessage: String?): String? =
     firstStatusMessage(authMessage, actionMessage)
-        ?.toUserFacingStatus("일시적으로 지도 데이터 로드에 실패했습니다. 잠시 후 다시 시도해 주세요.")
+        ?.toUserFacingStatus("지도를 표시하지 못했습니다.")
 
 @Composable
 private fun ReviewSheet(

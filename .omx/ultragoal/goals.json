@@ -1,111 +1,122 @@
 {
   "version": 1,
-  "createdAt": "2026-05-22T15:15:06.609Z",
-  "updatedAt": "2026-05-22T15:15:06.609Z",
+  "createdAt": "2026-05-23T14:52:33.777Z",
+  "updatedAt": "2026-05-23T14:52:40.863Z",
   "briefPath": ".omx/ultragoal/brief.md",
   "goalsPath": ".omx/ultragoal/goals.json",
   "ledgerPath": ".omx/ultragoal/ledger.jsonl",
   "codexGoalMode": "aggregate",
   "goals": [
     {
-      "id": "G001-remove-launch-screen-visible-copy-an",
-      "title": "Remove launch-screen visible copy \"지도 미리보기\" and \"N개 구역 표시 중\" from And...",
-      "objective": "Remove launch-screen visible copy \"지도 미리보기\" and \"N개 구역 표시 중\" from Android no-key fallback.",
-      "status": "pending",
-      "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "id": "G001-run-and-verify-on-android-emulator-w",
+      "title": "Run and verify on Android emulator while working.",
+      "objective": "Run and verify on Android emulator while working.",
+      "status": "in_progress",
+      "attempt": 1,
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:40.863Z",
+      "startedAt": "2026-05-23T14:52:40.863Z"
     },
     {
-      "id": "G002-prevent-raw-api-dns-exception-messag",
-      "title": "Prevent raw API/DNS/exception messages from appearing on the launch m...",
-      "objective": "Prevent raw API/DNS/exception messages from appearing on the launch map surface or bottom toast.",
+      "id": "G002-confirm-kakao-map-markers-render-and",
+      "title": "Confirm Kakao map markers render and basic selection behavior works.",
+      "objective": "Confirm Kakao map markers render and basic selection behavior works.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
     },
     {
-      "id": "G003-make-android-no-kakao-key-fallback-a",
-      "title": "Make Android no-Kakao-key fallback a quiet iOS-like fullscreen map sh...",
-      "objective": "Make Android no-Kakao-key fallback a quiet iOS-like fullscreen map shell with glass/rounded controls, not a diagnostic card.",
+      "id": "G003-remove-visible-explanatory-diagnosti",
+      "title": "Remove visible explanatory/diagnostic copy on map/menu/settings surfa...",
+      "objective": "Remove visible explanatory/diagnostic copy on map/menu/settings surfaces such as \"지도 위에는 ...\", \"지도, 검색, 프로필...\", \"키가 없으면 ...\", and similar “뭐 어쩌구로 됩니다” style guide text.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
     },
     {
-      "id": "G004-fix-fallback-marker-count-so-it-does",
-      "title": "Fix fallback marker count so it does not show fake markers inconsiste...",
-      "objective": "Fix fallback marker count so it does not show fake markers inconsistent with actual loaded zones; if zones are zero, show a quiet empty map shell.",
+      "id": "G004-keep-android-already-using-kakaomap",
+      "title": "Keep Android already using KakaoMap; no backend/API contract changes.",
+      "objective": "Keep Android already using KakaoMap; no backend/API contract changes.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
     },
     {
-      "id": "G005-if-a-real-local-kakao-native-app-key",
-      "title": "If a real local KAKAO_NATIVE_APP_KEY is available, validate real Kaka...",
-      "objective": "If a real local KAKAO_NATIVE_APP_KEY is available, validate real Kakao map path; otherwise record credential-gated verification and validate no-key fallback.",
+      "id": "G005-convert-ios-map-surface-from-apple-m",
+      "title": "Convert iOS map surface from Apple MapKit to KakaoMap if feasible in...",
+      "objective": "Convert iOS map surface from Apple MapKit to KakaoMap if feasible in current native project.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
     },
     {
-      "id": "G006-android-ui-only-unless-verification",
-      "title": "Android UI only unless verification exposes shared defects.",
-      "objective": "Android UI only unless verification exposes shared defects.",
+      "id": "G006-make-markers-and-existing-map-select",
+      "title": "Make markers and existing map selection/report/search-adjacent behavi...",
+      "objective": "Make markers and existing map selection/report/search-adjacent behavior work normally after conversion.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
     },
     {
-      "id": "G007-no-backend-api-contract-changes",
-      "title": "No backend/API contract changes.",
-      "objective": "No backend/API contract changes.",
+      "id": "G007-replace-bottom-modal-sheet-selection",
+      "title": "Replace bottom modal/sheet selection presentation with an on-map bott...",
+      "objective": "Replace bottom modal/sheet selection presentation with an on-map bottom card style.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
     },
     {
-      "id": "G008-no-new-feature-expansion",
-      "title": "No new feature expansion.",
-      "objective": "No new feature expansion.",
+      "id": "G008-keep-ui-close-to-android-ios-glass-c",
+      "title": "Keep UI close to Android/iOS glass card launch quality; no unrelated...",
+      "objective": "Keep UI close to Android/iOS glass card launch quality; no unrelated feature expansion.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
     },
     {
-      "id": "G009-keep-changes-small-reversible-and-re",
-      "title": "Keep changes small, reversible, and release-oriented.",
-      "objective": "Keep changes small, reversible, and release-oriented.",
+      "id": "G009-build-android-and-ios",
+      "title": "Build Android and iOS.",
+      "objective": "Build Android and iOS.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
     },
     {
-      "id": "G010-verify-with-android-build-and-emulat",
-      "title": "Verify with Android build and emulator/screenshot when possible.",
-      "objective": "Verify with Android build and emulator/screenshot when possible.",
+      "id": "G010-launch-android-emulator-and-ios-simu",
+      "title": "Launch Android emulator and iOS simulator, capture screenshots/evidence.",
+      "objective": "Launch Android emulator and iOS simulator, capture screenshots/evidence.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
     },
     {
-      "id": "G011-commit-and-push-after-verified",
-      "title": "Commit and push after verified.",
-      "objective": "Commit and push after verified.",
+      "id": "G011-record-blockers-honestly-if-kakao-io",
+      "title": "Record blockers honestly if Kakao iOS SDK requires credential/package...",
+      "objective": "Record blockers honestly if Kakao iOS SDK requires credential/package setup not present locally.",
       "status": "pending",
       "attempt": 0,
-      "createdAt": "2026-05-22T15:15:06.609Z",
-      "updatedAt": "2026-05-22T15:15:06.609Z"
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
+    },
+    {
+      "id": "G012-commit-and-push-verified-changes",
+      "title": "Commit and push verified changes.",
+      "objective": "Commit and push verified changes.",
+      "status": "pending",
+      "attempt": 0,
+      "createdAt": "2026-05-23T14:52:33.777Z",
+      "updatedAt": "2026-05-23T14:52:33.777Z"
     }
   ],
-  "codexObjective": "Complete the durable ultragoal plan in .omx/ultragoal/goals.json, including later accepted/appended stories, under the original brief constraints; use .omx/ultragoal/ledger.jsonl as the audit trail."
+  "codexObjective": "Complete the durable ultragoal plan in .omx/ultragoal/goals.json, including later accepted/appended stories, under the original brief constraints; use .omx/ultragoal/ledger.jsonl as the audit trail.",
+  "activeGoalId": "G001-run-and-verify-on-android-emulator-w"
 }

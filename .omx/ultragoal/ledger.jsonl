@@ -1,1 +1,2 @@
-{"ts":"2026-05-22T15:15:06.609Z","event":"plan_created","message":"11 goal(s) created"}
+{"ts":"2026-05-23T14:52:33.777Z","event":"plan_created","message":"12 goal(s) created"}
+{"ts":"2026-05-23T14:52:40.863Z","event":"goal_started","goalId":"G001-run-and-verify-on-android-emulator-w","status":"in_progress","message":"Attempt 1"}
