@@ -18,6 +18,7 @@ struct ZoneMapView: View {
     @State private var activeSheet: HomeSheet?
     @State private var didBootstrap = false
     @State private var suppressNextSettledFetch = false
+    @State private var isMenuOpen = false
 
     var body: some View {
         ZStack {
@@ -31,6 +32,12 @@ struct ZoneMapView: View {
 
             if model.isLoading {
                 LoadingOverlay()
+            }
+
+            if isMenuOpen {
+                sideMenuOverlay
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                    .zIndex(10)
             }
         }
         .background(Color.nugulBackground)
@@ -57,6 +64,12 @@ struct ZoneMapView: View {
                 ProfileSetupSheet(model: model)
                     .presentationDetents([.medium, .large])
                     .compactGlassSheet()
+            case .settings:
+                NavigationStack {
+                    SettingsView()
+                }
+                .presentationDetents([.medium, .large])
+                .compactGlassSheet()
             }
         }
         .onChange(of: model.pendingSignupEmail) { _, email in
@@ -103,37 +116,138 @@ struct ZoneMapView: View {
     }
 
     private var topHeader: some View {
-        HStack(spacing: 12) {
-            WebStyleSearchBar(
-                query: $model.query,
-                isLoading: model.isLoading,
-                onClear: {
-                    Task {
-                        await model.resetSearch()
+        UnifiedSearchMenuBar(
+            query: $model.query,
+            isLoading: model.isLoading,
+            onMenu: {
+                withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
+                    isMenuOpen = true
+                }
+            },
+            onClear: {
+                Task {
+                    await model.resetSearch()
+                    centerOnFirstZoneIfPossible(reloadZones: false)
+                }
+            },
+            onSearch: {
+                Task {
+                    if let coordinate = await model.search() {
+                        centerMap(on: coordinate, reloadZones: false)
+                    } else {
                         centerOnFirstZoneIfPossible(reloadZones: false)
                     }
-                },
-                onSearch: {
-                    Task {
-                        if let coordinate = await model.search() {
-                            centerMap(on: coordinate, reloadZones: false)
-                        } else {
-                            centerOnFirstZoneIfPossible(reloadZones: false)
-                        }
-                    }
                 }
-            )
-
-            Button {
-                activeSheet = model.currentUser == nil ? .login : .profile
-            } label: {
-                ProfileAvatar(user: model.currentUser)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(model.currentUser == nil ? "로그인" : "프로필")
-        }
+        )
         .padding(.horizontal, 16)
         .padding(.top, safeAreaTop + 12)
+    }
+
+    private var sideMenuOverlay: some View {
+        ZStack(alignment: .leading) {
+            Color.black.opacity(0.24)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    closeMenu()
+                }
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("너굴맵")
+                            .font(.system(size: 24, weight: .black))
+                            .foregroundStyle(Color.nugulPrimary)
+                        Text(model.currentUser?.displayName ?? "지도와 계정을 한 곳에서 관리")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.nugulMutedText)
+                    }
+
+                    Spacer()
+
+                    Button(action: closeMenu) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .black))
+                            .foregroundStyle(Color.nugulMutedText)
+                            .frame(width: 34, height: 34)
+                            .background(Color.white.opacity(0.72), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("메뉴 닫기")
+                }
+
+                if let email = model.currentUser?.email {
+                    Text(email)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color.nugulMutedText)
+                        .lineLimit(1)
+                }
+
+                Divider().opacity(0.45)
+
+                SideMenuActionRow(
+                    title: model.currentUser == nil ? "로그인 / 프로필" : "내 프로필",
+                    subtitle: "계정, 닉네임, 내 활동 관리",
+                    systemImage: "person.crop.circle.fill"
+                ) {
+                    closeMenu()
+                    activeSheet = model.currentUser == nil ? .login : .profile
+                }
+
+                SideMenuActionRow(
+                    title: "흡연구역 제보",
+                    subtitle: "현재 지도 위치 기준으로 새 구역 등록",
+                    systemImage: "plus.circle.fill"
+                ) {
+                    closeMenu()
+                    activeSheet = model.currentUser == nil ? .login : .report
+                }
+
+                SideMenuActionRow(
+                    title: "지도 새로고침",
+                    subtitle: "현재 화면의 구역을 다시 불러오기",
+                    systemImage: "arrow.clockwise.circle.fill"
+                ) {
+                    closeMenu()
+                    Task {
+                        await model.loadZones(in: .visibleRegion(mapRegion))
+                    }
+                }
+
+                SideMenuActionRow(
+                    title: "설정",
+                    subtitle: "앱 정보와 API 환경 확인",
+                    systemImage: "gearshape.fill"
+                ) {
+                    closeMenu()
+                    activeSheet = .settings
+                }
+
+                Spacer()
+
+                Text("상단은 하나의 검색창만 유지하고, 프로필과 설정은 메뉴에서 열립니다.")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Color.nugulMutedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, safeAreaTop + 22)
+            .padding(.horizontal, 20)
+            .padding(.bottom, safeAreaBottom + 22)
+            .frame(width: 326)
+            .frame(maxHeight: .infinity)
+            .background(.ultraThinMaterial)
+            .background(Color.white.opacity(0.78))
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .shadow(color: .black.opacity(0.22), radius: 24, x: 0, y: 12)
+            .padding(.leading, 10)
+        }
+        .ignoresSafeArea()
+    }
+
+    private func closeMenu() {
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.88)) {
+            isMenuOpen = false
+        }
     }
 
     private var bottomControls: some View {
@@ -304,6 +418,7 @@ private enum HomeSheet: Identifiable {
     case login
     case profile
     case profileSetup
+    case settings
 
     var id: String {
         switch self {
@@ -317,6 +432,8 @@ private enum HomeSheet: Identifiable {
             return "profile"
         case .profileSetup:
             return "profile-setup"
+        case .settings:
+            return "settings"
         }
     }
 }
@@ -328,14 +445,29 @@ private extension MKCoordinateRegion {
     )
 }
 
-private struct WebStyleSearchBar: View {
+private struct UnifiedSearchMenuBar: View {
     @Binding var query: String
     let isLoading: Bool
+    let onMenu: () -> Void
     let onClear: () -> Void
     let onSearch: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
+            Button(action: onMenu) {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 17, weight: .black))
+                    .foregroundStyle(Color.nugulPrimary)
+                    .frame(width: 38, height: 38)
+                    .background(Color.white.opacity(0.66), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("메뉴 열기")
+
+            Rectangle()
+                .fill(Color.nugulBorder)
+                .frame(width: 1, height: 24)
+
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(Color.nugulMutedText)
@@ -383,6 +515,44 @@ private struct WebStyleSearchBar: View {
                 .stroke(Color.white.opacity(0.82), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.16), radius: 18, x: 0, y: 10)
+    }
+}
+
+private struct SideMenuActionRow: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(Color.nugulPrimary)
+                    .frame(width: 38, height: 38)
+                    .background(Color.nugulPrimary.opacity(0.11), in: Circle())
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .black))
+                        .foregroundStyle(Color.nugulPrimary)
+                    Text(subtitle)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.nugulMutedText)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+            }
+            .padding(12)
+            .background(Color.white.opacity(0.68), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.68), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
