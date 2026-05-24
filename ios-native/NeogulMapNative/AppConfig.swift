@@ -5,6 +5,19 @@ enum AppConfig {
     static let oauthCallbackScheme = "nugulmap"
     static let oauthCallbackURL = URL(string: "nugulmap://oauth/callback")!
 
+    static var kakaoNativeAppKey: String? {
+        guard let rawValue = Bundle.main.object(forInfoDictionaryKey: "KAKAO_NATIVE_APP_KEY") as? String else {
+            return nil
+        }
+
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value != "$(KAKAO_NATIVE_APP_KEY)" else {
+            return nil
+        }
+
+        return value
+    }
+
     static var apiBaseURL: URL {
         guard
             let rawValue = Bundle.main.object(forInfoDictionaryKey: "NUGUL_API_BASE_URL") as? String,

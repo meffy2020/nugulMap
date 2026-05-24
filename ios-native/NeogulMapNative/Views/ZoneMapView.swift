@@ -1,6 +1,9 @@
 import Combine
 import CoreLocation
 import MapKit
+#if os(iOS)
+@preconcurrency import KakaoMapsSDK
+#endif
 import PhotosUI
 import SwiftUI
 #if os(iOS)
@@ -90,7 +93,7 @@ struct ZoneMapView: View {
     }
 
     private var mapLayer: some View {
-        NugulMapKitView(
+        NugulKakaoMapView(
             region: $mapRegion,
             model: model,
             onRegionChanged: { region in
@@ -253,19 +256,6 @@ struct ZoneMapView: View {
             if let message = model.errorMessage ?? locationProvider.errorMessage {
                 WebToastBanner(message: message)
                     .padding(.horizontal, 16)
-            }
-
-            if let selectedZone = model.selectedZone {
-                SelectedZoneMapCard(
-                    zone: selectedZone,
-                    onClose: {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
-                            model.selectedZone = nil
-                        }
-                    }
-                )
-                .padding(.horizontal, 16)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             HStack(alignment: .bottom, spacing: 14) {
@@ -595,7 +585,7 @@ private struct ProfileAvatar: View {
 }
 
 #if os(iOS)
-private struct NugulMapKitView: UIViewRepresentable {
+private struct NugulKakaoMapView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     let model: ZoneExplorerModel
     let onRegionChanged: (MKCoordinateRegion) -> Void
@@ -606,222 +596,589 @@ private struct NugulMapKitView: UIViewRepresentable {
         Coordinator(parent: self)
     }
 
-    func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView(frame: .zero)
-        mapView.delegate = context.coordinator
-        mapView.pointOfInterestFilter = .excludingAll
-        mapView.showsCompass = true
-        mapView.showsScale = true
-        mapView.register(MKAnnotationView.self, forAnnotationViewWithReuseIdentifier: Coordinator.zoneReuseIdentifier)
-        mapView.register(MKMarkerAnnotationView.self, forAnnotationViewWithReuseIdentifier: Coordinator.clusterReuseIdentifier)
-        let tapRecognizer = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleMapTap(_:)))
-        tapRecognizer.cancelsTouchesInView = false
-        tapRecognizer.delegate = context.coordinator
-        mapView.addGestureRecognizer(tapRecognizer)
-        context.coordinator.isApplyingRegionFromSwiftUI = true
-        mapView.setRegion(region, animated: false)
-        context.coordinator.bind(to: model, on: mapView)
-        return mapView
-    }
-
-    func updateUIView(_ mapView: MKMapView, context: Context) {
+    func makeUIView(context: Context) -> UIView {
+        let hostView = UIView(frame: .zero)
+        hostView.backgroundColor = UIColor.nugulMapShell
         context.coordinator.parent = self
-        context.coordinator.bind(to: model, on: mapView)
-        context.coordinator.syncAnnotations(model.zones, on: mapView)
-
-        if context.coordinator.shouldApply(region, to: mapView.region) {
-            context.coordinator.isApplyingRegionFromSwiftUI = true
-            mapView.setRegion(region, animated: context.transaction.animation != nil)
-        }
+        context.coordinator.installIfNeeded(in: hostView)
+        context.coordinator.syncState(animationEnabled: false)
+        return hostView
     }
 
-    final class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
-        static let zoneReuseIdentifier = "NugulZoneAnnotation"
-        static let clusterReuseIdentifier = "NugulZoneClusterAnnotation"
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.parent = self
+        context.coordinator.installIfNeeded(in: uiView)
+        context.coordinator.syncState(animationEnabled: context.transaction.animation != nil)
+    }
 
-        var parent: NugulMapKitView
-        var renderedZoneIDs: Set<Int> = []
-        var isApplyingRegionFromSwiftUI = false
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.shutdown()
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, @preconcurrency MapControllerDelegate, @preconcurrency KakaoMapEventDelegate {
+        private enum Constants {
+            static let mapViewName = "nugul-kakao-map"
+            static let appName = "openmap"
+            static let viewInfoName = "map"
+            static let labelLayerID = "nugul-smoking-zones"
+            static let poiStyleID = "nugul-zone-marker"
+            static let defaultKakaoLevel = 15
+        }
+
+        var parent: NugulKakaoMapView
+        private weak var hostView: UIView?
+        private var container: KMViewContainer?
+        private var controller: KMController?
+        private weak var kakaoMap: KakaoMap?
+        private var labelLayer: LabelLayer?
+        private var hasPreparedEngine = false
+        private var hasRequestedMapView = false
+        private var hasRegisteredPoiStyle = false
+        private var renderedZoneSignature: Set<String> = []
+        private var lastAppliedRegion: MKCoordinateRegion?
+        private var isApplyingCameraFromSwiftUI = false
+        private var eventHandlers: [any DisposableEventHandler] = []
         private var zonesCancellable: AnyCancellable?
+        private var selectedCardView: UIView?
         private var boundModelID: ObjectIdentifier?
+        private var didInstallQuietShell = false
 
-        init(parent: NugulMapKitView) {
+        init(parent: NugulKakaoMapView) {
             self.parent = parent
         }
 
-        func bind(to model: ZoneExplorerModel, on mapView: MKMapView) {
-            let modelID = ObjectIdentifier(model)
+        func installIfNeeded(in hostView: UIView) {
+            self.hostView = hostView
+
+            guard container == nil else {
+                hostView.bringSubviewToFront(container ?? UIView())
+                return
+            }
+
+            guard let appKey = AppConfig.kakaoNativeAppKey else {
+                installQuietShellIfNeeded(in: hostView)
+                return
+            }
+
+            SDKInitializer.InitSDK(appKey: appKey)
+            didInstallQuietShell = false
+            hostView.subviews.forEach { $0.removeFromSuperview() }
+
+            let initialFrame = hostView.bounds.isEmpty ? UIScreen.main.bounds : hostView.bounds
+            let mapContainer = KMViewContainer(frame: initialFrame)
+            mapContainer.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            mapContainer.backgroundColor = UIColor.nugulMapShell
+            hostView.addSubview(mapContainer)
+
+            let mapController = KMController(viewContainer: mapContainer)
+            mapController.delegate = self
+            mapController.proMotionSupport = true
+
+            container = mapContainer
+            controller = mapController
+            hasPreparedEngine = false
+            hasRequestedMapView = false
+
+            startEngineIfReady()
+        }
+
+        func shutdown() {
+            controller?.pauseEngine()
+            controller?.resetEngine()
+            controller?.delegate = nil
+            kakaoMap?.eventDelegate = nil
+            kakaoMap = nil
+            eventHandlers.forEach { $0.dispose() }
+            eventHandlers = []
+            selectedCardView?.removeFromSuperview()
+            selectedCardView = nil
+            zonesCancellable = nil
+            boundModelID = nil
+            labelLayer = nil
+            controller = nil
+            container = nil
+            hostView = nil
+            hasPreparedEngine = false
+            hasRequestedMapView = false
+            hasRegisteredPoiStyle = false
+            renderedZoneSignature = []
+            lastAppliedRegion = nil
+        }
+
+        func syncState(animationEnabled: Bool) {
+            if let hostView, let container {
+                container.frame = hostView.bounds.isEmpty ? UIScreen.main.bounds : hostView.bounds
+            }
+            bindModelIfNeeded()
+            startEngineIfReady()
+
+            guard let kakaoMap else {
+                return
+            }
+
+            syncPois(on: kakaoMap, zones: parent.model.zones)
+            apply(region: parent.region, to: kakaoMap, animated: animationEnabled)
+        }
+
+        private func bindModelIfNeeded() {
+            let modelID = ObjectIdentifier(parent.model)
             guard boundModelID != modelID else {
                 return
             }
 
             boundModelID = modelID
-            zonesCancellable = model.$zones
+            zonesCancellable = parent.model.$zones
                 .receive(on: RunLoop.main)
-                .sink { [weak self, weak mapView] zones in
-                    guard let self, let mapView else {
-                        return
-                    }
+                .sink { [weak self] zones in
+                    Task { @MainActor [weak self] in
+                        guard let self, let kakaoMap = self.kakaoMap else {
+                            return
+                        }
 
-                    self.syncAnnotations(zones, on: mapView)
+                        self.syncPois(on: kakaoMap, zones: zones)
+                    }
                 }
         }
 
-        func syncAnnotations(_ zones: [SmokingZone], on mapView: MKMapView) {
-            let nextIDs = Set(zones.map(\.id))
-            guard nextIDs != renderedZoneIDs else {
+        private func startEngineIfReady() {
+            guard !hasPreparedEngine, let controller, let container else {
                 return
             }
 
-            let existingZoneAnnotations = mapView.annotations.compactMap { $0 as? ZonePointAnnotation }
-            mapView.removeAnnotations(existingZoneAnnotations)
-            mapView.addAnnotations(zones.map(ZonePointAnnotation.init))
-            renderedZoneIDs = nextIDs
+            if container.bounds.isEmpty {
+                container.frame = UIScreen.main.bounds
+            }
+
+            hasPreparedEngine = true
+            _ = controller.prepareEngine()
+            controller.activateEngine()
         }
 
-        @objc func handleMapTap(_ recognizer: UITapGestureRecognizer) {
-            guard recognizer.state == .ended, let mapView = recognizer.view as? MKMapView else {
+        func addViews() {
+            guard !hasRequestedMapView, let controller else {
                 return
             }
 
-            let tapPoint = recognizer.location(in: mapView)
-            guard let nearestZone = parent.model.zones.min(by: { lhs, rhs in
-                let lhsPoint = mapView.convert(lhs.coordinate, toPointTo: mapView)
-                let rhsPoint = mapView.convert(rhs.coordinate, toPointTo: mapView)
-                return lhsPoint.distance(to: tapPoint) < rhsPoint.distance(to: tapPoint)
-            }) else {
-                return
-            }
-
-            let nearestPoint = mapView.convert(nearestZone.coordinate, toPointTo: mapView)
-            guard nearestPoint.distance(to: tapPoint) <= 44 else {
-                return
-            }
-
-            parent.onSelectZone(nearestZone)
-        }
-
-        @objc func handleAnnotationTap(_ recognizer: UITapGestureRecognizer) {
-            guard recognizer.state == .ended,
-                  let annotationView = recognizer.view as? MKAnnotationView,
-                  let annotation = annotationView.annotation as? ZonePointAnnotation else {
-                return
-            }
-
-            parent.onSelectZone(annotation.zone)
-        }
-
-        private func installAnnotationTap(on view: MKAnnotationView) {
-            view.gestureRecognizers?
-                .filter { $0.name == "NugulAnnotationTap" }
-                .forEach(view.removeGestureRecognizer)
-
-            let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleAnnotationTap(_:)))
-            recognizer.name = "NugulAnnotationTap"
-            recognizer.cancelsTouchesInView = false
-            view.addGestureRecognizer(recognizer)
-        }
-
-        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            true
-        }
-
-        func shouldApply(_ target: MKCoordinateRegion, to current: MKCoordinateRegion) -> Bool {
-            abs(target.center.latitude - current.center.latitude) > 0.0001 ||
-                abs(target.center.longitude - current.center.longitude) > 0.0001 ||
-                abs(target.span.latitudeDelta - current.span.latitudeDelta) > 0.0001 ||
-                abs(target.span.longitudeDelta - current.span.longitudeDelta) > 0.0001
-        }
-
-        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            if isApplyingRegionFromSwiftUI {
-                isApplyingRegionFromSwiftUI = false
-                return
-            }
-
-            parent.region = mapView.region
-            parent.onRegionChanged(mapView.region)
-            parent.onRegionSettled(mapView.region)
-        }
-
-        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
-            if let cluster = annotation as? MKClusterAnnotation {
-                let view = mapView.dequeueReusableAnnotationView(
-                    withIdentifier: Self.clusterReuseIdentifier,
-                    for: cluster
-                ) as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(annotation: cluster, reuseIdentifier: Self.clusterReuseIdentifier)
-
-                view.annotation = cluster
-                view.markerTintColor = .black
-                view.glyphTintColor = .white
-                view.glyphText = "\(cluster.memberAnnotations.count)"
-                view.displayPriority = .required
-                return view
-            }
-
-            guard let zoneAnnotation = annotation as? ZonePointAnnotation else {
-                return nil
-            }
-
-            let view = mapView.dequeueReusableAnnotationView(
-                withIdentifier: Self.zoneReuseIdentifier,
-                for: zoneAnnotation
+            hasRequestedMapView = true
+            let defaultPoint = MapPoint(
+                longitude: parent.region.center.longitude,
+                latitude: parent.region.center.latitude
             )
-            view.annotation = zoneAnnotation
-            let markerImage = UIImage(named: "NugulMarker")
-            view.image = markerImage?.resized(to: CGSize(width: 42, height: 42))
-            view.centerOffset = CGPoint(x: 0, y: -21)
-            view.isEnabled = true
-            view.canShowCallout = false
-            view.clusteringIdentifier = nil
-            view.displayPriority = .required
-            view.collisionMode = .none
-            view.accessibilityLabel = zoneAnnotation.zone.title
-            view.accessibilityHint = "선택한 흡연구역 카드를 엽니다"
-            view.accessibilityTraits = [.button]
-            installAnnotationTap(on: view)
-            return view
+            let viewInfo = MapviewInfo(
+                viewName: Constants.mapViewName,
+                appName: Constants.appName,
+                viewInfoName: Constants.viewInfoName,
+                defaultPosition: defaultPoint,
+                defaultLevel: Constants.defaultKakaoLevel,
+                enabled: true
+            )
+            if let size = container?.bounds.size, size.width > 0, size.height > 0 {
+                controller.addView(viewInfo, viewSize: size)
+            } else {
+                controller.addView(viewInfo)
+            }
         }
 
-        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-            if let cluster = view.annotation as? MKClusterAnnotation {
-                mapView.showAnnotations(cluster.memberAnnotations, animated: true)
-                mapView.deselectAnnotation(cluster, animated: false)
+        func addViewSucceeded(_ viewName: String, viewInfoName: String) {
+            guard viewName == Constants.mapViewName,
+                  let mapView = controller?.getView(Constants.mapViewName) as? KakaoMap else {
                 return
             }
 
-            guard let annotation = view.annotation as? ZonePointAnnotation else {
+            kakaoMap = mapView
+            mapView.eventDelegate = self
+            mapView.poiClickable = true
+            mapView.setPoiEnabled(true)
+            mapView.cameraAnimationEnabled = true
+            installEventHandlers(on: mapView)
+            configureLabels(on: mapView)
+            syncState(animationEnabled: false)
+            controller?.activateEngine()
+        }
+
+        func addViewFailed(_ viewName: String, viewInfoName: String) {
+            installQuietShellIfNeeded(in: hostView)
+        }
+
+        func authenticationSucceeded() {
+        }
+
+        func authenticationFailed(_ errorCode: Int, desc: String) {
+            installQuietShellIfNeeded(in: hostView)
+        }
+
+        func containerDidResized(_ size: CGSize) {
+            guard size.width > 0, size.height > 0 else {
                 return
             }
 
-            parent.onSelectZone(annotation.zone)
-            mapView.deselectAnnotation(annotation, animated: false)
+            syncState(animationEnabled: false)
+        }
+
+        private func installEventHandlers(on kakaoMap: KakaoMap) {
+            eventHandlers.forEach { $0.dispose() }
+            eventHandlers = [
+                kakaoMap.addPoisTappedEventHandler(target: self) { target in
+                    { param in
+                        target.handlePoisTapped(param)
+                    }
+                },
+                kakaoMap.addCameraStoppedEventHandler(target: self) { target in
+                    { param in
+                        target.handleCameraStopped(kakaoMap: param.view as? KakaoMap, by: param.by)
+                    }
+                }
+            ]
+        }
+
+        private func handlePoisTapped(_ param: PoisInteractionEventParam) {
+            handlePoiTap(layerID: param.layerID, poiID: param.poiID, position: param.position)
+        }
+
+        private func handlePoiTap(layerID: String, poiID: String, position: MapPoint) {
+            guard layerID == Constants.labelLayerID else {
+                return
+            }
+
+            let selectedZone: SmokingZone?
+            if let zoneID = Int(poiID),
+               let exactZone = parent.model.zones.first(where: { $0.id == zoneID }) {
+                selectedZone = exactZone
+            } else {
+                let tappedCoordinate = position.wgsCoord
+                selectedZone = parent.model.zones.min { lhs, rhs in
+                    let lhsDistance = hypot(lhs.latitude - tappedCoordinate.latitude, lhs.longitude - tappedCoordinate.longitude)
+                    let rhsDistance = hypot(rhs.latitude - tappedCoordinate.latitude, rhs.longitude - tappedCoordinate.longitude)
+                    return lhsDistance < rhsDistance
+                }
+            }
+
+            guard let selectedZone else {
+                return
+            }
+
+            DispatchQueue.main.async { [weak self, selectedZone] in
+                guard let self else {
+                    return
+                }
+
+                self.showNativeCard(for: selectedZone)
+                self.parent.onSelectZone(selectedZone)
+            }
+        }
+
+        private func showNativeCard(for zone: SmokingZone) {
+            guard let hostView else {
+                return
+            }
+
+            selectedCardView?.removeFromSuperview()
+
+            let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialLight))
+            blur.translatesAutoresizingMaskIntoConstraints = false
+            blur.layer.cornerRadius = 24
+            blur.layer.masksToBounds = true
+            blur.layer.borderWidth = 1
+            blur.layer.borderColor = UIColor.white.withAlphaComponent(0.72).cgColor
+            blur.layer.shadowColor = UIColor.black.cgColor
+            blur.layer.shadowOpacity = 0.18
+            blur.layer.shadowRadius = 22
+            blur.layer.shadowOffset = CGSize(width: 0, height: 12)
+
+            let icon = UIImageView(image: UIImage(systemName: "mappin.circle.fill"))
+            icon.translatesAutoresizingMaskIntoConstraints = false
+            icon.tintColor = UIColor(red: 0.18, green: 0.38, blue: 0.21, alpha: 1)
+            icon.contentMode = .scaleAspectFit
+
+            let title = UILabel()
+            title.translatesAutoresizingMaskIntoConstraints = false
+            title.text = zone.title
+            title.font = .systemFont(ofSize: 16, weight: .black)
+            title.textColor = UIColor(red: 0.18, green: 0.38, blue: 0.21, alpha: 1)
+            title.numberOfLines = 1
+
+            let subtitle = UILabel()
+            subtitle.translatesAutoresizingMaskIntoConstraints = false
+            subtitle.text = zone.address.isEmpty ? zone.summary : zone.address
+            subtitle.font = .systemFont(ofSize: 12, weight: .semibold)
+            subtitle.textColor = UIColor.darkGray.withAlphaComponent(0.78)
+            subtitle.numberOfLines = 2
+
+            let badge = UILabel()
+            badge.translatesAutoresizingMaskIntoConstraints = false
+            badge.text = zone.subtype.isEmpty ? zone.type : zone.subtype
+            badge.font = .systemFont(ofSize: 10, weight: .black)
+            badge.textColor = UIColor(red: 0.18, green: 0.38, blue: 0.21, alpha: 1)
+            badge.backgroundColor = UIColor(red: 0.18, green: 0.38, blue: 0.21, alpha: 0.10)
+            badge.layer.cornerRadius = 9
+            badge.layer.masksToBounds = true
+            badge.textAlignment = .center
+
+            let closeButton = UIButton(type: .system)
+            closeButton.translatesAutoresizingMaskIntoConstraints = false
+            closeButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+            closeButton.tintColor = .darkGray
+            closeButton.backgroundColor = UIColor.white.withAlphaComponent(0.72)
+            closeButton.layer.cornerRadius = 15
+            closeButton.addAction(UIAction { [weak self] _ in
+                self?.selectedCardView?.removeFromSuperview()
+                self?.selectedCardView = nil
+                self?.parent.model.selectedZone = nil
+            }, for: .touchUpInside)
+
+            let directionsButton = UIButton(type: .system)
+            directionsButton.translatesAutoresizingMaskIntoConstraints = false
+            directionsButton.setTitle("길찾기", for: .normal)
+            directionsButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .black)
+            directionsButton.tintColor = .white
+            directionsButton.backgroundColor = UIColor(red: 0.18, green: 0.38, blue: 0.21, alpha: 1)
+            directionsButton.layer.cornerRadius = 13
+            directionsButton.addAction(UIAction { _ in
+                let encodedName = zone.title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "NugulMap"
+                if let url = URL(string: "http://maps.apple.com/?daddr=\(zone.latitude),\(zone.longitude)&q=\(encodedName)") {
+                    UIApplication.shared.open(url)
+                }
+            }, for: .touchUpInside)
+
+            let textStack = UIStackView(arrangedSubviews: [title, subtitle])
+            textStack.axis = .vertical
+            textStack.spacing = 4
+            textStack.translatesAutoresizingMaskIntoConstraints = false
+
+            let headerStack = UIStackView(arrangedSubviews: [icon, textStack, badge, closeButton])
+            headerStack.axis = .horizontal
+            headerStack.alignment = .top
+            headerStack.spacing = 10
+            headerStack.translatesAutoresizingMaskIntoConstraints = false
+
+            let contentStack = UIStackView(arrangedSubviews: [headerStack, directionsButton])
+            contentStack.axis = .vertical
+            contentStack.spacing = 12
+            contentStack.translatesAutoresizingMaskIntoConstraints = false
+
+            blur.contentView.addSubview(contentStack)
+            hostView.addSubview(blur)
+            selectedCardView = blur
+
+            NSLayoutConstraint.activate([
+                blur.leadingAnchor.constraint(equalTo: hostView.leadingAnchor, constant: 16),
+                blur.trailingAnchor.constraint(equalTo: hostView.trailingAnchor, constant: -16),
+                blur.bottomAnchor.constraint(equalTo: hostView.safeAreaLayoutGuide.bottomAnchor, constant: -86),
+
+                contentStack.leadingAnchor.constraint(equalTo: blur.contentView.leadingAnchor, constant: 16),
+                contentStack.trailingAnchor.constraint(equalTo: blur.contentView.trailingAnchor, constant: -16),
+                contentStack.topAnchor.constraint(equalTo: blur.contentView.topAnchor, constant: 14),
+                contentStack.bottomAnchor.constraint(equalTo: blur.contentView.bottomAnchor, constant: -14),
+
+                icon.widthAnchor.constraint(equalToConstant: 38),
+                icon.heightAnchor.constraint(equalToConstant: 38),
+                closeButton.widthAnchor.constraint(equalToConstant: 30),
+                closeButton.heightAnchor.constraint(equalToConstant: 30),
+                badge.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
+                badge.heightAnchor.constraint(equalToConstant: 24),
+                directionsButton.heightAnchor.constraint(equalToConstant: 42)
+            ])
+        }
+
+        private func handleCameraStopped(kakaoMap: KakaoMap?, by: MoveBy) {
+            guard let kakaoMap else {
+                return
+            }
+
+            cameraDidStopped(kakaoMap: kakaoMap, by: by)
+        }
+
+        func poiDidTapped(kakaoMap: KakaoMap, layerID: String, poiID: String, position: MapPoint) {
+            handlePoiTap(layerID: layerID, poiID: poiID, position: position)
+        }
+
+        func terrainDidTapped(kakaoMap: KakaoMap, position: MapPoint) {}
+
+        func cameraDidStopped(kakaoMap: KakaoMap, by: MoveBy) {
+            guard let container else {
+                return
+            }
+
+            let centerPoint = CGPoint(x: container.bounds.midX, y: container.bounds.midY)
+            let center = kakaoMap.getPosition(centerPoint).wgsCoord
+            let settledRegion = MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude),
+                span: parent.region.span
+            )
+            lastAppliedRegion = settledRegion
+            parent.region = settledRegion
+            parent.onRegionChanged(settledRegion)
+
+            if isApplyingCameraFromSwiftUI {
+                isApplyingCameraFromSwiftUI = false
+                return
+            }
+
+            parent.onRegionSettled(settledRegion)
+        }
+
+        private func configureLabels(on kakaoMap: KakaoMap) {
+            guard !hasRegisteredPoiStyle else {
+                return
+            }
+
+            let manager = kakaoMap.getLabelManager()
+            let markerImage = UIImage(named: "NugulMarker")?.resized(to: CGSize(width: 42, height: 42))
+                ?? UIImage.nugulFallbackMarker(size: CGSize(width: 42, height: 42))
+            let iconStyle = PoiIconStyle(
+                symbol: markerImage,
+                anchorPoint: CGPoint(x: 0.5, y: 1.0)
+            )
+            let perLevelStyle = PerLevelPoiStyle(iconStyle: iconStyle, padding: 0, level: 0)
+            let style = PoiStyle(styleID: Constants.poiStyleID, styles: [perLevelStyle])
+            manager.addPoiStyle(style)
+
+            let layerOptions = LabelLayerOptions(
+                layerID: Constants.labelLayerID,
+                competitionType: .none,
+                competitionUnit: .symbolFirst,
+                orderType: .rank,
+                zOrder: 10_000
+            )
+            let layer = manager.addLabelLayer(option: layerOptions)
+            layer?.setClickable(true)
+            labelLayer = layer
+            hasRegisteredPoiStyle = true
+        }
+
+        private func syncPois(on kakaoMap: KakaoMap, zones: [SmokingZone]) {
+            if !hasRegisteredPoiStyle {
+                configureLabels(on: kakaoMap)
+            }
+
+            guard let labelLayer else {
+                return
+            }
+
+            let nextSignature = Set(zones.map { zone in
+                "\(zone.id):\(String(format: "%.6f", zone.latitude)):\(String(format: "%.6f", zone.longitude))"
+            })
+            guard nextSignature != renderedZoneSignature else {
+                return
+            }
+
+            labelLayer.clearAllItems()
+            for zone in zones {
+                let option = PoiOptions(styleID: Constants.poiStyleID, poiID: "\(zone.id)")
+                option.rank = 1_000
+                option.clickable = true
+                option.transformType = .default
+                let poi = labelLayer.addPoi(
+                    option: option,
+                    at: MapPoint(longitude: zone.longitude, latitude: zone.latitude)
+                )
+                poi?.show()
+            }
+            renderedZoneSignature = nextSignature
+        }
+
+        private func apply(region: MKCoordinateRegion, to kakaoMap: KakaoMap, animated: Bool) {
+            guard shouldApply(region) else {
+                return
+            }
+
+            lastAppliedRegion = region
+            isApplyingCameraFromSwiftUI = true
+            let target = MapPoint(longitude: region.center.longitude, latitude: region.center.latitude)
+            let update = CameraUpdate.make(
+                target: target,
+                zoomLevel: kakaoZoomLevel(for: region.span),
+                mapView: kakaoMap
+            )
+
+            if animated {
+                let options = CameraAnimationOptions(autoElevation: false, consecutive: true, durationInMillis: 280)
+                kakaoMap.animateCamera(cameraUpdate: update, options: options) { [weak self] in
+                    self?.isApplyingCameraFromSwiftUI = false
+                }
+            } else {
+                kakaoMap.moveCamera(update) { [weak self] in
+                    self?.isApplyingCameraFromSwiftUI = false
+                }
+            }
+        }
+
+        private func shouldApply(_ target: MKCoordinateRegion) -> Bool {
+            guard let current = lastAppliedRegion else {
+                return true
+            }
+
+            return abs(target.center.latitude - current.center.latitude) > 0.0001 ||
+                abs(target.center.longitude - current.center.longitude) > 0.0001 ||
+                abs(target.span.latitudeDelta - current.span.latitudeDelta) > 0.0005 ||
+                abs(target.span.longitudeDelta - current.span.longitudeDelta) > 0.0005
+        }
+
+        private func kakaoZoomLevel(for span: MKCoordinateSpan) -> Int {
+            let delta = max(span.latitudeDelta, span.longitudeDelta)
+            switch delta {
+            case ..<0.01:
+                return 18
+            case ..<0.025:
+                return 17
+            case ..<0.05:
+                return 16
+            case ..<0.09:
+                return 15
+            case ..<0.16:
+                return 14
+            default:
+                return 13
+            }
+        }
+
+        private func installQuietShellIfNeeded(in hostView: UIView?) {
+            guard let hostView, !didInstallQuietShell else {
+                return
+            }
+
+            didInstallQuietShell = true
+            hostView.subviews.forEach { $0.removeFromSuperview() }
+            let shell = NugulQuietMapShell(frame: hostView.bounds)
+            shell.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            hostView.addSubview(shell)
         }
     }
 }
 
-private final class ZonePointAnnotation: NSObject, MKAnnotation {
-    let zone: SmokingZone
-
-    var coordinate: CLLocationCoordinate2D {
-        zone.coordinate
+private final class NugulQuietMapShell: UIView {
+    override class var layerClass: AnyClass {
+        CAGradientLayer.self
     }
 
-    var title: String? {
-        zone.title
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        configure()
     }
 
-    init(zone: SmokingZone) {
-        self.zone = zone
-        super.init()
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configure()
+    }
+
+    private func configure() {
+        guard let gradient = layer as? CAGradientLayer else {
+            return
+        }
+
+        gradient.colors = [
+            UIColor(red: 0.94, green: 0.96, blue: 0.93, alpha: 1).cgColor,
+            UIColor(red: 0.82, green: 0.90, blue: 0.82, alpha: 1).cgColor,
+            UIColor(red: 0.69, green: 0.80, blue: 0.70, alpha: 1).cgColor
+        ]
+        gradient.startPoint = CGPoint(x: 0.1, y: 0.0)
+        gradient.endPoint = CGPoint(x: 1.0, y: 1.0)
     }
 }
 
-
-private extension CGPoint {
-    func distance(to other: CGPoint) -> CGFloat {
-        hypot(x - other.x, y - other.y)
-    }
+private extension UIColor {
+    static let nugulMapShell = UIColor(red: 0.89, green: 0.93, blue: 0.88, alpha: 1)
 }
 
 private extension UIImage {
@@ -829,6 +1186,17 @@ private extension UIImage {
         let renderer = UIGraphicsImageRenderer(size: targetSize)
         return renderer.image { _ in
             draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
+
+    static func nugulFallbackMarker(size: CGSize) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { context in
+            let rect = CGRect(origin: .zero, size: size)
+            UIColor(red: 0.18, green: 0.38, blue: 0.21, alpha: 1).setFill()
+            context.cgContext.fillEllipse(in: rect.insetBy(dx: 5, dy: 5))
+            UIColor.white.setFill()
+            context.cgContext.fillEllipse(in: rect.insetBy(dx: 14, dy: 14))
         }
     }
 }

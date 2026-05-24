@@ -1,0 +1,4 @@
+// Shared Debug settings for local native iOS builds.
+// Keep the real Kakao native app key in ignored Secrets.xcconfig.
+KAKAO_NATIVE_APP_KEY =
+#include? "Secrets.xcconfig"

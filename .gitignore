@@ -68,3 +68,4 @@ backend/uploads/zones/  # Zone 이미지 업로드 폴더
 # Local native build artifacts
 ios-native/.derivedData/
 tmp/xcodebuildmcp-derived/
+ios-native/Config/Secrets.xcconfig
