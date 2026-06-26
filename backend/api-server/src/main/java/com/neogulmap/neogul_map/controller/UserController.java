@@ -209,12 +209,30 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable("id") Long id) {
+    public ResponseEntity<?> deleteUser(@PathVariable("id") Long id, @CurrentUser User currentUser) {
+        if (!currentUser.getId().equals(id)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "success", false,
+                    "message", "본인 계정만 삭제할 수 있습니다."
+            ));
+        }
+
         userService.deleteUser(id);
         return ResponseEntity.ok(Map.of(
             "success", true,
             "message", "사용자 삭제 성공",
             "data", Map.of("deletedUserId", id)
+        ));
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<?> deleteCurrentUser(@CurrentUser User currentUser) {
+        Long deletedUserId = currentUser.getId();
+        userService.deleteUser(deletedUserId);
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "계정 삭제가 완료되었습니다.",
+            "data", Map.of("deletedUserId", deletedUserId)
         ));
     }
     

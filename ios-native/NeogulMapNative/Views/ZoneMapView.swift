@@ -1,4 +1,5 @@
 import Combine
+import AuthenticationServices
 import CoreLocation
 import MapKit
 #if os(iOS)
@@ -22,14 +23,54 @@ struct ZoneMapView: View {
     @State private var didBootstrap = false
     @State private var suppressNextSettledFetch = false
     @State private var isMenuOpen = false
+    @State private var experienceMode: MapExperienceMode = .nugulMap
+    @State private var layerMode: Season2LayerMode = .zones
+
+    private var visibleZones: [SmokingZone] {
+        if experienceMode == .nugulMap {
+            return model.zones
+        }
+
+        return layerMode.showsZones ? model.zones : []
+    }
+
+    private var visibleHotplaces: [Hotplace] {
+        experienceMode == .hotplaceMap && layerMode.showsHotplaces ? model.hotplaceInsight.places : []
+    }
+
+    private var visibleEvents: [TrendEvent] {
+        experienceMode == .hotplaceMap && layerMode.showsEvents ? model.eventInsight.events : []
+    }
 
     var body: some View {
         ZStack {
             mapLayer
                 .overlay(alignment: .top) {
-                    topHeader
-                        .padding(.horizontal, 16)
-                        .padding(.top, safeAreaTop + 12)
+                    VStack(spacing: 10) {
+                        topHeader
+                        MapExperienceControl(activeMode: experienceMode) { mode in
+                            selectExperienceMode(mode)
+                        }
+
+                        if experienceMode == .hotplaceMap {
+                            Season2QuickActionStrip { shortcut in
+                                apply(shortcut)
+                            }
+                            Season2LayerControl(activeMode: layerMode) { nextMode in
+                                layerMode = nextMode
+                                if !nextMode.showsZones {
+                                    model.selectedZone = nil
+                                }
+                            }
+                            Season2InsightPanel(
+                                model: model,
+                                hotplaces: visibleHotplaces,
+                                events: visibleEvents
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, safeAreaTop + 12)
                 }
                 .overlay(alignment: .bottom) {
                     bottomControls
@@ -96,6 +137,10 @@ struct ZoneMapView: View {
         NugulKakaoMapView(
             region: $mapRegion,
             model: model,
+            layerMode: layerMode,
+            zones: visibleZones,
+            hotplaces: visibleHotplaces,
+            events: visibleEvents,
             onRegionChanged: { region in
                 cameraCenter = region.center
             },
@@ -106,7 +151,11 @@ struct ZoneMapView: View {
                 }
 
                 Task {
-                    await model.loadZones(in: .visibleRegion(region))
+                    let bounds = MapBounds.visibleRegion(region)
+                    await model.loadZones(in: bounds)
+                    if experienceMode == .hotplaceMap {
+                        await model.loadInsights(in: bounds)
+                    }
                 }
             },
             onSelectZone: { zone in
@@ -143,6 +192,340 @@ struct ZoneMapView: View {
                 }
             }
         )
+    }
+
+    private struct MapExperienceControl: View {
+        let activeMode: MapExperienceMode
+        let onSelect: (MapExperienceMode) -> Void
+
+        var body: some View {
+            HStack(spacing: 6) {
+                ForEach(MapExperienceMode.allCases) { mode in
+                    Button {
+                        onSelect(mode)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: mode.systemImage)
+                                .font(.system(size: 13, weight: .black))
+                            Text(mode.title)
+                                .font(.system(size: 14, weight: .black))
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 38)
+                        .foregroundStyle(activeMode == mode ? Color.white : Color.nugulPrimary)
+                        .background(
+                            Group {
+                                if activeMode == mode {
+                                    Capsule(style: .continuous)
+                                        .fill(Color.nugulPrimary)
+                                }
+                            }
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(mode.title) 보기")
+                }
+            }
+            .padding(4)
+            .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+            .background(Color.white.opacity(0.82), in: Capsule(style: .continuous))
+            .overlay(Capsule(style: .continuous).stroke(Color.white.opacity(0.64), lineWidth: 1))
+            .shadow(color: .black.opacity(0.10), radius: 14, x: 0, y: 8)
+        }
+    }
+
+    private struct Season2LayerControl: View {
+        let activeMode: Season2LayerMode
+        let onSelect: (Season2LayerMode) -> Void
+
+        var body: some View {
+            HStack(spacing: 4) {
+                ForEach(Season2LayerMode.allCases) { mode in
+                    Button {
+                        onSelect(mode)
+                    } label: {
+                        Text(mode.title)
+                            .font(.system(size: 13, weight: .black))
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 34)
+                            .foregroundStyle(activeMode == mode ? Color.white : Color.nugulMutedText)
+                            .background(
+                                Group {
+                                    if activeMode == mode {
+                                        Capsule(style: .continuous)
+                                            .fill(Color.nugulPrimary)
+                                    }
+                                }
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(mode.title) 레이어")
+                }
+            }
+            .padding(4)
+            .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+            .background(Color.white.opacity(0.78), in: Capsule(style: .continuous))
+            .overlay(Capsule(style: .continuous).stroke(Color.white.opacity(0.58), lineWidth: 1))
+            .shadow(color: .black.opacity(0.10), radius: 14, x: 0, y: 8)
+        }
+    }
+
+    private struct Season2QuickActionStrip: View {
+        let onSelect: (Season2Shortcut) -> Void
+
+        var body: some View {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Season2Shortcut.allCases) { shortcut in
+                        Button {
+                            onSelect(shortcut)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: shortcut.systemImage)
+                                    .font(.system(size: 12, weight: .black))
+                                    .foregroundStyle(shortcut.tint)
+                                Text(shortcut.title)
+                                    .font(.system(size: 12, weight: .black))
+                                    .lineLimit(1)
+                            }
+                            .foregroundStyle(Color.nugulPrimary)
+                            .frame(height: 32)
+                            .padding(.horizontal, 12)
+                            .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+                            .background(Color.white.opacity(0.82), in: Capsule(style: .continuous))
+                            .overlay(Capsule(style: .continuous).stroke(Color.white.opacity(0.70), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 6)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(shortcut.title)
+                    }
+                }
+                .padding(.horizontal, 1)
+            }
+        }
+    }
+
+    private struct Season2InsightPanel: View {
+        @ObservedObject var model: ZoneExplorerModel
+        let hotplaces: [Hotplace]
+        let events: [TrendEvent]
+
+        var body: some View {
+            if !hotplaces.isEmpty || !events.isEmpty || model.isLoadingInsights {
+                Season2InsightStrip(
+                    hotplaces: hotplaces,
+                    events: events,
+                    hotplaceFreshness: model.hotplaceInsight.dataFreshness,
+                    eventFreshness: model.eventInsight.dataFreshness,
+                    insightStatus: model.insightStatus,
+                    isLoading: model.isLoadingInsights
+                )
+            }
+        }
+    }
+
+    private struct Season2InsightStrip: View {
+        let hotplaces: [Hotplace]
+        let events: [TrendEvent]
+        let hotplaceFreshness: String?
+        let eventFreshness: String?
+        let insightStatus: InsightStatus?
+        let isLoading: Bool
+
+        var body: some View {
+            let visibleHotplaces = Array(hotplaces.prefix(5))
+            let visibleEvents = Array(events.prefix(5))
+
+            VStack(alignment: .leading, spacing: 9) {
+                Text(formatInsightStatus(insightStatus))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color.nugulMutedText)
+                    .lineLimit(1)
+
+                InsightHeader(
+                    title: "지금 핫한 곳",
+                    status: formatHotplacePanelStatus(hotplaces: hotplaces, hotplaceFreshness: hotplaceFreshness, isLoading: isLoading)
+                )
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        if visibleHotplaces.isEmpty {
+                            InsightChip(title: "주변 핫플", label: isLoading ? "갱신 중" : "후보 확인 중", tint: Color.nugulPrimary.opacity(0.10))
+                        } else {
+                            ForEach(visibleHotplaces) { place in
+                                InsightChip(title: place.name, label: place.crowdLabel, tint: Color.nugulPrimary.opacity(0.12))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 1)
+                }
+
+                if !visibleEvents.isEmpty {
+                    InsightHeader(
+                        title: "팝업·행사·축제",
+                        status: formatEventPanelStatus(eventFreshness)
+                    )
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(visibleEvents) { event in
+                                InsightChip(title: event.title, label: event.eventLabel, tint: Color.white.opacity(0.62))
+                            }
+                        }
+                        .padding(.horizontal, 1)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(Color.white.opacity(0.78), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(Color.white.opacity(0.58), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.10), radius: 14, x: 0, y: 8)
+        }
+
+        private func formatInsightStatus(_ status: InsightStatus?) -> String {
+            guard let status else {
+                return "데이터 상태 확인 중"
+            }
+
+            let hotplaceStatus = formatTelecomStatus(status)
+                ?? formatProviderMode(status.hotplaceMode, label: "핫플")
+            let eventStatus = formatEventStatus(status)
+            return "\(hotplaceStatus) · \(eventStatus)"
+        }
+
+        private func formatTelecomStatus(_ status: InsightStatus) -> String? {
+            if status.telecomCrowdKeyConfigured && !status.telecomCrowdUrlTemplateConfigured {
+                return "통신사 URL 필요"
+            }
+
+            if status.telecomCrowd?.configured == true {
+                return "통신사 연결"
+            }
+
+            if status.telecomCrowdKeyConfigured {
+                return "통신사 설정 확인"
+            }
+
+            return nil
+        }
+
+        private func formatEventStatus(_ status: InsightStatus) -> String {
+            if status.eventMode == "CRAWLED_OR_PARTIAL" {
+                return "크롤링 팝업 트렌드"
+            }
+
+            if status.ktoTourApi?.qualityStatus == "OK" {
+                return "TourAPI 연결"
+            }
+
+            if status.seoulCultureApi?.qualityStatus == "OK" {
+                return "서울문화 API 연결"
+            }
+
+            if status.ktoTourApiKeyConfigured {
+                return "TourAPI 설정 확인"
+            }
+
+            if status.seoulCultureApiKeyConfigured {
+                return "서울문화 API 확인"
+            }
+
+            if status.popupTrends?.fileExists == true, (status.popupTrends?.recordCount ?? 0) > 0 {
+                return "크롤링 팝업 트렌드"
+            }
+
+            return formatProviderMode(status.eventMode, label: "행사")
+        }
+
+        private func formatProviderMode(_ mode: String?, label: String) -> String {
+            switch mode {
+            case "LIVE_OR_PARTIAL":
+                return "\(label) 실시간"
+            case "CRAWLED_OR_PARTIAL":
+                return "\(label) 크롤링"
+            case "STATIC_FALLBACK":
+                return "\(label) 후보"
+            default:
+                return "\(label) 확인 중"
+            }
+        }
+
+        private func formatHotplacePanelStatus(
+            hotplaces: [Hotplace],
+            hotplaceFreshness: String?,
+            isLoading: Bool
+        ) -> String {
+            if isLoading {
+                return "갱신 중"
+            }
+
+            if hotplaces.contains(where: { $0.source == "TELECOM_CROWD" }) {
+                return "통신사"
+            }
+
+            if hotplaceFreshness == "LIVE_OR_PARTIAL" {
+                return "실시간"
+            }
+
+            return "후보"
+        }
+
+        private func formatEventPanelStatus(_ eventFreshness: String?) -> String {
+            switch eventFreshness {
+            case "LIVE_OR_PARTIAL":
+                return "API"
+            case "CRAWLED_OR_PARTIAL":
+                return "크롤링"
+            default:
+                return "후보"
+            }
+        }
+    }
+
+    private struct InsightHeader: View {
+        let title: String
+        let status: String
+
+        var body: some View {
+            HStack {
+                Text(title)
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundStyle(Color.nugulPrimary)
+                Spacer()
+                Text(status)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color.nugulMutedText)
+            }
+        }
+    }
+
+    private struct InsightChip: View {
+        let title: String
+        let label: String
+        let tint: Color
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 12, weight: .black))
+                    .foregroundStyle(Color.nugulPrimary)
+                    .lineLimit(1)
+                Text(label)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color.nugulMutedText)
+                    .lineLimit(1)
+            }
+            .frame(width: 142, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .background(tint, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
     }
 
     private var sideMenuOverlay: some View {
@@ -206,12 +589,14 @@ struct ZoneMapView: View {
 
                 SideMenuActionRow(
                     title: "지도 새로고침",
-                    subtitle: "현재 화면의 구역을 다시 불러오기",
+                    subtitle: "현재 화면의 구역과 핫플을 다시 불러오기",
                     systemImage: "arrow.clockwise.circle.fill"
                 ) {
                     closeMenu()
                     Task {
-                        await model.loadZones(in: .visibleRegion(mapRegion))
+                        let bounds = MapBounds.visibleRegion(mapRegion)
+                        await model.loadZones(in: bounds, force: true)
+                        await model.loadInsights(in: bounds, force: true)
                     }
                 }
 
@@ -362,7 +747,11 @@ struct ZoneMapView: View {
 
         if reloadZones {
             Task {
-                await model.loadZones(in: .visibleRegion(focusedRegion))
+                let bounds = MapBounds.visibleRegion(focusedRegion)
+                await model.loadZones(in: bounds)
+                if experienceMode == .hotplaceMap {
+                    await model.loadInsights(in: bounds)
+                }
             }
         } else {
             suppressNextSettledFetch = true
@@ -396,6 +785,7 @@ struct ZoneMapView: View {
     private func apply(_ route: PendingIntentRoute) {
         switch route {
         case .map:
+            selectExperienceMode(.nugulMap)
             activeSheet = nil
         case .report:
             activeSheet = model.currentUser == nil ? .login : .report
@@ -409,6 +799,40 @@ struct ZoneMapView: View {
                 } else {
                     centerOnFirstZoneIfPossible(reloadZones: false)
                 }
+            }
+        }
+    }
+
+    private func apply(_ shortcut: Season2Shortcut) {
+        experienceMode = .hotplaceMap
+        layerMode = shortcut.layerMode
+        model.query = shortcut.query
+        Task {
+            if let coordinate = await model.search() {
+                centerMap(on: coordinate, reloadZones: false)
+            } else {
+                centerOnFirstZoneIfPossible(reloadZones: false)
+            }
+        }
+    }
+
+    private func selectExperienceMode(_ mode: MapExperienceMode) {
+        guard experienceMode != mode else {
+            return
+        }
+
+        experienceMode = mode
+        switch mode {
+        case .nugulMap:
+            layerMode = .zones
+            model.selectedZone = nil
+        case .hotplaceMap:
+            if layerMode == .zones {
+                layerMode = .hotplaces
+            }
+            model.selectedZone = nil
+            Task {
+                await model.loadInsights(in: MapBounds.visibleRegion(mapRegion), force: true)
             }
         }
     }
@@ -442,6 +866,38 @@ private extension MKCoordinateRegion {
         center: CLLocationCoordinate2D(latitude: 37.5665, longitude: 126.9780),
         span: MKCoordinateSpan(latitudeDelta: 0.06, longitudeDelta: 0.06)
     )
+}
+
+private enum MapExperienceMode: CaseIterable, Identifiable {
+    case nugulMap
+    case hotplaceMap
+
+    var id: String {
+        switch self {
+        case .nugulMap:
+            return "nugul-map"
+        case .hotplaceMap:
+            return "hotplace-map"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .nugulMap:
+            return "너굴맵"
+        case .hotplaceMap:
+            return "핫플맵"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .nugulMap:
+            return "map.fill"
+        case .hotplaceMap:
+            return "flame.fill"
+        }
+    }
 }
 
 private struct UnifiedSearchMenuBar: View {
@@ -584,10 +1040,125 @@ private struct ProfileAvatar: View {
     }
 }
 
+private enum Season2LayerMode: CaseIterable, Identifiable {
+    case all
+    case zones
+    case hotplaces
+    case events
+
+    var id: String {
+        switch self {
+        case .all:
+            return "all"
+        case .zones:
+            return "zones"
+        case .hotplaces:
+            return "hotplaces"
+        case .events:
+            return "events"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .all:
+            return "전체"
+        case .zones:
+            return "흡연"
+        case .hotplaces:
+            return "핫플"
+        case .events:
+            return "행사"
+        }
+    }
+
+    var showsZones: Bool {
+        self == .all || self == .zones
+    }
+
+    var showsHotplaces: Bool {
+        self == .all || self == .hotplaces
+    }
+
+    var showsEvents: Bool {
+        self == .all || self == .events
+    }
+}
+
+private enum Season2Shortcut: CaseIterable, Identifiable {
+    case lotteWorldCrowd
+    case hotNow
+    case seongsuPopup
+
+    var id: String {
+        switch self {
+        case .lotteWorldCrowd:
+            return "lotte-world-crowd"
+        case .hotNow:
+            return "hot-now"
+        case .seongsuPopup:
+            return "seongsu-popup"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .lotteWorldCrowd:
+            return "롯데월드 혼잡도"
+        case .hotNow:
+            return "지금 핫한 곳"
+        case .seongsuPopup:
+            return "성수 팝업"
+        }
+    }
+
+    var query: String {
+        switch self {
+        case .lotteWorldCrowd:
+            return "롯데월드"
+        case .hotNow:
+            return "hot-now"
+        case .seongsuPopup:
+            return "성수"
+        }
+    }
+
+    var layerMode: Season2LayerMode {
+        switch self {
+        case .lotteWorldCrowd, .hotNow:
+            return .hotplaces
+        case .seongsuPopup:
+            return .events
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .lotteWorldCrowd, .hotNow:
+            return "flame.fill"
+        case .seongsuPopup:
+            return "calendar"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .lotteWorldCrowd, .hotNow:
+            return .orange
+        case .seongsuPopup:
+            return .blue
+        }
+    }
+}
+
 #if os(iOS)
 private struct NugulKakaoMapView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     let model: ZoneExplorerModel
+    let layerMode: Season2LayerMode
+    let zones: [SmokingZone]
+    let hotplaces: [Hotplace]
+    let events: [TrendEvent]
     let onRegionChanged: (MKCoordinateRegion) -> Void
     let onRegionSettled: (MKCoordinateRegion) -> Void
     let onSelectZone: (SmokingZone) -> Void
@@ -622,7 +1193,10 @@ private struct NugulKakaoMapView: UIViewRepresentable {
             static let appName = "openmap"
             static let viewInfoName = "map"
             static let labelLayerID = "nugul-smoking-zones"
+            static let insightLayerID = "nugul-season2-insights"
             static let poiStyleID = "nugul-zone-marker"
+            static let hotplacePoiStyleID = "nugul-hotplace-marker"
+            static let eventPoiStyleID = "nugul-event-marker"
             static let defaultKakaoLevel = 15
         }
 
@@ -632,15 +1206,20 @@ private struct NugulKakaoMapView: UIViewRepresentable {
         private var controller: KMController?
         private weak var kakaoMap: KakaoMap?
         private var labelLayer: LabelLayer?
+        private var insightLayer: LabelLayer?
         private var hasPreparedEngine = false
         private var hasRequestedMapView = false
         private var hasRegisteredPoiStyle = false
         private var renderedZoneSignature: Set<String> = []
+        private var renderedInsightSignature: Set<String> = []
         private var lastAppliedRegion: MKCoordinateRegion?
         private var isApplyingCameraFromSwiftUI = false
         private var eventHandlers: [any DisposableEventHandler] = []
         private var zonesCancellable: AnyCancellable?
+        private var hotplacesCancellable: AnyCancellable?
+        private var eventsCancellable: AnyCancellable?
         private var selectedCardView: UIView?
+        private var selectedCardPoiID: String?
         private var boundModelID: ObjectIdentifier?
         private var didInstallQuietShell = false
 
@@ -693,6 +1272,7 @@ private struct NugulKakaoMapView: UIViewRepresentable {
             eventHandlers = []
             selectedCardView?.removeFromSuperview()
             selectedCardView = nil
+            selectedCardPoiID = nil
             zonesCancellable = nil
             boundModelID = nil
             labelLayer = nil
@@ -703,6 +1283,7 @@ private struct NugulKakaoMapView: UIViewRepresentable {
             hasRequestedMapView = false
             hasRegisteredPoiStyle = false
             renderedZoneSignature = []
+            renderedInsightSignature = []
             lastAppliedRegion = nil
         }
 
@@ -717,7 +1298,9 @@ private struct NugulKakaoMapView: UIViewRepresentable {
                 return
             }
 
-            syncPois(on: kakaoMap, zones: parent.model.zones)
+            syncPois(on: kakaoMap, zones: parent.zones)
+            syncInsightPois(on: kakaoMap, hotplaces: parent.hotplaces, events: parent.events)
+            dismissSelectedCardIfHidden()
             apply(region: parent.region, to: kakaoMap, animated: animationEnabled)
         }
 
@@ -736,7 +1319,40 @@ private struct NugulKakaoMapView: UIViewRepresentable {
                             return
                         }
 
-                        self.syncPois(on: kakaoMap, zones: zones)
+                        self.syncPois(on: kakaoMap, zones: self.parent.layerMode.showsZones ? zones : [])
+                        self.dismissSelectedCardIfHidden()
+                    }
+                }
+            hotplacesCancellable = parent.model.$hotplaceInsight
+                .receive(on: RunLoop.main)
+                .sink { [weak self] insight in
+                    Task { @MainActor [weak self] in
+                        guard let self, let kakaoMap = self.kakaoMap else {
+                            return
+                        }
+
+                        self.syncInsightPois(
+                            on: kakaoMap,
+                            hotplaces: self.parent.layerMode.showsHotplaces ? insight.places : [],
+                            events: self.parent.events
+                        )
+                        self.dismissSelectedCardIfHidden()
+                    }
+                }
+            eventsCancellable = parent.model.$eventInsight
+                .receive(on: RunLoop.main)
+                .sink { [weak self] insight in
+                    Task { @MainActor [weak self] in
+                        guard let self, let kakaoMap = self.kakaoMap else {
+                            return
+                        }
+
+                        self.syncInsightPois(
+                            on: kakaoMap,
+                            hotplaces: self.parent.hotplaces,
+                            events: self.parent.layerMode.showsEvents ? insight.events : []
+                        )
+                        self.dismissSelectedCardIfHidden()
                     }
                 }
         }
@@ -837,17 +1453,22 @@ private struct NugulKakaoMapView: UIViewRepresentable {
         }
 
         private func handlePoiTap(layerID: String, poiID: String, position: MapPoint) {
+            if layerID == Constants.insightLayerID {
+                handleInsightTap(poiID: poiID)
+                return
+            }
+
             guard layerID == Constants.labelLayerID else {
                 return
             }
 
             let selectedZone: SmokingZone?
             if let zoneID = Int(poiID),
-               let exactZone = parent.model.zones.first(where: { $0.id == zoneID }) {
+               let exactZone = parent.zones.first(where: { $0.id == zoneID }) {
                 selectedZone = exactZone
             } else {
                 let tappedCoordinate = position.wgsCoord
-                selectedZone = parent.model.zones.min { lhs, rhs in
+                selectedZone = parent.zones.min { lhs, rhs in
                     let lhsDistance = hypot(lhs.latitude - tappedCoordinate.latitude, lhs.longitude - tappedCoordinate.longitude)
                     let rhsDistance = hypot(rhs.latitude - tappedCoordinate.latitude, rhs.longitude - tappedCoordinate.longitude)
                     return lhsDistance < rhsDistance
@@ -868,12 +1489,76 @@ private struct NugulKakaoMapView: UIViewRepresentable {
             }
         }
 
+        private func handleInsightTap(poiID: String) {
+            if poiID.hasPrefix("hot:") {
+                let id = String(poiID.dropFirst(4))
+                guard let place = parent.hotplaces.first(where: { $0.id == id }) else {
+                    return
+                }
+                showInsightCard(
+                    poiID: poiID,
+                    title: place.name,
+                    subtitle: hotplaceSubtitle(place),
+                    detail: hotplaceDetail(place),
+                    badge: place.crowdLabel,
+                    latitude: place.latitude,
+                    longitude: place.longitude
+                )
+                return
+            }
+
+            if poiID.hasPrefix("event:") {
+                let id = String(poiID.dropFirst(6))
+                guard let event = parent.events.first(where: { $0.id == id }) else {
+                    return
+                }
+                showInsightCard(
+                    poiID: poiID,
+                    title: event.title,
+                    subtitle: event.address ?? event.eventLabel,
+                    detail: eventDetail(event),
+                    badge: event.eventLabel,
+                    latitude: event.latitude,
+                    longitude: event.longitude
+                )
+            }
+        }
+
+        private func eventDetail(_ event: TrendEvent) -> String? {
+            let parts = [
+                event.sourceLabel,
+                event.sourceContentId.flatMap { !$0.isEmpty ? "출처 ID \($0)" : nil }
+            ].compactMap { $0 }
+
+            return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        }
+
+        private func hotplaceDetail(_ place: Hotplace) -> String? {
+            let fallbackMessage = "실시간 혼잡도 키가 없거나 해당 장소 응답을 받을 수 없어 후보 장소만 표시합니다."
+            let parts = [
+                place.sourceLabel,
+                place.crowdMessage.flatMap { !$0.isEmpty && $0 != fallbackMessage ? $0 : nil },
+                place.updatedAt.flatMap { !$0.isEmpty ? "갱신 \($0)" : nil },
+                place.sourcePlaceCode.flatMap { !$0.isEmpty ? "장소 \($0)" : nil }
+            ].compactMap { $0 }
+
+            return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        }
+
+        private func hotplaceSubtitle(_ place: Hotplace) -> String {
+            if let address = place.address, !address.isEmpty {
+                return "\(address) · \(place.compactMapLabel)"
+            }
+            return place.crowdLabel
+        }
+
         private func showNativeCard(for zone: SmokingZone) {
             guard let hostView else {
                 return
             }
 
             selectedCardView?.removeFromSuperview()
+            selectedCardPoiID = "zone:\(zone.id)"
 
             let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialLight))
             blur.translatesAutoresizingMaskIntoConstraints = false
@@ -924,6 +1609,7 @@ private struct NugulKakaoMapView: UIViewRepresentable {
             closeButton.addAction(UIAction { [weak self] _ in
                 self?.selectedCardView?.removeFromSuperview()
                 self?.selectedCardView = nil
+                self?.selectedCardPoiID = nil
                 self?.parent.model.selectedZone = nil
             }, for: .touchUpInside)
 
@@ -981,6 +1667,127 @@ private struct NugulKakaoMapView: UIViewRepresentable {
             ])
         }
 
+        private func showInsightCard(poiID: String, title: String, subtitle: String, detail: String?, badge: String, latitude: Double, longitude: Double) {
+            guard let hostView else {
+                return
+            }
+
+            selectedCardView?.removeFromSuperview()
+            selectedCardPoiID = poiID
+
+            let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialLight))
+            blur.translatesAutoresizingMaskIntoConstraints = false
+            blur.layer.cornerRadius = 24
+            blur.layer.masksToBounds = true
+            blur.layer.borderWidth = 1
+            blur.layer.borderColor = UIColor.white.withAlphaComponent(0.72).cgColor
+
+            let icon = UIImageView(image: UIImage(systemName: "sparkles"))
+            icon.translatesAutoresizingMaskIntoConstraints = false
+            icon.tintColor = UIColor(red: 0.78, green: 0.30, blue: 0.14, alpha: 1)
+            icon.contentMode = .scaleAspectFit
+
+            let titleLabel = UILabel()
+            titleLabel.translatesAutoresizingMaskIntoConstraints = false
+            titleLabel.text = title
+            titleLabel.font = .systemFont(ofSize: 16, weight: .black)
+            titleLabel.textColor = UIColor(red: 0.18, green: 0.38, blue: 0.21, alpha: 1)
+            titleLabel.numberOfLines = 1
+
+            let subtitleLabel = UILabel()
+            subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+            subtitleLabel.text = subtitle
+            subtitleLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+            subtitleLabel.textColor = UIColor.darkGray.withAlphaComponent(0.78)
+            subtitleLabel.numberOfLines = 2
+
+            let detailLabel = UILabel()
+            detailLabel.translatesAutoresizingMaskIntoConstraints = false
+            detailLabel.text = detail
+            detailLabel.font = .systemFont(ofSize: 12, weight: .bold)
+            detailLabel.textColor = UIColor(red: 0.14, green: 0.16, blue: 0.14, alpha: 0.88)
+            detailLabel.numberOfLines = 2
+
+            let badgeLabel = UILabel()
+            badgeLabel.translatesAutoresizingMaskIntoConstraints = false
+            badgeLabel.text = badge
+            badgeLabel.font = .systemFont(ofSize: 10, weight: .black)
+            badgeLabel.textColor = UIColor(red: 0.78, green: 0.30, blue: 0.14, alpha: 1)
+            badgeLabel.backgroundColor = UIColor(red: 0.78, green: 0.30, blue: 0.14, alpha: 0.12)
+            badgeLabel.layer.cornerRadius = 9
+            badgeLabel.layer.masksToBounds = true
+            badgeLabel.textAlignment = .center
+
+            let closeButton = UIButton(type: .system)
+            closeButton.translatesAutoresizingMaskIntoConstraints = false
+            closeButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+            closeButton.tintColor = .darkGray
+            closeButton.backgroundColor = UIColor.white.withAlphaComponent(0.72)
+            closeButton.layer.cornerRadius = 15
+            closeButton.addAction(UIAction { [weak self] _ in
+                self?.selectedCardView?.removeFromSuperview()
+                self?.selectedCardView = nil
+                self?.selectedCardPoiID = nil
+            }, for: .touchUpInside)
+
+            let directionsButton = UIButton(type: .system)
+            directionsButton.translatesAutoresizingMaskIntoConstraints = false
+            directionsButton.setTitle("길찾기", for: .normal)
+            directionsButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .black)
+            directionsButton.tintColor = .white
+            directionsButton.backgroundColor = UIColor(red: 0.18, green: 0.38, blue: 0.21, alpha: 1)
+            directionsButton.layer.cornerRadius = 13
+            directionsButton.addAction(UIAction { _ in
+                let encodedName = title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "NugulMap"
+                if let url = URL(string: "http://maps.apple.com/?daddr=\(latitude),\(longitude)&q=\(encodedName)") {
+                    UIApplication.shared.open(url)
+                }
+            }, for: .touchUpInside)
+
+            let textStack = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel])
+            textStack.axis = .vertical
+            textStack.spacing = 4
+            textStack.translatesAutoresizingMaskIntoConstraints = false
+
+            let headerStack = UIStackView(arrangedSubviews: [icon, textStack, badgeLabel, closeButton])
+            headerStack.axis = .horizontal
+            headerStack.alignment = .top
+            headerStack.spacing = 10
+            headerStack.translatesAutoresizingMaskIntoConstraints = false
+
+            var contentViews: [UIView] = [headerStack]
+            if detail != nil {
+                contentViews.append(detailLabel)
+            }
+            contentViews.append(directionsButton)
+
+            let contentStack = UIStackView(arrangedSubviews: contentViews)
+            contentStack.axis = .vertical
+            contentStack.spacing = 10
+            contentStack.translatesAutoresizingMaskIntoConstraints = false
+
+            blur.contentView.addSubview(contentStack)
+            hostView.addSubview(blur)
+            selectedCardView = blur
+
+            NSLayoutConstraint.activate([
+                blur.leadingAnchor.constraint(equalTo: hostView.leadingAnchor, constant: 16),
+                blur.trailingAnchor.constraint(equalTo: hostView.trailingAnchor, constant: -16),
+                blur.bottomAnchor.constraint(equalTo: hostView.safeAreaLayoutGuide.bottomAnchor, constant: -86),
+                contentStack.leadingAnchor.constraint(equalTo: blur.contentView.leadingAnchor, constant: 16),
+                contentStack.trailingAnchor.constraint(equalTo: blur.contentView.trailingAnchor, constant: -16),
+                contentStack.topAnchor.constraint(equalTo: blur.contentView.topAnchor, constant: 14),
+                contentStack.bottomAnchor.constraint(equalTo: blur.contentView.bottomAnchor, constant: -14),
+                icon.widthAnchor.constraint(equalToConstant: 38),
+                icon.heightAnchor.constraint(equalToConstant: 38),
+                closeButton.widthAnchor.constraint(equalToConstant: 30),
+                closeButton.heightAnchor.constraint(equalToConstant: 30),
+                badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 54),
+                badgeLabel.heightAnchor.constraint(equalToConstant: 24),
+                directionsButton.heightAnchor.constraint(equalToConstant: 42)
+            ])
+        }
+
         private func handleCameraStopped(kakaoMap: KakaoMap?, by: MoveBy) {
             guard let kakaoMap else {
                 return
@@ -1026,6 +1833,8 @@ private struct NugulKakaoMapView: UIViewRepresentable {
             let manager = kakaoMap.getLabelManager()
             let markerImage = UIImage(named: "NugulMarker")?.resized(to: CGSize(width: 42, height: 42))
                 ?? UIImage.nugulFallbackMarker(size: CGSize(width: 42, height: 42))
+            let hotplaceImage = UIImage.nugulInsightMarker(size: CGSize(width: 38, height: 38), fill: UIColor(red: 0.93, green: 0.38, blue: 0.16, alpha: 1), symbolName: "flame.fill")
+            let eventImage = UIImage.nugulInsightMarker(size: CGSize(width: 38, height: 38), fill: UIColor(red: 0.17, green: 0.45, blue: 0.66, alpha: 1), symbolName: "calendar")
             let iconStyle = PoiIconStyle(
                 symbol: markerImage,
                 anchorPoint: CGPoint(x: 0.5, y: 1.0)
@@ -1033,6 +1842,12 @@ private struct NugulKakaoMapView: UIViewRepresentable {
             let perLevelStyle = PerLevelPoiStyle(iconStyle: iconStyle, padding: 0, level: 0)
             let style = PoiStyle(styleID: Constants.poiStyleID, styles: [perLevelStyle])
             manager.addPoiStyle(style)
+            manager.addPoiStyle(PoiStyle(styleID: Constants.hotplacePoiStyleID, styles: [
+                PerLevelPoiStyle(iconStyle: PoiIconStyle(symbol: hotplaceImage, anchorPoint: CGPoint(x: 0.5, y: 0.5)), padding: 0, level: 0)
+            ]))
+            manager.addPoiStyle(PoiStyle(styleID: Constants.eventPoiStyleID, styles: [
+                PerLevelPoiStyle(iconStyle: PoiIconStyle(symbol: eventImage, anchorPoint: CGPoint(x: 0.5, y: 0.5)), padding: 0, level: 0)
+            ]))
 
             let layerOptions = LabelLayerOptions(
                 layerID: Constants.labelLayerID,
@@ -1044,6 +1859,16 @@ private struct NugulKakaoMapView: UIViewRepresentable {
             let layer = manager.addLabelLayer(option: layerOptions)
             layer?.setClickable(true)
             labelLayer = layer
+            let insightOptions = LabelLayerOptions(
+                layerID: Constants.insightLayerID,
+                competitionType: .none,
+                competitionUnit: .symbolFirst,
+                orderType: .rank,
+                zOrder: 10_200
+            )
+            let season2Layer = manager.addLabelLayer(option: insightOptions)
+            season2Layer?.setClickable(true)
+            insightLayer = season2Layer
             hasRegisteredPoiStyle = true
         }
 
@@ -1076,6 +1901,71 @@ private struct NugulKakaoMapView: UIViewRepresentable {
                 poi?.show()
             }
             renderedZoneSignature = nextSignature
+        }
+
+        private func syncInsightPois(on kakaoMap: KakaoMap, hotplaces: [Hotplace], events: [TrendEvent]) {
+            if !hasRegisteredPoiStyle {
+                configureLabels(on: kakaoMap)
+            }
+
+            guard let insightLayer else {
+                return
+            }
+
+            let visibleHotplaces = Array(hotplaces.prefix(8))
+            let visibleEvents = Array(events.prefix(8))
+            let nextSignature = Set(
+                visibleHotplaces.map { "hot:\($0.id):\(String(format: "%.6f", $0.latitude)):\(String(format: "%.6f", $0.longitude)):\($0.compactMapLabel)" } +
+                    visibleEvents.map { "event:\($0.id):\(String(format: "%.6f", $0.latitude)):\(String(format: "%.6f", $0.longitude))" }
+            )
+            guard nextSignature != renderedInsightSignature else {
+                return
+            }
+
+            insightLayer.clearAllItems()
+            for place in visibleHotplaces {
+                let option = PoiOptions(styleID: Constants.hotplacePoiStyleID, poiID: "hot:\(place.id)")
+                option.rank = 1_200
+                option.clickable = true
+                let poi = insightLayer.addPoi(
+                    option: option,
+                    at: MapPoint(longitude: place.longitude, latitude: place.latitude)
+                )
+                poi?.show()
+            }
+            for event in visibleEvents {
+                let option = PoiOptions(styleID: Constants.eventPoiStyleID, poiID: "event:\(event.id)")
+                option.rank = 1_100
+                option.clickable = true
+                let poi = insightLayer.addPoi(
+                    option: option,
+                    at: MapPoint(longitude: event.longitude, latitude: event.latitude)
+                )
+                poi?.show()
+            }
+            renderedInsightSignature = nextSignature
+        }
+
+        private func dismissSelectedCardIfHidden() {
+            guard let selectedCardPoiID else {
+                return
+            }
+
+            let visibleIDs = Set(
+                (parent.layerMode.showsZones ? parent.model.zones.map { "zone:\($0.id)" } : []) +
+                    (parent.layerMode.showsHotplaces ? parent.model.hotplaceInsight.places.map { "hot:\($0.id)" } : []) +
+                    (parent.layerMode.showsEvents ? parent.model.eventInsight.events.map { "event:\($0.id)" } : [])
+            )
+            guard !visibleIDs.contains(selectedCardPoiID) else {
+                return
+            }
+
+            selectedCardView?.removeFromSuperview()
+            selectedCardView = nil
+            self.selectedCardPoiID = nil
+            if selectedCardPoiID.hasPrefix("zone:") {
+                parent.model.selectedZone = nil
+            }
         }
 
         private func apply(region: MKCoordinateRegion, to kakaoMap: KakaoMap, animated: Bool) {
@@ -1197,6 +2087,28 @@ private extension UIImage {
             context.cgContext.fillEllipse(in: rect.insetBy(dx: 5, dy: 5))
             UIColor.white.setFill()
             context.cgContext.fillEllipse(in: rect.insetBy(dx: 14, dy: 14))
+        }
+    }
+
+    static func nugulInsightMarker(size: CGSize, fill: UIColor, symbolName: String) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            let rect = CGRect(origin: .zero, size: size)
+            UIColor.white.setFill()
+            UIBezierPath(ovalIn: rect.insetBy(dx: 1.5, dy: 1.5)).fill()
+            fill.setFill()
+            UIBezierPath(ovalIn: rect.insetBy(dx: 4.5, dy: 4.5)).fill()
+
+            let symbolConfig = UIImage.SymbolConfiguration(pointSize: size.width * 0.42, weight: .black)
+            guard let symbol = UIImage(systemName: symbolName, withConfiguration: symbolConfig)?.withTintColor(.white, renderingMode: .alwaysOriginal) else {
+                return
+            }
+            let symbolSize = symbol.size
+            let symbolOrigin = CGPoint(
+                x: (size.width - symbolSize.width) / 2,
+                y: (size.height - symbolSize.height) / 2
+            )
+            symbol.draw(at: symbolOrigin)
         }
     }
 }
@@ -1778,6 +2690,7 @@ private struct LoginSheet: View {
                 }
 
                 VStack(spacing: 12) {
+                    appleSignInButton
                     socialButton(title: "카카오로 3초만에 시작", color: Color(red: 1.0, green: 0.90, blue: 0.0), foreground: Color(red: 0.24, green: 0.12, blue: 0.12), icon: "message.fill", provider: .kakao)
                     socialButton(title: "네이버로 로그인", color: Color(red: 0.01, green: 0.78, blue: 0.35), foreground: .white, iconText: "N", provider: .naver)
                     socialButton(title: "구글로 로그인", color: .white, foreground: Color.nugulPrimary, icon: "g.circle.fill", provider: .google, needsBorder: true)
@@ -1789,15 +2702,36 @@ private struct LoginSheet: View {
                         .foregroundStyle(Color.nugulMutedText)
                 }
 
-                Text("By continuing, you agree to our\nTerms of Service & Privacy Policy")
-                    .font(.system(size: 10, weight: .black))
-                    .multilineTextAlignment(.center)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Color.nugulMutedText.opacity(0.62))
-                    .tracking(1.2)
+                VStack(spacing: 4) {
+                    Text("계속하면 서비스 약관과 개인정보 처리방침에 동의합니다.")
+                    Link("개인정보 처리방침", destination: AppConfig.privacyPolicyURL)
+                }
+                .font(.system(size: 11, weight: .bold))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Color.nugulMutedText.opacity(0.72))
             }
             .padding(28)
         }
+    }
+
+    private var appleSignInButton: some View {
+        SignInWithAppleButton(.continue) { request in
+            request.requestedScopes = [.fullName, .email]
+        } onCompletion: { result in
+            switch result {
+            case let .success(authorization):
+                Task {
+                    await model.signInWithApple(authorization: authorization)
+                }
+            case .failure:
+                break
+            }
+        }
+        .signInWithAppleButtonStyle(.black)
+        .frame(maxWidth: .infinity)
+        .frame(height: 58)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .disabled(model.isAuthLoading)
     }
 
     private func socialButton(
@@ -1846,7 +2780,9 @@ private struct LoginSheet: View {
 
 private struct ProfileSheet: View {
     @ObservedObject var model: ZoneExplorerModel
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: ProfileTab = .profile
+    @State private var showsDeleteAccountConfirmation = false
 
     var body: some View {
         VStack(spacing: 18) {
@@ -1872,6 +2808,18 @@ private struct ProfileSheet: View {
         .background(Color.white)
         .task {
             await model.loadUserZones()
+        }
+        .alert("계정을 삭제할까요?", isPresented: $showsDeleteAccountConfirmation) {
+            Button("취소", role: .cancel) {}
+            Button("삭제", role: .destructive) {
+                Task {
+                    if await model.deleteAccount() {
+                        dismiss()
+                    }
+                }
+            }
+        } message: {
+            Text("계정, 로그인 토큰, 프로필 정보가 삭제됩니다. 일부 제보/리뷰 기록은 서비스 운영 정책에 따라 보존될 수 있습니다.")
         }
     }
 
@@ -1921,6 +2869,27 @@ private struct ProfileSheet: View {
                 .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
+
+            Button {
+                showsDeleteAccountConfirmation = true
+            } label: {
+                HStack {
+                    if model.isDeletingAccount {
+                        ProgressView()
+                            .tint(.red)
+                    } else {
+                        Image(systemName: "trash")
+                    }
+                    Text("계정 삭제")
+                }
+                .font(.system(size: 15, weight: .black))
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(model.isDeletingAccount)
         }
     }
 

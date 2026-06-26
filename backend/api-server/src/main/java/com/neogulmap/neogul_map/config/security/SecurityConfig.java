@@ -86,13 +86,14 @@ public class SecurityConfig {
                 .requestMatchers("/login").permitAll() // 로그인 선택 페이지
                 .requestMatchers("/login/**").permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll() // OAuth2 인증 시작/콜백
-                .requestMatchers("/auth/refresh", "/auth/validate", "/auth/mobile/exchange").permitAll()
+                .requestMatchers("/auth/refresh", "/auth/validate", "/auth/mobile/exchange", "/auth/apple/mobile").permitAll()
                 .requestMatchers("/public/**").permitAll()
                 .requestMatchers("/health").permitAll()
                 
                 // 공개 조회 엔드포인트 (GET 요청만 허용)
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/zones/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/images/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/insights/**").permitAll()
                 
                 // 정적 리소스 허용
                 .requestMatchers("/static/**", "/css/**", "/js/**", "/favicon.ico").permitAll()

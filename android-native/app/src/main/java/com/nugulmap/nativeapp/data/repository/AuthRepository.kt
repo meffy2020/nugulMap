@@ -69,6 +69,15 @@ class AuthRepository(
         return response.data?.user ?: error("프로필 설정 응답이 올바르지 않습니다.")
     }
 
+    suspend fun deleteAccount() {
+        val token = tokenStore.accessToken()?.takeIf { it.isNotBlank() } ?: error("로그인이 필요합니다.")
+        val response = apiService.deleteCurrentUser(token.bearer())
+        if (!response.success) {
+            error(response.message ?: "계정 삭제에 실패했습니다.")
+        }
+        logout()
+    }
+
     fun isSignedIn(): Boolean = !tokenStore.accessToken().isNullOrBlank()
 
     fun logout() {

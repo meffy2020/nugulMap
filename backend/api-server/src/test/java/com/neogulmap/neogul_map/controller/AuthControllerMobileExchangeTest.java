@@ -6,6 +6,7 @@ import com.neogulmap.neogul_map.dto.ApiResponse;
 import com.neogulmap.neogul_map.dto.ErrorResponse;
 import com.neogulmap.neogul_map.dto.auth.AuthTokenResponse;
 import com.neogulmap.neogul_map.dto.auth.MobileOAuthExchangeRequest;
+import com.neogulmap.neogul_map.service.AppleIdentityTokenService;
 import com.neogulmap.neogul_map.service.ImageService;
 import com.neogulmap.neogul_map.service.UserService;
 import org.junit.jupiter.api.DisplayName;
@@ -26,11 +27,13 @@ class AuthControllerMobileExchangeTest {
     private final UserService userService = mock(UserService.class);
     private final ImageService imageService = mock(ImageService.class);
     private final NativeOAuthCodeStore nativeOAuthCodeStore = mock(NativeOAuthCodeStore.class);
+    private final AppleIdentityTokenService appleIdentityTokenService = mock(AppleIdentityTokenService.class);
     private final AuthController controller = new AuthController(
             tokenProvider,
             userService,
             imageService,
-            nativeOAuthCodeStore
+            nativeOAuthCodeStore,
+            appleIdentityTokenService
     );
 
     @Test

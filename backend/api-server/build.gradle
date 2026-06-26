@@ -53,7 +53,7 @@ dependencies {
 	// MySQL 커넥터 (프로덕션용)
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	// H2 데이터베이스 (테스트용, 필요시 주석 해제)
-	// runtimeOnly 'com.h2database:h2'
+	runtimeOnly 'com.h2database:h2'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'

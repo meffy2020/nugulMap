@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Combine
 import Foundation
 import MapKit
@@ -5,6 +6,10 @@ import MapKit
 @MainActor
 final class ZoneExplorerModel: ObservableObject {
     @Published var zones: [SmokingZone]
+    @Published private(set) var hotplaceInsight: HotplaceInsight = .empty
+    @Published private(set) var eventInsight: EventInsight = .empty
+    @Published private(set) var insightStatus: InsightStatus?
+    @Published private(set) var isLoadingInsights = false
     @Published private(set) var isLoading = false
     @Published private(set) var isSubmittingZone = false
     @Published private(set) var errorMessage: String?
@@ -13,6 +18,7 @@ final class ZoneExplorerModel: ObservableObject {
     @Published private(set) var currentUser: UserProfile?
     @Published private(set) var userZones: [SmokingZone] = []
     @Published private(set) var isAuthLoading = false
+    @Published private(set) var isDeletingAccount = false
     @Published private(set) var isLoadingUserZones = false
     @Published var pendingSignupEmail: String?
     @Published var query = ""
@@ -20,11 +26,15 @@ final class ZoneExplorerModel: ObservableObject {
 
     private let apiClient: NugulAPIClient
     private let oauthSession = OAuthWebSession()
+    private let appleSignInSession = AppleSignInSession()
     private let lastSubmitStorageKey = "nugul_last_submit"
     private let submissionCooldownSeconds: TimeInterval = 30
     private var zoneRequestSequence = 0
+    private var insightRequestSequence = 0
     private var inFlightZoneBoundsKey: String?
     private var lastLoadedZoneBoundsKey: String?
+    private var inFlightInsightBoundsKey: String?
+    private var lastLoadedInsightBoundsKey: String?
 
     init(apiClient: NugulAPIClient = NugulAPIClient()) {
         self.apiClient = apiClient
@@ -32,7 +42,9 @@ final class ZoneExplorerModel: ObservableObject {
     }
 
     func bootstrap(initialBounds: MapBounds = .centralSeoul) async {
-        await loadZones(in: initialBounds)
+        async let zonesTask: Void = loadZones(in: initialBounds)
+        async let insightsTask: Void = loadInsights(in: initialBounds)
+        _ = await (zonesTask, insightsTask)
         currentUser = await apiClient.getCurrentUser()
         if currentUser != nil {
             await loadUserZones()
@@ -41,10 +53,13 @@ final class ZoneExplorerModel: ObservableObject {
 
     func loadInitialZones() async {
         await loadZones(in: .centralSeoul)
+        await loadInsights(in: .centralSeoul)
     }
 
     func loadZones(around latitude: Double, longitude: Double) async {
-        await loadZones(in: .around(latitude: latitude, longitude: longitude))
+        let bounds = MapBounds.around(latitude: latitude, longitude: longitude)
+        await loadZones(in: bounds)
+        await loadInsights(in: bounds)
     }
 
     func loadZones(in bounds: MapBounds, force: Bool = false) async {
@@ -91,6 +106,50 @@ final class ZoneExplorerModel: ObservableObject {
         isLoading = false
     }
 
+    func loadInsights(in bounds: MapBounds, force: Bool = false) async {
+        let boundsKey = zoneBoundsKey(bounds)
+        if !force {
+            if inFlightInsightBoundsKey == boundsKey {
+                return
+            }
+
+            if lastLoadedInsightBoundsKey == boundsKey, !hotplaceInsight.places.isEmpty {
+                return
+            }
+        }
+
+        insightRequestSequence += 1
+        let requestID = insightRequestSequence
+        inFlightInsightBoundsKey = boundsKey
+        isLoadingInsights = true
+
+        let fetchedInsight: MapInsight
+        do {
+            fetchedInsight = try await apiClient.fetchMapInsights(bounds: bounds)
+        } catch {
+            fetchedInsight = .empty
+        }
+
+        guard requestID == insightRequestSequence else {
+            if inFlightInsightBoundsKey == boundsKey {
+                inFlightInsightBoundsKey = nil
+            }
+            return
+        }
+
+        hotplaceInsight = fetchedInsight.hotplaces
+        eventInsight = fetchedInsight.events
+        insightStatus = fetchedInsight.status
+        if !fetchedInsight.hotplaces.places.isEmpty || !fetchedInsight.events.events.isEmpty {
+            lastLoadedInsightBoundsKey = boundsKey
+        }
+
+        if inFlightInsightBoundsKey == boundsKey {
+            inFlightInsightBoundsKey = nil
+        }
+        isLoadingInsights = false
+    }
+
     @discardableResult
     func search() async -> CLLocationCoordinate2D? {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -108,11 +167,13 @@ final class ZoneExplorerModel: ObservableObject {
             do {
                 let bounds = MapBounds.around(latitude: placeCoordinate.latitude, longitude: placeCoordinate.longitude)
                 let fetchedZones = try await apiClient.fetchZonesByBounds(bounds)
+                async let insightsTask: Void = loadInsights(in: bounds, force: true)
                 guard requestID == zoneRequestSequence else {
                     return nil
                 }
                 zones = fetchedZones
                 isLoading = false
+                await insightsTask
                 return placeCoordinate
             } catch {
                 guard requestID == zoneRequestSequence else {
@@ -124,12 +185,20 @@ final class ZoneExplorerModel: ObservableObject {
 
         do {
             let fetchedZones = try await apiClient.searchZones(keyword: trimmedQuery)
+            async let insightTask = apiClient.fetchMapInsights(keyword: trimmedQuery, hotplaceLimit: 5, eventLimit: 5)
             guard requestID == zoneRequestSequence else {
                 return nil
             }
             zones = fetchedZones
+            if let insight = try? await insightTask {
+                hotplaceInsight = insight.hotplaces
+                eventInsight = insight.events
+                insightStatus = insight.status
+            }
             isLoading = false
             return zones.first?.coordinate
+                ?? eventInsight.events.first.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+                ?? hotplaceInsight.places.first.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
         } catch {
             guard requestID == zoneRequestSequence else {
                 return nil
@@ -325,6 +394,29 @@ final class ZoneExplorerModel: ObservableObject {
         }
     }
 
+    func signInWithApple(authorization: ASAuthorization) async -> Bool {
+        isAuthLoading = true
+        errorMessage = nil
+
+        do {
+            let result = try await appleSignInSession.signIn(authorization: authorization, apiClient: apiClient)
+            AuthTokenStore.saveTokens(accessToken: result.accessToken, refreshToken: result.refreshToken)
+            pendingSignupEmail = result.profileComplete ? nil : result.email
+            currentUser = await apiClient.getCurrentUser(accessToken: result.accessToken)
+
+            if currentUser != nil {
+                await loadUserZones()
+            }
+
+            isAuthLoading = false
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            isAuthLoading = false
+            return false
+        }
+    }
+
     func completeProfileSetup(nickname: String, image: ZoneImageAttachment? = nil) async -> Bool {
         let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedNickname.count >= 2 else {
@@ -353,6 +445,30 @@ final class ZoneExplorerModel: ObservableObject {
         currentUser = nil
         userZones = []
         pendingSignupEmail = nil
+    }
+
+    func deleteAccount() async -> Bool {
+        guard AuthTokenStore.loadAccessToken() != nil else {
+            errorMessage = "계정을 삭제하려면 로그인이 필요합니다."
+            return false
+        }
+
+        isDeletingAccount = true
+        errorMessage = nil
+
+        do {
+            try await apiClient.deleteCurrentUser()
+            AuthTokenStore.deleteTokens()
+            currentUser = nil
+            userZones = []
+            pendingSignupEmail = nil
+            isDeletingAccount = false
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            isDeletingAccount = false
+            return false
+        }
     }
 
     func loadUserZones() async {

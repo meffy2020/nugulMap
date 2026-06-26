@@ -1,15 +1,101 @@
 // 백엔드의 ZoneResponse DTO와 일치하는 타입 정의
 export interface SmokingZone {
   id: number
+  name?: string
   region: string
   type: string
   subtype: string
   description: string
+  size?: string
   latitude: number
   longitude: number
   address: string
   user: string
   image: string | null
+  imageUrl?: string | null
+}
+
+export interface Hotplace {
+  id: string
+  name: string
+  category: string
+  crowdLevel: string
+  crowdMessage: string
+  estimatedMinPeople: number | null
+  estimatedMaxPeople: number | null
+  latitude: number
+  longitude: number
+  address: string
+  source: string
+  sourcePlaceCode: string
+  updatedAt: string | null
+}
+
+export interface HotplaceInsight {
+  places: Hotplace[]
+  dataFreshness: string
+  updatedAt: string
+  sources: string[]
+}
+
+export interface TrendEvent {
+  id: string
+  title: string
+  kind: string
+  period: string
+  startDate: string | null
+  endDate: string | null
+  latitude: number
+  longitude: number
+  address: string
+  imageUrl: string | null
+  source: string
+  sourceContentId: string
+}
+
+export interface EventInsight {
+  events: TrendEvent[]
+  dataFreshness: string
+  updatedAt: string
+  sources: string[]
+}
+
+export interface MapInsight {
+  hotplaces: HotplaceInsight
+  events: EventInsight
+  status: InsightStatus | null
+  updatedAt: string
+}
+
+export interface InsightStatus {
+  seoulCityDataKeyConfigured: boolean
+  telecomCrowdKeyConfigured: boolean
+  telecomCrowdUrlTemplateConfigured: boolean
+  ktoTourApiKeyConfigured: boolean
+  seoulCultureApiKeyConfigured: boolean
+  hotplaceMode: string
+  eventMode: string
+  seoulCityData: InsightProviderStatus
+  telecomCrowd: InsightProviderStatus
+  ktoTourApi: InsightProviderStatus
+  seoulCultureApi: InsightProviderStatus
+  popupTrends: {
+    fileConfigured: boolean
+    fileExists: boolean
+    recordCount: number
+    latestCollectedAt: string | null
+    qualityStatus: string
+    detail: string
+  }
+  checkedAt: string
+}
+
+export interface InsightProviderStatus {
+  configured: boolean
+  qualityStatus: string
+  lastSuccessAt: string | null
+  lastFailureAt: string | null
+  detail: string
 }
 
 // Zone 생성 시 요청 DTO에 맞는 타입 정의
@@ -65,6 +151,58 @@ export async function fetchZones(minLat: number, maxLat: number, minLng: number,
   } catch (error) {
     console.error("Error fetching zones:", error)
     return []
+  }
+}
+
+export async function fetchMapInsights(
+  hotplaceLimit = 8,
+  eventLimit = 8,
+  bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number },
+  keyword?: string,
+): Promise<MapInsight> {
+  try {
+    const params = new URLSearchParams({
+      hotplaceLimit: String(hotplaceLimit),
+      eventLimit: String(eventLimit),
+    })
+    if (keyword?.trim()) {
+      params.set("keyword", keyword.trim())
+    }
+    if (bounds) {
+      params.set("minLat", String(bounds.minLat))
+      params.set("maxLat", String(bounds.maxLat))
+      params.set("minLng", String(bounds.minLng))
+      params.set("maxLng", String(bounds.maxLng))
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/insights/map?${params.toString()}`)
+    if (!response.ok) throw new Error("Network response was not ok")
+    const result = await response.json()
+    const data = result?.data || {}
+    return {
+      hotplaces: {
+        places: Array.isArray(data.hotplaces?.places) ? data.hotplaces.places : [],
+        dataFreshness: data.hotplaces?.dataFreshness || "UNAVAILABLE",
+        updatedAt: data.hotplaces?.updatedAt || "",
+        sources: Array.isArray(data.hotplaces?.sources) ? data.hotplaces.sources : [],
+      },
+      events: {
+        events: Array.isArray(data.events?.events) ? data.events.events : [],
+        dataFreshness: data.events?.dataFreshness || "UNAVAILABLE",
+        updatedAt: data.events?.updatedAt || "",
+        sources: Array.isArray(data.events?.sources) ? data.events.sources : [],
+      },
+      status: data.status || null,
+      updatedAt: data.updatedAt || "",
+    }
+  } catch (error) {
+    console.error("Error fetching map insights:", error)
+    return {
+      hotplaces: { places: [], dataFreshness: "UNAVAILABLE", updatedAt: "", sources: [] },
+      events: { events: [], dataFreshness: "UNAVAILABLE", updatedAt: "", sources: [] },
+      status: null,
+      updatedAt: "",
+    }
   }
 }
 
@@ -295,11 +433,12 @@ class ApiService {
   }
 
   async getAllZones(latitude?: number, longitude?: number, radius?: number): Promise<SmokingZone[]> {
+    const delta = radius ? Math.max(radius / 111_000, 0.01) : 0.05
     if (latitude !== undefined && longitude !== undefined) {
-      return fetchZones(latitude, longitude, radius)
+      return fetchZones(latitude - delta, latitude + delta, longitude - delta, longitude + delta)
     }
     // 기본 위치로 서울 시청 사용
-    return fetchZones(37.5665, 126.978, radius)
+    return fetchZones(37.5665 - delta, 37.5665 + delta, 126.978 - delta, 126.978 + delta)
   }
 }
 

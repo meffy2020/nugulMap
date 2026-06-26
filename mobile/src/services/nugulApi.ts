@@ -1,4 +1,17 @@
-import type { MapBounds, SmokingZone, UserProfile, ZoneReview } from "../types"
+import type {
+  EventInsight,
+  Hotplace,
+  HotplaceInsight,
+  InsightProviderStatus,
+  InsightStatus,
+  MapBounds,
+  MapInsight,
+  PopupTrendStatus,
+  SmokingZone,
+  TrendEvent,
+  UserProfile,
+  ZoneReview,
+} from "../types"
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.nugulmap.com").replace(/\/+$/, "")
 const REQUEST_TIMEOUT_MS = 10_000
@@ -135,6 +148,136 @@ function toZone(item: unknown): SmokingZone {
     address: readString(record.address),
     user: readString(record.user),
     image: typeof record.image === "string" ? record.image : null,
+  }
+}
+
+function toHotplace(item: unknown): Hotplace {
+  const record = asRecord(item) || {}
+
+  return {
+    id: readString(record.id),
+    name: readString(record.name),
+    category: readString(record.category),
+    crowdLevel: readString(record.crowdLevel, "UNKNOWN"),
+    crowdMessage: readString(record.crowdMessage),
+    estimatedMinPeople: record.estimatedMinPeople == null ? null : readNumber(record.estimatedMinPeople),
+    estimatedMaxPeople: record.estimatedMaxPeople == null ? null : readNumber(record.estimatedMaxPeople),
+    latitude: readNumber(record.latitude),
+    longitude: readNumber(record.longitude),
+    address: readString(record.address),
+    source: readString(record.source),
+    sourcePlaceCode: readString(record.sourcePlaceCode),
+    updatedAt: record.updatedAt ? readString(record.updatedAt) : null,
+  }
+}
+
+function toTrendEvent(item: unknown): TrendEvent {
+  const record = asRecord(item) || {}
+
+  return {
+    id: readString(record.id),
+    title: readString(record.title),
+    kind: readString(record.kind),
+    period: readString(record.period),
+    startDate: record.startDate ? readString(record.startDate) : null,
+    endDate: record.endDate ? readString(record.endDate) : null,
+    latitude: readNumber(record.latitude),
+    longitude: readNumber(record.longitude),
+    address: readString(record.address),
+    imageUrl: typeof record.imageUrl === "string" && record.imageUrl ? record.imageUrl : null,
+    source: readString(record.source),
+    sourceContentId: readString(record.sourceContentId),
+  }
+}
+
+function pickHotplaceInsight(payload: unknown): HotplaceInsight {
+  const record = asRecord(payload)
+  const data = asRecord(record?.data) || record || {}
+  const places = Array.isArray(data.places)
+    ? data.places.map((place) => toHotplace(place)).filter((place) => place.id && place.latitude && place.longitude)
+    : []
+  const sources = Array.isArray(data.sources) ? data.sources.map((source) => readString(source)).filter(Boolean) : []
+
+  return {
+    places,
+    dataFreshness: readString(data.dataFreshness, "UNKNOWN"),
+    updatedAt: readString(data.updatedAt, new Date().toISOString()),
+    sources,
+  }
+}
+
+function pickEventInsight(payload: unknown): EventInsight {
+  const record = asRecord(payload)
+  const data = asRecord(record?.data) || record || {}
+  const events = Array.isArray(data.events)
+    ? data.events.map((event) => toTrendEvent(event)).filter((event) => event.id && event.latitude && event.longitude)
+    : []
+  const sources = Array.isArray(data.sources) ? data.sources.map((source) => readString(source)).filter(Boolean) : []
+
+  return {
+    events,
+    dataFreshness: readString(data.dataFreshness, "UNKNOWN"),
+    updatedAt: readString(data.updatedAt, new Date().toISOString()),
+    sources,
+  }
+}
+
+function toProviderStatus(value: unknown): InsightProviderStatus {
+  const record = asRecord(value) || {}
+
+  return {
+    configured: Boolean(record.configured),
+    qualityStatus: readString(record.qualityStatus, "UNKNOWN"),
+    lastSuccessAt: record.lastSuccessAt ? readString(record.lastSuccessAt) : null,
+    lastFailureAt: record.lastFailureAt ? readString(record.lastFailureAt) : null,
+    detail: readString(record.detail),
+  }
+}
+
+function toPopupTrendStatus(value: unknown): PopupTrendStatus {
+  const record = asRecord(value) || {}
+
+  return {
+    fileConfigured: Boolean(record.fileConfigured),
+    fileExists: Boolean(record.fileExists),
+    recordCount: readNumber(record.recordCount),
+    latestCollectedAt: record.latestCollectedAt ? readString(record.latestCollectedAt) : null,
+    qualityStatus: readString(record.qualityStatus, "UNKNOWN"),
+    detail: readString(record.detail),
+  }
+}
+
+function pickInsightStatus(payload: unknown): InsightStatus | null {
+  const record = asRecord(payload)
+  const data = asRecord(record?.data) || record
+  if (!data) return null
+
+  return {
+    seoulCityDataKeyConfigured: Boolean(data.seoulCityDataKeyConfigured),
+    telecomCrowdKeyConfigured: Boolean(data.telecomCrowdKeyConfigured),
+    telecomCrowdUrlTemplateConfigured: Boolean(data.telecomCrowdUrlTemplateConfigured),
+    ktoTourApiKeyConfigured: Boolean(data.ktoTourApiKeyConfigured),
+    seoulCultureApiKeyConfigured: Boolean(data.seoulCultureApiKeyConfigured),
+    hotplaceMode: readString(data.hotplaceMode, "UNKNOWN"),
+    eventMode: readString(data.eventMode, "UNKNOWN"),
+    seoulCityData: toProviderStatus(data.seoulCityData),
+    telecomCrowd: toProviderStatus(data.telecomCrowd),
+    ktoTourApi: toProviderStatus(data.ktoTourApi),
+    seoulCultureApi: toProviderStatus(data.seoulCultureApi),
+    popupTrends: toPopupTrendStatus(data.popupTrends),
+    checkedAt: readString(data.checkedAt, new Date().toISOString()),
+  }
+}
+
+function pickMapInsight(payload: unknown): MapInsight {
+  const record = asRecord(payload)
+  const data = asRecord(record?.data) || record || {}
+
+  return {
+    hotplaces: pickHotplaceInsight(data.hotplaces),
+    events: pickEventInsight(data.events),
+    status: data.status ? pickInsightStatus(data.status) : null,
+    updatedAt: readString(data.updatedAt, new Date().toISOString()),
   }
 }
 
@@ -289,6 +432,53 @@ export async function fetchZonesByBounds(bounds: MapBounds): Promise<SmokingZone
   } catch (error) {
     console.warn("zones fetch failed", error)
     return fallbackZones
+  }
+}
+
+function appendBoundsParams(params: URLSearchParams, bounds?: MapBounds) {
+  if (!bounds) return
+
+  params.set("minLat", String(bounds.minLat))
+  params.set("maxLat", String(bounds.maxLat))
+  params.set("minLng", String(bounds.minLng))
+  params.set("maxLng", String(bounds.maxLng))
+}
+
+export async function fetchMapInsights(
+  keyword?: string,
+  hotplaceLimit = 8,
+  eventLimit = 8,
+  bounds?: MapBounds,
+): Promise<MapInsight> {
+  const params = new URLSearchParams({
+    hotplaceLimit: String(hotplaceLimit),
+    eventLimit: String(eventLimit),
+  })
+  if (keyword?.trim()) {
+    params.set("keyword", keyword.trim())
+  }
+  appendBoundsParams(params, bounds)
+
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/insights/map?${params.toString()}`)
+    if (!response.ok) {
+      return {
+        hotplaces: { places: [], dataFreshness: "UNAVAILABLE", updatedAt: new Date().toISOString(), sources: [] },
+        events: { events: [], dataFreshness: "UNAVAILABLE", updatedAt: new Date().toISOString(), sources: [] },
+        status: null,
+        updatedAt: new Date().toISOString(),
+      }
+    }
+
+    const result = await safeJson(response)
+    return pickMapInsight(extractPayloadData(result))
+  } catch {
+    return {
+      hotplaces: { places: [], dataFreshness: "UNAVAILABLE", updatedAt: new Date().toISOString(), sources: [] },
+      events: { events: [], dataFreshness: "UNAVAILABLE", updatedAt: new Date().toISOString(), sources: [] },
+      status: null,
+      updatedAt: new Date().toISOString(),
+    }
   }
 }
 

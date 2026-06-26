@@ -22,7 +22,7 @@ import java.io.IOException;
  * JWT 토큰 검증 필터
  */
 @Slf4j
-@Profile({"prod", "mysql"})  // mysql 프로파일에서도 활성화
+@Profile({"dev", "prod", "mysql"})  // dev/mysql/prod 보안 필터 체인에서 활성화
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -87,4 +87,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 }
-

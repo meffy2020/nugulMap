@@ -19,12 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,6 +60,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nugulmap.nativeapp.core.auth.OAuthProvider
+import com.nugulmap.nativeapp.data.dto.HotplaceDto
+import com.nugulmap.nativeapp.data.dto.InsightStatusPayload
+import com.nugulmap.nativeapp.data.dto.MapBounds
+import com.nugulmap.nativeapp.data.dto.TrendEventDto
 import com.nugulmap.nativeapp.data.dto.ZoneCreatePayload
 import com.nugulmap.nativeapp.data.dto.ZoneDto
 import com.nugulmap.nativeapp.data.dto.ZoneReviewDto
@@ -73,12 +79,44 @@ fun MapScreen(
     val uriHandler = LocalUriHandler.current
     val selectedZone = uiState.zones.firstOrNull { it.id == uiState.selectedZoneId }
     var activeSheet by remember { mutableStateOf<HomeSheet?>(null) }
+    var selectedInsight by remember { mutableStateOf<InsightSelection?>(null) }
+    var layerMode by remember { mutableStateOf(Season2LayerMode.All) }
+    var pendingShortcut by remember { mutableStateOf<Season2Shortcut?>(null) }
+    var visibleBounds by remember { mutableStateOf(MapBounds.centralSeoul) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val visibleZones = if (layerMode.showsZones) uiState.zones else emptyList()
+    val visibleHotplaces = if (layerMode.showsHotplaces) uiState.hotplaceInsight.places else emptyList()
+    val visibleEvents = if (layerMode.showsEvents) uiState.eventInsight.events else emptyList()
+    val visibleSelectedZone = if (layerMode.showsZones) selectedZone else null
+    val visibleSelectedZoneId = if (layerMode.showsZones) uiState.selectedZoneId else null
 
     LaunchedEffect(oauthCallbackUri) {
         viewModel.handleOAuthCallback(oauthCallbackUri)
+    }
+
+    LaunchedEffect(layerMode) {
+        if (!layerMode.showsZones && uiState.selectedZoneId != null) {
+            viewModel.dismissZoneDetail()
+        }
+        if (selectedInsight?.let { layerMode.showsInsight(it.type) } == false) {
+            selectedInsight = null
+        }
+    }
+
+    LaunchedEffect(pendingShortcut, uiState.hotplaceInsight, uiState.eventInsight) {
+        when (pendingShortcut?.kind) {
+            Season2ShortcutKind.Hotplace -> uiState.hotplaceInsight.places.firstOrNull()?.let { place ->
+                selectedInsight = place.toInsightSelection()
+                pendingShortcut = null
+            }
+            Season2ShortcutKind.Event -> uiState.eventInsight.events.firstOrNull()?.let { event ->
+                selectedInsight = event.toInsightSelection()
+                pendingShortcut = null
+            }
+            null -> Unit
+        }
     }
 
     ModalNavigationDrawer(
@@ -103,7 +141,7 @@ fun MapScreen(
                     scope.launch { drawerState.close() }
                 },
                 onRefresh = {
-                    viewModel.refreshZones()
+                    viewModel.refreshMapData(visibleBounds, force = true)
                     scope.launch { drawerState.close() }
                 },
             )
@@ -115,27 +153,110 @@ fun MapScreen(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 KakaoZoneMap(
-                    zones = uiState.zones,
-                    selectedZoneId = uiState.selectedZoneId,
-                    onZoneSelected = viewModel::selectZone,
+                    zones = visibleZones,
+                    hotplaces = visibleHotplaces,
+                    events = visibleEvents,
+                    selectedZoneId = visibleSelectedZoneId,
+                    onZoneSelected = { zoneId ->
+                        selectedInsight = null
+                        viewModel.selectZone(zoneId)
+                    },
+                    onHotplaceSelected = { hotplaceId ->
+                        uiState.hotplaceInsight.places.firstOrNull { it.id == hotplaceId }?.let { place ->
+                            selectedInsight = place.toInsightSelection()
+                            viewModel.dismissZoneDetail()
+                        }
+                    },
+                    onEventSelected = { eventId ->
+                        uiState.eventInsight.events.firstOrNull { it.id == eventId }?.let { event ->
+                            selectedInsight = event.toInsightSelection()
+                            viewModel.dismissZoneDetail()
+                        }
+                    },
+                    onVisibleBoundsChanged = { bounds ->
+                        visibleBounds = bounds
+                        viewModel.refreshMapData(bounds)
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
 
                 TopMapChrome(
                     isLoading = uiState.isLoading,
                     onMenu = { scope.launch { drawerState.open() } },
-                    onRefresh = viewModel::refreshZones,
+                    onRefresh = {
+                        viewModel.refreshMapData(visibleBounds, force = true)
+                    },
+                )
+
+                Season2QuickActionStrip(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 76.dp, start = 16.dp, end = 16.dp),
+                    onShortcutSelected = { shortcut ->
+                        layerMode = shortcut.targetLayerMode
+                        viewModel.dismissZoneDetail()
+                        selectedInsight = null
+                        pendingShortcut = shortcut
+                        viewModel.runSeason2Shortcut(shortcut)
+                    },
+                )
+
+                Season2LayerControl(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 120.dp, start = 16.dp, end = 16.dp),
+                    activeMode = layerMode,
+                    onModeSelected = { nextMode ->
+                        layerMode = nextMode
+                        if (!nextMode.showsZones) {
+                            viewModel.dismissZoneDetail()
+                        }
+                        if (selectedInsight?.let { nextMode.showsInsight(it.type) } == false) {
+                            selectedInsight = null
+                        }
+                    },
+                )
+
+                Season2InsightPanel(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 172.dp, start = 16.dp, end = 16.dp),
+                    hotplaces = visibleHotplaces,
+                    events = visibleEvents,
+                    hotplaceFreshness = uiState.hotplaceInsight.dataFreshness,
+                    eventFreshness = uiState.eventInsight.dataFreshness,
+                    insightStatus = uiState.insightStatus,
+                    isLoading = uiState.isInsightLoading,
                 )
 
                 BottomMapChrome(
                     modifier = Modifier.align(Alignment.BottomCenter),
-                    selectedZone = selectedZone,
+                    selectedZone = visibleSelectedZone,
                     reviewCount = uiState.selectedZoneReviews.size,
                     statusMessage = sanitizeStatusMessage(uiState.authMessage, uiState.actionMessage),
                     onCloseZone = viewModel::dismissZoneDetail,
                     onReviews = { activeSheet = HomeSheet.Reviews },
                     onReport = { activeSheet = if (uiState.isSignedIn) HomeSheet.Report else HomeSheet.Account },
                 )
+
+                selectedInsight?.let { insight ->
+                    Season2InsightDetailCard(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(start = 16.dp, end = 16.dp, bottom = 148.dp),
+                        insight = insight,
+                        onClose = { selectedInsight = null },
+                        onRoute = {
+                            uriHandler.openUri(
+                                "geo:${insight.latitude},${insight.longitude}?q=${insight.latitude},${insight.longitude}(${Uri.encode(insight.title)})",
+                            )
+                        },
+                    )
+                }
 
                 if (uiState.isLoading) {
                     Box(
@@ -174,6 +295,7 @@ fun MapScreen(
                     myZones = uiState.myZones,
                     onLogin = { provider -> uriHandler.openUri(viewModel.authorizationUrl(provider)) },
                     onLogout = viewModel::logout,
+                    onDeleteAccount = viewModel::deleteAccount,
                     onCompleteProfile = viewModel::completeProfile,
                     onSyncAccount = viewModel::refreshProfileAndMyZones,
                     onSelectZone = { zoneId ->
@@ -212,6 +334,150 @@ private enum class HomeSheet {
     Report,
     Reviews,
     Settings,
+}
+
+enum class Season2LayerMode(
+    val label: String,
+    val showsZones: Boolean,
+    val showsHotplaces: Boolean,
+    val showsEvents: Boolean,
+) {
+    All("전체", showsZones = true, showsHotplaces = true, showsEvents = true),
+    Zones("흡연", showsZones = true, showsHotplaces = false, showsEvents = false),
+    Hotplaces("핫플", showsZones = false, showsHotplaces = true, showsEvents = false),
+    Events("행사", showsZones = false, showsHotplaces = false, showsEvents = true);
+
+    fun showsInsight(type: InsightSelectionType): Boolean =
+        when (type) {
+            InsightSelectionType.Hotplace -> showsHotplaces
+            InsightSelectionType.Event -> showsEvents
+        }
+}
+
+enum class Season2ShortcutKind {
+    Hotplace,
+    Event,
+}
+
+enum class Season2Shortcut(
+    val title: String,
+    val keyword: String,
+    val kind: Season2ShortcutKind,
+) {
+    LotteWorldCrowd("롯데월드 혼잡도", "롯데월드", Season2ShortcutKind.Hotplace),
+    HotNow("지금 핫한 곳", "hot-now", Season2ShortcutKind.Hotplace),
+    SeongsuPopup("성수 팝업", "성수", Season2ShortcutKind.Event);
+
+    val targetLayerMode: Season2LayerMode
+        get() = when (kind) {
+            Season2ShortcutKind.Hotplace -> Season2LayerMode.Hotplaces
+            Season2ShortcutKind.Event -> Season2LayerMode.Events
+        }
+}
+
+enum class InsightSelectionType {
+    Hotplace,
+    Event,
+}
+
+private data class InsightSelection(
+    val type: InsightSelectionType,
+    val title: String,
+    val label: String,
+    val detail: String?,
+    val address: String?,
+    val latitude: Double,
+    val longitude: Double,
+    val source: String,
+)
+
+@Composable
+private fun Season2QuickActionStrip(
+    modifier: Modifier = Modifier,
+    onShortcutSelected: (Season2Shortcut) -> Unit,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Season2Shortcut.entries.forEach { shortcut ->
+            Surface(
+                modifier = Modifier
+                    .height(34.dp)
+                    .clickable { onShortcutSelected(shortcut) },
+                shape = RoundedCornerShape(999.dp),
+                color = Color.White.copy(alpha = 0.94f),
+                shadowElevation = 8.dp,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = if (shortcut.kind == Season2ShortcutKind.Event) "▣" else "▲",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (shortcut.kind == Season2ShortcutKind.Event) Color(0xFF2E6D92) else Color(0xFFD4551B),
+                        fontWeight = FontWeight.Black,
+                    )
+                    Text(
+                        text = shortcut.title,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Season2LayerControl(
+    modifier: Modifier = Modifier,
+    activeMode: Season2LayerMode,
+    onModeSelected: (Season2LayerMode) -> Unit,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(999.dp),
+        color = Color.White.copy(alpha = 0.94f),
+        shadowElevation = 10.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Season2LayerMode.entries.forEach { mode ->
+                val selected = mode == activeMode
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(34.dp)
+                        .clickable { onModeSelected(mode) },
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = mode.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -334,6 +600,304 @@ private fun MenuActionRow(
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Black)
+    }
+}
+
+@Composable
+private fun Season2InsightPanel(
+    modifier: Modifier = Modifier,
+    hotplaces: List<HotplaceDto>,
+    events: List<TrendEventDto>,
+    hotplaceFreshness: String?,
+    eventFreshness: String?,
+    insightStatus: InsightStatusPayload?,
+    isLoading: Boolean,
+) {
+    val visibleHotplaces = hotplaces.take(5)
+    val visibleEvents = events.take(5)
+    if (visibleHotplaces.isEmpty() && visibleEvents.isEmpty() && !isLoading) {
+        return
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White.copy(alpha = 0.94f),
+        shadowElevation = 10.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            Text(
+                text = formatInsightStatus(insightStatus),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            InsightSectionHeader(
+                title = "지금 핫한 곳",
+                status = formatHotplacePanelStatus(hotplaces, hotplaceFreshness, isLoading),
+            )
+            if (visibleHotplaces.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    visibleHotplaces.forEach { place ->
+                        InsightChip(
+                            title = place.name,
+                            label = place.crowdLabel,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                        )
+                    }
+                }
+            }
+
+            if (visibleEvents.isNotEmpty()) {
+                InsightSectionHeader(
+                    title = "팝업·행사·축제",
+                    status = formatEventPanelStatus(eventFreshness),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    visibleEvents.forEach { event ->
+                        InsightChip(
+                            title = event.title,
+                            label = event.eventLabel,
+                            color = Color(0xFFF7F7F2),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatInsightStatus(status: InsightStatusPayload?): String {
+    status ?: return "데이터 상태 확인 중"
+    val hotplaceStatus = formatTelecomStatus(status)
+        ?: formatProviderMode(status.hotplaceMode, "핫플")
+    val eventStatus = formatEventStatus(status)
+    return "$hotplaceStatus · $eventStatus"
+}
+
+private fun formatTelecomStatus(status: InsightStatusPayload): String? {
+    return when {
+        status.telecomCrowdKeyConfigured && !status.telecomCrowdUrlTemplateConfigured -> "통신사 URL 필요"
+        status.telecomCrowd?.configured == true -> "통신사 연결"
+        status.telecomCrowdKeyConfigured -> "통신사 설정 확인"
+        else -> null
+    }
+}
+
+private fun formatEventStatus(status: InsightStatusPayload): String {
+    val popupStatus = status.popupTrends
+    return when {
+        status.eventMode == "CRAWLED_OR_PARTIAL" -> "크롤링 팝업 트렌드"
+        status.ktoTourApi?.qualityStatus == "OK" -> "TourAPI 연결"
+        status.seoulCultureApi?.qualityStatus == "OK" -> "서울문화 API 연결"
+        status.ktoTourApiKeyConfigured -> "TourAPI 설정 확인"
+        status.seoulCultureApiKeyConfigured -> "서울문화 API 확인"
+        popupStatus?.fileExists == true && popupStatus.recordCount > 0 -> "크롤링 팝업 트렌드"
+        else -> formatProviderMode(status.eventMode, "행사")
+    }
+}
+
+private fun formatProviderMode(mode: String?, label: String): String {
+    return when (mode) {
+        "LIVE_OR_PARTIAL" -> "$label 실시간"
+        "CRAWLED_OR_PARTIAL" -> "$label 크롤링"
+        "STATIC_FALLBACK" -> "$label 후보"
+        else -> "$label 확인 중"
+    }
+}
+
+private fun formatHotplacePanelStatus(
+    hotplaces: List<HotplaceDto>,
+    hotplaceFreshness: String?,
+    isLoading: Boolean,
+): String {
+    return when {
+        isLoading -> "갱신 중"
+        hotplaces.any { it.source == "TELECOM_CROWD" } -> "통신사"
+        hotplaceFreshness == "LIVE_OR_PARTIAL" -> "실시간"
+        else -> "후보"
+    }
+}
+
+private fun formatEventPanelStatus(eventFreshness: String?): String {
+    return when (eventFreshness) {
+        "LIVE_OR_PARTIAL" -> "API"
+        "CRAWLED_OR_PARTIAL" -> "크롤링"
+        else -> "후보"
+    }
+}
+
+@Composable
+private fun Season2InsightDetailCard(
+    modifier: Modifier = Modifier,
+    insight: InsightSelection,
+    onClose: () -> Unit,
+    onRoute: () -> Unit,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White.copy(alpha = 0.97f),
+        shadowElevation = 14.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        insight.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        insight.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                TextButton(onClick = onClose, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
+                    Text("닫기")
+                }
+            }
+
+            insight.address?.takeIf { it.isNotBlank() }?.let { address ->
+                Text(
+                    address,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            insight.detail?.takeIf { it.isNotBlank() }?.let { detail ->
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    insight.source,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Button(onClick = onRoute, contentPadding = PaddingValues(horizontal = 13.dp, vertical = 6.dp)) {
+                    Text("길찾기")
+                }
+            }
+        }
+    }
+}
+
+private fun HotplaceDto.toInsightSelection(): InsightSelection {
+    val details = listOfNotNull(
+        crowdMessage
+            ?.takeIf { it.isNotBlank() }
+            ?.takeUnless { it == "실시간 혼잡도 키가 없거나 해당 장소 응답을 받을 수 없어 후보 장소만 표시합니다." },
+        updatedAt?.takeIf { it.isNotBlank() }?.let { "갱신 $it" },
+        sourcePlaceCode?.takeIf { it.isNotBlank() }?.let { "장소 $it" },
+    )
+    return InsightSelection(
+        type = InsightSelectionType.Hotplace,
+        title = name,
+        label = crowdLabel,
+        detail = details.joinToString(" · ").ifBlank { null },
+        address = address,
+        latitude = latitude,
+        longitude = longitude,
+        source = when (source) {
+            "TELECOM_CROWD" -> "통신사 장소 혼잡도"
+            "SEOUL_CITYDATA" -> "서울 실시간 도시데이터"
+            else -> "핫플 후보"
+        },
+    )
+}
+
+private fun TrendEventDto.toInsightSelection(): InsightSelection = InsightSelection(
+    type = InsightSelectionType.Event,
+    title = title,
+    label = eventLabel,
+    detail = sourceContentId?.takeIf { it.isNotBlank() }?.let { "출처 ID $it" },
+    address = address,
+    latitude = latitude,
+    longitude = longitude,
+    source = when (source) {
+        "KTO_TOUR_API" -> "한국관광공사 TourAPI"
+        "SEOUL_CULTURE_API" -> "서울 문화행사 API"
+        "CRAWLED_POPUP_TREND" -> "크롤링 팝업 트렌드"
+        else -> "이벤트 후보"
+    },
+)
+
+@Composable
+private fun InsightSectionHeader(
+    title: String,
+    status: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Black)
+        Text(status, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun InsightChip(
+    title: String,
+    label: String,
+    color: Color,
+) {
+    Surface(
+        modifier = Modifier.width(146.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = color,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
@@ -507,11 +1071,33 @@ private fun AccountSheet(
     myZones: List<ZoneDto>,
     onLogin: (OAuthProvider) -> Unit,
     onLogout: () -> Unit,
+    onDeleteAccount: () -> Unit,
     onCompleteProfile: (String) -> Unit,
     onSyncAccount: () -> Unit,
     onSelectZone: (Int) -> Unit,
 ) {
     var nickname by remember(userName) { mutableStateOf(userName.orEmpty()) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            title = { Text("계정을 삭제할까요?") },
+            text = { Text("계정과 로그인 토큰이 삭제됩니다. 일부 제보/리뷰 기록은 서비스 운영 정책에 따라 보존될 수 있습니다.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteAccountDialog = false
+                        onDeleteAccount()
+                    },
+                    enabled = !isActionLoading,
+                ) { Text("삭제") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) { Text("취소") }
+            },
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -545,6 +1131,13 @@ private fun AccountSheet(
                 onClick = { onCompleteProfile(nickname) },
                 enabled = !isActionLoading && nickname.trim().length in 2..20,
             ) { Text(if (isActionLoading) "처리 중" else "프로필 저장") }
+
+            OutlinedButton(
+                onClick = { showDeleteAccountDialog = true },
+                enabled = !isActionLoading,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+            ) { Text("계정 삭제", color = MaterialTheme.colorScheme.error) }
         } else {
             OAuthProvider.entries.forEach { provider ->
                 OutlinedButton(

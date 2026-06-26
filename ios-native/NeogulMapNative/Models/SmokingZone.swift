@@ -37,6 +37,188 @@ struct MapBounds: Equatable {
     }
 }
 
+struct HotplaceInsight: Decodable, Equatable {
+    let places: [Hotplace]
+    let dataFreshness: String?
+    let updatedAt: String?
+    let sources: [String]?
+
+    static let empty = HotplaceInsight(places: [], dataFreshness: nil, updatedAt: nil, sources: [])
+}
+
+struct Hotplace: Decodable, Equatable, Identifiable {
+    let id: String
+    let name: String
+    let category: String?
+    let crowdLevel: String?
+    let crowdMessage: String?
+    let estimatedMinPeople: Int?
+    let estimatedMaxPeople: Int?
+    let latitude: Double
+    let longitude: Double
+    let address: String?
+    let source: String?
+    let sourcePlaceCode: String?
+    let updatedAt: String?
+
+    var crowdLabel: String {
+        if let crowdLevel, !crowdLevel.isEmpty, crowdLevel != "UNKNOWN" {
+            if let estimatedMinPeople, let estimatedMaxPeople {
+                return "\(crowdLevel) · \(Self.peopleFormatter.string(from: NSNumber(value: estimatedMinPeople)) ?? "\(estimatedMinPeople)")-\(Self.peopleFormatter.string(from: NSNumber(value: estimatedMaxPeople)) ?? "\(estimatedMaxPeople)")명"
+            }
+            return crowdLevel
+        }
+
+        return category == "popup" ? "팝업 후보" : "핫플 후보"
+    }
+
+    var compactMapLabel: String {
+        guard
+            let estimatedMinPeople,
+            let estimatedMaxPeople,
+            estimatedMinPeople > 0,
+            estimatedMaxPeople > 0
+        else {
+            return String(name.prefix(12))
+        }
+
+        return "\(String(name.prefix(8))) \(Self.compactPeopleRange(min: estimatedMinPeople, max: estimatedMaxPeople))"
+    }
+
+    var sourceLabel: String {
+        switch source {
+        case "TELECOM_CROWD":
+            return "통신사 장소 혼잡도"
+        case "SEOUL_CITYDATA":
+            return "서울 실시간 도시데이터"
+        default:
+            return "핫플 후보"
+        }
+    }
+
+    private static let peopleFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter
+    }()
+
+    private static func compactPeopleRange(min: Int, max: Int) -> String {
+        if min == max {
+            return compactPeopleCount(min)
+        }
+        return "\(compactPeopleCount(min))-\(compactPeopleCount(max))"
+    }
+
+    private static func compactPeopleCount(_ count: Int) -> String {
+        if count >= 10_000 {
+            let value = Double(count) / 10_000.0
+            let rounded = (value * 10).rounded() / 10
+            if rounded.truncatingRemainder(dividingBy: 1) == 0 {
+                return "\(Int(rounded))만"
+            }
+            return "\(rounded)만"
+        }
+
+        return "\(max(1, Int((Double(count) / 1_000.0).rounded())))천"
+    }
+}
+
+struct EventInsight: Decodable, Equatable {
+    let events: [TrendEvent]
+    let dataFreshness: String?
+    let updatedAt: String?
+    let sources: [String]?
+
+    static let empty = EventInsight(events: [], dataFreshness: nil, updatedAt: nil, sources: [])
+}
+
+struct TrendEvent: Decodable, Equatable, Identifiable {
+    let id: String
+    let title: String
+    let kind: String?
+    let period: String?
+    let startDate: String?
+    let endDate: String?
+    let latitude: Double
+    let longitude: Double
+    let address: String?
+    let imageUrl: String?
+    let source: String?
+    let sourceContentId: String?
+
+    var eventLabel: String {
+        let kindLabel: String
+        switch kind {
+        case "popup":
+            kindLabel = "팝업"
+        case "festival":
+            kindLabel = "축제"
+        default:
+            kindLabel = "행사"
+        }
+
+        if let period, !period.isEmpty {
+            return "\(kindLabel) · \(period)"
+        }
+        return kindLabel
+    }
+
+    var sourceLabel: String {
+        switch source {
+        case "KTO_TOUR_API":
+            return "한국관광공사 TourAPI"
+        case "SEOUL_CULTURE_API":
+            return "서울 문화행사 API"
+        case "CRAWLED_POPUP_TREND":
+            return "크롤링 팝업 트렌드"
+        default:
+            return "이벤트 후보"
+        }
+    }
+}
+
+struct InsightProviderStatus: Decodable, Equatable {
+    let configured: Bool
+    let qualityStatus: String?
+    let lastSuccessAt: String?
+    let lastFailureAt: String?
+    let detail: String?
+}
+
+struct PopupTrendStatus: Decodable, Equatable {
+    let fileConfigured: Bool
+    let fileExists: Bool
+    let recordCount: Int
+    let latestCollectedAt: String?
+    let qualityStatus: String?
+    let detail: String?
+}
+
+struct InsightStatus: Decodable, Equatable {
+    let seoulCityDataKeyConfigured: Bool
+    let telecomCrowdKeyConfigured: Bool
+    let telecomCrowdUrlTemplateConfigured: Bool
+    let ktoTourApiKeyConfigured: Bool
+    let seoulCultureApiKeyConfigured: Bool
+    let hotplaceMode: String?
+    let eventMode: String?
+    let seoulCityData: InsightProviderStatus?
+    let telecomCrowd: InsightProviderStatus?
+    let ktoTourApi: InsightProviderStatus?
+    let seoulCultureApi: InsightProviderStatus?
+    let popupTrends: PopupTrendStatus?
+    let checkedAt: String?
+}
+
+struct MapInsight: Decodable, Equatable {
+    let hotplaces: HotplaceInsight
+    let events: EventInsight
+    let status: InsightStatus?
+    let updatedAt: String?
+
+    static let empty = MapInsight(hotplaces: .empty, events: .empty, status: nil, updatedAt: nil)
+}
+
 struct SmokingZone: Decodable, Hashable, Identifiable {
     let id: Int
     let region: String

@@ -4,6 +4,8 @@ import com.google.gson.Gson
 import com.nugulmap.nativeapp.core.auth.AuthTokenStore
 import com.nugulmap.nativeapp.data.api.NugulApiClient
 import com.nugulmap.nativeapp.data.api.NugulApiService
+import com.nugulmap.nativeapp.data.dto.MapBounds
+import com.nugulmap.nativeapp.data.dto.MapInsightPayload
 import com.nugulmap.nativeapp.data.dto.ZoneCreatePayload
 import com.nugulmap.nativeapp.data.dto.ZoneDto
 import com.nugulmap.nativeapp.data.dto.ZoneReviewCreateRequest
@@ -17,11 +19,15 @@ class ZoneRepository(
     private val gson: Gson = Gson(),
 ) {
     suspend fun loadCentralSeoulZones(): List<ZoneDto> {
+        return loadZones(MapBounds.centralSeoul)
+    }
+
+    suspend fun loadZones(bounds: MapBounds): List<ZoneDto> {
         val response = apiService.getZonesByBounds(
-            minLat = 37.55,
-            maxLat = 37.58,
-            minLng = 126.96,
-            maxLng = 127.02,
+            minLat = bounds.minLat,
+            maxLat = bounds.maxLat,
+            minLng = bounds.minLng,
+            maxLng = bounds.maxLng,
         )
 
         if (!response.success) {
@@ -29,6 +35,27 @@ class ZoneRepository(
         }
 
         return response.data?.zones.orEmpty()
+    }
+
+    suspend fun loadMapInsights(
+        bounds: MapBounds,
+        keyword: String? = null,
+        hotplaceLimit: Int = 8,
+        eventLimit: Int = 8,
+    ): MapInsightPayload {
+        val response = apiService.getMapInsights(
+            keyword = keyword?.trim()?.takeIf { it.isNotBlank() },
+            hotplaceLimit = hotplaceLimit,
+            eventLimit = eventLimit,
+            minLat = bounds.minLat,
+            maxLat = bounds.maxLat,
+            minLng = bounds.minLng,
+            maxLng = bounds.maxLng,
+        )
+        if (!response.success) {
+            error(response.message ?: "시즌2 지도 인사이트 조회에 실패했습니다.")
+        }
+        return response.data ?: MapInsightPayload()
     }
 
     suspend fun loadMyZones(): List<ZoneDto> {

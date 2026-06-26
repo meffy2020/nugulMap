@@ -2,6 +2,7 @@ package com.nugulmap.nativeapp.data.api
 
 import com.nugulmap.nativeapp.data.dto.ApiEnvelope
 import com.nugulmap.nativeapp.data.dto.AuthTokenResponse
+import com.nugulmap.nativeapp.data.dto.MapInsightPayload
 import com.nugulmap.nativeapp.data.dto.MobileOAuthExchangeRequest
 import com.nugulmap.nativeapp.data.dto.UserProfilePayload
 import com.nugulmap.nativeapp.data.dto.ZoneBoundsPayload
@@ -12,6 +13,7 @@ import com.nugulmap.nativeapp.data.dto.ZoneReviewDto
 import com.nugulmap.nativeapp.data.dto.ZoneReviewPayload
 import okhttp3.RequestBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Multipart
@@ -29,6 +31,17 @@ interface NugulApiService {
         @Query("maxLng") maxLng: Double,
     ): ApiEnvelope<ZoneBoundsPayload>
 
+    @GET("api/insights/map")
+    suspend fun getMapInsights(
+        @Query("keyword") keyword: String? = null,
+        @Query("hotplaceLimit") hotplaceLimit: Int = 8,
+        @Query("eventLimit") eventLimit: Int = 8,
+        @Query("minLat") minLat: Double,
+        @Query("maxLat") maxLat: Double,
+        @Query("minLng") minLng: Double,
+        @Query("maxLng") maxLng: Double,
+    ): ApiEnvelope<MapInsightPayload>
+
     @POST("api/auth/mobile/exchange")
     suspend fun exchangeMobileOAuthCode(
         @Body request: MobileOAuthExchangeRequest,
@@ -38,6 +51,11 @@ interface NugulApiService {
     suspend fun getCurrentUser(
         @Header("Authorization") authorization: String,
     ): ApiEnvelope<UserProfilePayload>
+
+    @DELETE("api/users/me")
+    suspend fun deleteCurrentUser(
+        @Header("Authorization") authorization: String,
+    ): ApiEnvelope<Map<String, Int>>
 
     @Multipart
     @POST("api/users/profile-setup")

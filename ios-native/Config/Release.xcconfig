@@ -1,4 +1,5 @@
 // Shared Release settings for local native iOS builds.
-// CI/App Store builds should provide KAKAO_NATIVE_APP_KEY through a secure build setting.
+// CI/App Store builds should provide KAKAO_NATIVE_APP_KEY and NUGUL_DEVELOPMENT_TEAM through secure build settings.
 KAKAO_NATIVE_APP_KEY =
+NUGUL_DEVELOPMENT_TEAM =
 #include? "Secrets.xcconfig"

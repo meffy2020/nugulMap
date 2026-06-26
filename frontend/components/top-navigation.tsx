@@ -3,12 +3,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { User, LogOut, LogIn } from "lucide-react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { useAuth } from "@/hooks/use-auth"
-import { getImageUrl } from "@/lib/api"
-
 import { useAuth } from "@/hooks/use-auth"
 import { getImageUrl } from "@/lib/api"
 
@@ -43,11 +39,18 @@ export function TopNavigation() {
                 </AvatarFallback>
               </Avatar>
             </Button>
-          </DropdownMenuTrigger>
-...
-            <DropdownMenuItem 
-              className="cursor-pointer transition-all duration-200 hover:bg-secondary/80 hover:scale-[1.02]"
-              onClick={logout}
+	          </DropdownMenuTrigger>
+	          <DropdownMenuContent align="end" className="w-48 rounded-xl">
+	            <DropdownMenuItem
+	              className="cursor-pointer transition-all duration-200 hover:bg-secondary/80 hover:scale-[1.02]"
+	              onClick={() => router.push("/profile")}
+	            >
+	              <User className="mr-2 h-4 w-4 transition-colors duration-200" />
+	              <span>프로필</span>
+	            </DropdownMenuItem>
+	            <DropdownMenuItem
+	              className="cursor-pointer transition-all duration-200 hover:bg-secondary/80 hover:scale-[1.02]"
+	              onClick={logout}
             >
               <LogOut className="mr-2 h-4 w-4 transition-colors duration-200" />
               <span>로그아웃</span>

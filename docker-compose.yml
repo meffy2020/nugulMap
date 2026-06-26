@@ -96,6 +96,18 @@ services:
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-my-bucket}
       AWS_S3_ENDPOINT: http://minio:9000
       AWS_REGION: ${AWS_REGION:-us-east-1}
+      SEOUL_CITYDATA_API_KEY: ${SEOUL_CITYDATA_API_KEY:-}
+      TELECOM_CROWD_API_KEY: ${TELECOM_CROWD_API_KEY:-}
+      TELECOM_CROWD_URL_TEMPLATE: ${TELECOM_CROWD_URL_TEMPLATE:-}
+      TELECOM_CROWD_API_KEY_HEADER: ${TELECOM_CROWD_API_KEY_HEADER:-appKey}
+      KTO_TOUR_API_KEY: ${KTO_TOUR_API_KEY:-}
+      SEOUL_CULTURE_API_KEY: ${SEOUL_CULTURE_API_KEY:-}
+      SEOUL_CULTURE_API_BASE_URL: ${SEOUL_CULTURE_API_BASE_URL:-http://openapi.seoul.go.kr:8088}
+      SEOUL_CULTURE_API_END_INDEX: ${SEOUL_CULTURE_API_END_INDEX:-20}
+      POPUP_TRENDS_FILE: /app/data/popup-trends.json
+      INSIGHTS_CACHE_TTL_SECONDS: ${INSIGHTS_CACHE_TTL_SECONDS:-180}
+    volumes:
+      - ./backend/data-scripts/data:/app/data:ro
     depends_on:
       mysql:
         condition: service_healthy
@@ -103,6 +115,27 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - neogul-map-network
+
+  # 4. Season 2 popup/event trend collector
+  popup-trend-collector:
+    build:
+      context: ./backend/data-scripts
+      dockerfile: Dockerfile
+    container_name: neogul-map-popup-trend-collector
+    command: ["python", "scripts/run_popup_trend_collector.py"]
+    environment:
+      POPUP_TRENDS_SOURCE_CONFIG: /app/config/popup_trend_sources.json
+      POPUP_TRENDS_FILE: /app/data/popup-trends.json
+      POPUP_TRENDS_REFRESH_SECONDS: ${POPUP_TRENDS_REFRESH_SECONDS:-3600}
+      POPUP_TRENDS_TIMEOUT_SECONDS: ${POPUP_TRENDS_TIMEOUT_SECONDS:-10}
+      POPUP_TRENDS_MIN_RECORDS: ${POPUP_TRENDS_MIN_RECORDS:-3}
+      SEOUL_CULTURE_API_KEY: ${SEOUL_CULTURE_API_KEY:-${SEOUL_CITYDATA_API_KEY:-sample}}
+      SEOUL_CULTURE_API_END_INDEX: ${SEOUL_CULTURE_API_END_INDEX:-5}
+    volumes:
+      - ./backend/data-scripts/data:/app/data
     restart: unless-stopped
     networks:
       - neogul-map-network

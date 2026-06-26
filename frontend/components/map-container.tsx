@@ -1,11 +1,22 @@
 "use client"
 
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
-import { X, MapPin, Loader2, Navigation } from "lucide-react"
+import type { ReactNode } from "react"
+import { CalendarDays, Flame, MapPin, Loader2, Navigation } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Script from "next/script"
 
-import { fetchZones, type SmokingZone, getImageUrl } from "@/lib/api"
+import {
+  fetchMapInsights,
+  fetchZones,
+  type EventInsight,
+  type Hotplace,
+  type HotplaceInsight,
+  type InsightStatus,
+  type SmokingZone,
+  type TrendEvent,
+  getImageUrl,
+} from "@/lib/api"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Drawer } from "vaul"
@@ -18,25 +29,48 @@ declare global {
 
 interface LocationMarker extends SmokingZone {}
 
+type InsightMarker =
+  | { kind: "hotplace"; item: Hotplace }
+  | { kind: "event"; item: TrendEvent }
+
+type Season2LayerMode = "all" | "zones" | "hotplaces" | "events"
+
 export interface MapContainerRef {
   handleZoneCreated: (zone: SmokingZone) => void
   centerOnLocation: (lat: number, lng: number) => void
   getCenter: () => { lat: number, lng: number }
+  focusHotplace: (place: Hotplace) => void
+  focusEvent: (event: TrendEvent) => void
 }
 
 export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
   const [selectedMarker, setSelectedMarker] = useState<LocationMarker | null>(null)
+  const [selectedInsight, setSelectedInsight] = useState<InsightMarker | null>(null)
   const [zones, setZones] = useState<SmokingZone[]>([])
+  const [hotplaceInsight, setHotplaceInsight] = useState<HotplaceInsight | null>(null)
+  const [eventInsight, setEventInsight] = useState<EventInsight | null>(null)
+  const [insightStatus, setInsightStatus] = useState<InsightStatus | null>(null)
+  const [layerMode, setLayerMode] = useState<Season2LayerMode>("all")
   const [loading, setLoading] = useState(true)
+  const [insightLoading, setInsightLoading] = useState(false)
   const [kakaoLoaded, setKakaoLoaded] = useState(false)
   const [showMapError, setShowMapError] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
   const [mapInstance, setMapInstance] = useState<any>(null)
   const clustererRef = useRef<any>(null)
   const currentMarkers = useRef<any[]>([])
+  const currentInsightOverlays = useRef<any[]>([])
+  const selectedInsightRef = useRef<InsightMarker | null>(null)
 
   const KAKAO_APP_KEY = process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY
   const MARKER_IMAGE_SRC = process.env.NEXT_PUBLIC_MAP_MARKER_IMAGE_SRC || "/images/pin.png"
+  const showSmokingZones = layerMode === "all" || layerMode === "zones"
+  const showHotplaces = layerMode === "all" || layerMode === "hotplaces"
+  const showEvents = layerMode === "all" || layerMode === "events"
+
+  useEffect(() => {
+    selectedInsightRef.current = selectedInsight
+  }, [selectedInsight])
 
   // 1. 이미 스크립트가 로드되었는지 확인
   useEffect(() => {
@@ -103,16 +137,44 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       const bounds = mapInstance.getBounds()
       const sw = bounds.getSouthWest()
       const ne = bounds.getNorthEast()
-      const zonesData = await fetchZones(sw.getLat(), ne.getLat(), sw.getLng(), ne.getLng())
+      const mapBounds = {
+        minLat: sw.getLat(),
+        maxLat: ne.getLat(),
+        minLng: sw.getLng(),
+        maxLng: ne.getLng(),
+      }
+      setInsightLoading(true)
+      const [zonesData, mapInsight] = await Promise.all([
+        fetchZones(mapBounds.minLat, mapBounds.maxLat, mapBounds.minLng, mapBounds.maxLng),
+        fetchMapInsights(8, 8, mapBounds),
+      ])
+      const selected = selectedInsightRef.current
       setZones(zonesData)
+      setHotplaceInsight(selected?.kind === "hotplace" ? mergeFocusedHotplaceInsight(selected.item, mapInsight.hotplaces) : mapInsight.hotplaces)
+      setEventInsight(selected?.kind === "event" ? mergeFocusedEventInsight(selected.item, mapInsight.events) : mapInsight.events)
+      setInsightStatus(mapInsight.status)
     } catch (err) {
       console.error("[v0] Failed to fetch zones:", err)
+    } finally {
+      setInsightLoading(false)
     }
   }
 
   useEffect(() => {
     if (mapInstance) loadZonesInView()
   }, [mapInstance])
+
+  useEffect(() => {
+    if (!showSmokingZones) {
+      setSelectedMarker(null)
+    }
+    if (selectedInsight?.kind === "hotplace" && !showHotplaces) {
+      setSelectedInsight(null)
+    }
+    if (selectedInsight?.kind === "event" && !showEvents) {
+      setSelectedInsight(null)
+    }
+  }, [selectedInsight, showEvents, showHotplaces, showSmokingZones])
 
   useEffect(() => {
     if (!mapInstance) return
@@ -125,10 +187,26 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
     }
   }, [mapInstance])
 
+  const selectHotplace = (place: Hotplace) => {
+    setSelectedInsight({ kind: "hotplace", item: place })
+    if (mapInstance) {
+      mapInstance.panTo(new window.kakao.maps.LatLng(place.latitude, place.longitude))
+    }
+  }
+
+  const selectEvent = (event: TrendEvent) => {
+    setSelectedInsight({ kind: "event", item: event })
+    if (mapInstance) {
+      mapInstance.panTo(new window.kakao.maps.LatLng(event.latitude, event.longitude))
+    }
+  }
+
   useEffect(() => {
     if (mapInstance && Array.isArray(zones)) {
       if (clustererRef.current) clustererRef.current.clear()
       currentMarkers.current.forEach(m => m.setMap(null))
+      currentMarkers.current = []
+      if (!showSmokingZones) return
       
       const markers = zones.map((zone) => {
         const markerPosition = new window.kakao.maps.LatLng(zone.latitude, zone.longitude)
@@ -140,10 +218,11 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
         const marker = new window.kakao.maps.Marker({
           position: markerPosition,
           image: markerImage,
-          title: zone.name
+          title: zoneTitle(zone)
         })
 
         window.kakao.maps.event.addListener(marker, "click", () => {
+          setSelectedInsight(null)
           setSelectedMarker(zone as LocationMarker)
           mapInstance.panTo(markerPosition)
         })
@@ -157,19 +236,74 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
       }
       currentMarkers.current = markers
     }
-  }, [mapInstance, zones, MARKER_IMAGE_SRC])
+  }, [mapInstance, zones, MARKER_IMAGE_SRC, showSmokingZones])
+
+  useEffect(() => {
+    if (!mapInstance || !window.kakao?.maps) return
+    currentInsightOverlays.current.forEach((overlay) => overlay.setMap(null))
+    currentInsightOverlays.current = []
+
+    const overlays: any[] = []
+    if (showHotplaces) {
+      ;(hotplaceInsight?.places || []).slice(0, 8).forEach((place) => {
+        overlays.push(createInsightOverlay(mapInstance, "hotplace", place, () => selectHotplace(place)))
+      })
+    }
+    if (showEvents) {
+      ;(eventInsight?.events || []).slice(0, 8).forEach((event) => {
+        overlays.push(createInsightOverlay(mapInstance, "event", event, () => selectEvent(event)))
+      })
+    }
+    currentInsightOverlays.current = overlays
+  }, [mapInstance, hotplaceInsight, eventInsight, showHotplaces, showEvents])
 
   useImperativeHandle(ref, () => ({
     handleZoneCreated: (newZone: SmokingZone) => {
       setZones((prev) => [...prev, newZone])
       if (mapInstance) {
         mapInstance.setCenter(new window.kakao.maps.LatLng(newZone.latitude, newZone.longitude))
+        window.setTimeout(() => void loadZonesInView(), 200)
       }
     },
     centerOnLocation: (lat: number, lng: number) => {
       if (mapInstance) {
+        setSelectedMarker(null)
+        setSelectedInsight(null)
         mapInstance.setCenter(new window.kakao.maps.LatLng(lat, lng))
         mapInstance.setLevel(3)
+        window.setTimeout(() => void loadZonesInView(), 200)
+      }
+    },
+    focusHotplace: (place: Hotplace) => {
+      setLayerMode("hotplaces")
+      setSelectedMarker(null)
+      setSelectedInsight({ kind: "hotplace", item: place })
+      setHotplaceInsight((current) => ({
+        places: mergeHotplaceFirst(place, current?.places || []),
+        dataFreshness: current?.dataFreshness || "STATIC_FALLBACK",
+        updatedAt: current?.updatedAt || place.updatedAt || "",
+        sources: current?.sources || [],
+      }))
+      if (mapInstance) {
+        mapInstance.setCenter(new window.kakao.maps.LatLng(place.latitude, place.longitude))
+        mapInstance.setLevel(3)
+        window.setTimeout(() => void loadZonesInView(), 200)
+      }
+    },
+    focusEvent: (event: TrendEvent) => {
+      setLayerMode("events")
+      setSelectedMarker(null)
+      setSelectedInsight({ kind: "event", item: event })
+      setEventInsight((current) => ({
+        events: mergeEventFirst(event, current?.events || []),
+        dataFreshness: current?.dataFreshness || "STATIC_FALLBACK",
+        updatedAt: current?.updatedAt || "",
+        sources: current?.sources || [],
+      }))
+      if (mapInstance) {
+        mapInstance.setCenter(new window.kakao.maps.LatLng(event.latitude, event.longitude))
+        mapInstance.setLevel(3)
+        window.setTimeout(() => void loadZonesInView(), 200)
       }
     },
     getCenter: () => {
@@ -183,7 +317,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
 
   const handleDirections = () => {
     if (!selectedMarker) return
-    const url = `https://map.kakao.com/link/to/${selectedMarker.name},${selectedMarker.latitude},${selectedMarker.longitude}`
+    const url = `https://map.kakao.com/link/to/${encodeURIComponent(zoneTitle(selectedMarker))},${selectedMarker.latitude},${selectedMarker.longitude}`
     window.open(url, '_blank')
   }
 
@@ -210,6 +344,108 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
         </div>
       )}
 
+      <div className="absolute left-4 top-20 z-30 w-[min(calc(100vw-2rem),390px)] rounded-2xl border border-white/70 bg-white/95 p-3 shadow-xl">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="truncate text-[11px] font-black text-zinc-500">데이터</p>
+          <p className="truncate text-[11px] font-black text-zinc-500">{formatInsightStatus(insightStatus)}</p>
+        </div>
+        <div className="grid grid-cols-4 gap-1 rounded-xl bg-zinc-100 p-1">
+          <LayerModeButton mode="all" activeMode={layerMode} onSelect={setLayerMode} icon={<MapPin className="h-3.5 w-3.5" />}>
+            전체
+          </LayerModeButton>
+          <LayerModeButton mode="zones" activeMode={layerMode} onSelect={setLayerMode} icon={<MapPin className="h-3.5 w-3.5" />}>
+            흡연
+          </LayerModeButton>
+          <LayerModeButton mode="hotplaces" activeMode={layerMode} onSelect={setLayerMode} icon={<Flame className="h-3.5 w-3.5" />}>
+            핫플
+          </LayerModeButton>
+          <LayerModeButton mode="events" activeMode={layerMode} onSelect={setLayerMode} icon={<CalendarDays className="h-3.5 w-3.5" />}>
+            행사
+          </LayerModeButton>
+        </div>
+
+        {showHotplaces ? (
+          <div className="mt-3">
+            <InsightPanelHeader
+              icon={<Flame className="h-4 w-4 text-orange-600" />}
+              title="지금 핫한 곳"
+              status={formatHotplacePanelStatus(hotplaceInsight, insightLoading)}
+            />
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+              {(hotplaceInsight?.places || []).slice(0, 6).map((place) => (
+                <button
+                  key={place.id}
+                  className="min-w-[128px] rounded-xl bg-orange-50 px-3 py-2 text-left"
+                  onClick={() => selectHotplace(place)}
+                >
+                  <p className="truncate text-xs font-black text-zinc-900">{place.name}</p>
+                  <p className="mt-1 truncate text-[11px] font-bold text-zinc-500">{formatCrowdLabel(place)}</p>
+                </button>
+              ))}
+              {!hotplaceInsight?.places?.length && (
+                <div className="min-w-[128px] rounded-xl bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-500">
+                  주변 핫플 확인 중
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {showEvents && (eventInsight?.events || []).length ? (
+          <div className="mt-3 border-t border-zinc-100 pt-3">
+            <InsightPanelHeader
+              icon={<CalendarDays className="h-4 w-4 text-sky-700" />}
+              title="팝업·행사·축제"
+              status={formatEventPanelStatus(eventInsight)}
+            />
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+              {(eventInsight?.events || []).slice(0, 6).map((event) => (
+                <button
+                  key={event.id}
+                  className="min-w-[144px] rounded-xl bg-sky-50 px-3 py-2 text-left"
+                  onClick={() => selectEvent(event)}
+                >
+                  <p className="truncate text-xs font-black text-zinc-900">{event.title}</p>
+                  <p className="mt-1 truncate text-[11px] font-bold text-zinc-500">{formatEventLabel(event)}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {selectedInsight ? (
+        <div className="absolute bottom-28 left-4 right-4 z-40 mx-auto max-w-md rounded-2xl border border-zinc-100 bg-white/95 p-4 shadow-2xl">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-base font-black text-zinc-950">{insightTitle(selectedInsight)}</p>
+              <p className="mt-1 text-sm font-black text-primary">{insightLabel(selectedInsight)}</p>
+            </div>
+            <button
+              className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-500"
+              onClick={() => setSelectedInsight(null)}
+            >
+              닫기
+            </button>
+          </div>
+          <p className="mt-2 line-clamp-2 text-sm font-semibold text-zinc-500">{insightAddress(selectedInsight) || "주소 정보 없음"}</p>
+          {insightDetail(selectedInsight) ? (
+            <p className="mt-2 line-clamp-2 text-sm font-bold text-zinc-800">{insightDetail(selectedInsight)}</p>
+          ) : null}
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <p className="truncate text-xs font-black text-zinc-500">{insightSource(selectedInsight)}</p>
+            <Button
+              size="sm"
+              className="rounded-xl font-black"
+              onClick={() => openInsightDirections(selectedInsight)}
+            >
+              <Navigation className="mr-1 h-4 w-4" />
+              길찾기
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <Drawer.Root 
         open={!!selectedMarker} 
         onOpenChange={(open) => !open && setSelectedMarker(null)}
@@ -225,7 +461,7 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h2 className="text-xl font-bold text-zinc-900 leading-tight">
-                        {selectedMarker.name}
+                        {zoneTitle(selectedMarker)}
                       </h2>
                       {selectedMarker.type && (
                         <span className={cn(
@@ -243,11 +479,11 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
                     <p className="text-sm text-zinc-500">{selectedMarker.address}</p>
                   </div>
 
-                  {selectedMarker.imageUrl && (
+                  {(selectedMarker.imageUrl || selectedMarker.image) && (
                     <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-zinc-50 border border-zinc-100">
                       <Image
-                        src={getImageUrl(selectedMarker.imageUrl) || "/placeholder.svg"}
-                        alt={selectedMarker.name}
+                        src={getImageUrl(selectedMarker.imageUrl || selectedMarker.image) || "/placeholder.svg"}
+                        alt={zoneTitle(selectedMarker)}
                         fill
                         className="object-cover"
                       />
@@ -282,4 +518,251 @@ export const MapContainer = forwardRef<MapContainerRef>((props, ref) => {
 
 MapContainer.displayName = "MapContainer"
 
-export { MapContainer }
+function InsightPanelHeader({ icon, title, status }: { icon: ReactNode; title: string; status: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2">
+        {icon}
+        <p className="truncate text-sm font-black text-zinc-900">{title}</p>
+      </div>
+      <span className="rounded-full bg-zinc-100 px-2 py-1 text-[10px] font-black text-zinc-500">{status}</span>
+    </div>
+  )
+}
+
+function LayerModeButton({
+  mode,
+  activeMode,
+  onSelect,
+  icon,
+  children,
+}: {
+  mode: Season2LayerMode
+  activeMode: Season2LayerMode
+  onSelect: (mode: Season2LayerMode) => void
+  icon: ReactNode
+  children: ReactNode
+}) {
+  const isActive = activeMode === mode
+  return (
+    <button
+      type="button"
+      className={cn(
+        "flex h-8 min-w-0 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-black transition",
+        isActive ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"
+      )}
+      onClick={() => onSelect(mode)}
+    >
+      {icon}
+      <span className="truncate">{children}</span>
+    </button>
+  )
+}
+
+function createInsightOverlay(map: any, kind: "hotplace" | "event", item: Hotplace | TrendEvent, onClick: () => void) {
+  const container = document.createElement("button")
+  container.type = "button"
+  container.className =
+    kind === "hotplace"
+      ? "rounded-full border border-white bg-orange-600 px-3 py-1.5 text-xs font-black text-white shadow-lg"
+      : "rounded-full border border-white bg-sky-700 px-3 py-1.5 text-xs font-black text-white shadow-lg"
+  container.textContent = kind === "hotplace" ? (item as Hotplace).name : (item as TrendEvent).title
+  container.addEventListener("click", onClick)
+
+  const overlay = new window.kakao.maps.CustomOverlay({
+    position: new window.kakao.maps.LatLng(item.latitude, item.longitude),
+    content: container,
+    yAnchor: 1.25,
+    zIndex: kind === "hotplace" ? 4 : 3,
+  })
+  overlay.setMap(map)
+  return overlay
+}
+
+function formatCrowdLabel(place: Hotplace): string {
+  if (place.crowdLevel && place.crowdLevel !== "UNKNOWN") {
+    const count =
+      place.estimatedMinPeople != null && place.estimatedMaxPeople != null
+        ? ` · ${place.estimatedMinPeople.toLocaleString()}-${place.estimatedMaxPeople.toLocaleString()}명`
+        : ""
+    return `${place.crowdLevel}${count}`
+  }
+  return place.category === "popup" ? "팝업 후보" : "핫플 후보"
+}
+
+function formatEventLabel(event: TrendEvent): string {
+  const kind = event.kind === "popup" ? "팝업" : event.kind === "festival" ? "축제" : "행사"
+  return event.period ? `${kind} · ${event.period}` : kind
+}
+
+function formatInsightStatus(status: InsightStatus | null): string {
+  if (!status) {
+    return "확인 중"
+  }
+
+  const hotplace = formatProviderMode(status.hotplaceMode, "혼잡")
+  const telecom = formatTelecomStatus(status)
+  const events = formatEventStatus(status)
+  return [hotplace, telecom, events].filter(Boolean).join(" · ")
+}
+
+function formatEventStatus(status: InsightStatus): string {
+  const hasLiveTourApi = status.ktoTourApi?.qualityStatus === "OK"
+  const hasSeoulCultureApi = status.seoulCultureApi?.qualityStatus === "OK"
+  const liveEventApiLabel = formatLiveEventApiLabel(hasLiveTourApi, hasSeoulCultureApi)
+  const popupCount = status.popupTrends?.qualityStatus === "OK" ? status.popupTrends.recordCount : 0
+
+  if (liveEventApiLabel && popupCount > 0) {
+    return `${liveEventApiLabel}+팝업 ${popupCount}건`
+  }
+  if (liveEventApiLabel) {
+    return liveEventApiLabel
+  }
+  if (status.seoulCultureApiKeyConfigured) {
+    return "서울문화 API 확인"
+  }
+  if (popupCount > 0) {
+    return `팝업 ${popupCount}건`
+  }
+  return formatProviderMode(status.eventMode, "행사")
+}
+
+function formatLiveEventApiLabel(hasLiveTourApi: boolean, hasSeoulCultureApi: boolean): string | null {
+  if (hasLiveTourApi && hasSeoulCultureApi) {
+    return "행사 API"
+  }
+  if (hasSeoulCultureApi) {
+    return "서울문화 API"
+  }
+  if (hasLiveTourApi) {
+    return "TourAPI"
+  }
+  return null
+}
+
+function formatTelecomStatus(status: InsightStatus): string | null {
+  if (status.telecomCrowd?.qualityStatus === "OK") {
+    return "통신사 연결"
+  }
+  if (status.telecomCrowdKeyConfigured && !status.telecomCrowdUrlTemplateConfigured) {
+    return "통신사 URL 필요"
+  }
+  if (status.telecomCrowdKeyConfigured && status.telecomCrowd?.qualityStatus === "CONFIGURED_UNVERIFIED") {
+    return "통신사 확인중"
+  }
+  if (status.telecomCrowd?.qualityStatus === "ERROR") {
+    return "통신사 오류"
+  }
+  return null
+}
+
+function formatProviderMode(mode: string, label: string): string {
+  switch (mode) {
+    case "LIVE_READY":
+    case "LIVE_OR_CRAWLED_READY":
+      return `${label} 실시간`
+    case "LIVE_CONFIGURED_UNVERIFIED":
+      return `${label} 확인중`
+    case "LIVE_CONFIGURED_ERROR":
+      return `${label} 오류`
+    default:
+      return `${label} 후보`
+  }
+}
+
+function formatHotplacePanelStatus(insight: HotplaceInsight | null, isLoading: boolean): string {
+  if (isLoading) {
+    return "갱신 중"
+  }
+  if ((insight?.places || []).some((place) => place.source === "TELECOM_CROWD")) {
+    return "통신사"
+  }
+  if (insight?.dataFreshness === "LIVE_OR_PARTIAL") {
+    return "실시간"
+  }
+  return "후보"
+}
+
+function formatEventPanelStatus(insight: EventInsight | null): string {
+  if (insight?.dataFreshness === "LIVE_OR_PARTIAL") {
+    return "API"
+  }
+  if (insight?.dataFreshness === "CRAWLED_OR_PARTIAL") {
+    return "크롤링"
+  }
+  return "후보"
+}
+
+function insightTitle(selection: InsightMarker): string {
+  return selection.kind === "hotplace" ? selection.item.name : selection.item.title
+}
+
+function insightLabel(selection: InsightMarker): string {
+  return selection.kind === "hotplace" ? formatCrowdLabel(selection.item) : formatEventLabel(selection.item)
+}
+
+function insightAddress(selection: InsightMarker): string {
+  return selection.item.address || ""
+}
+
+function insightDetail(selection: InsightMarker): string | undefined {
+  if (selection.kind === "event") {
+    return selection.item.sourceContentId ? `출처 ID ${selection.item.sourceContentId}` : undefined
+  }
+
+  const fallbackMessage = "실시간 혼잡도 키가 없거나 해당 장소 응답을 받을 수 없어 후보 장소만 표시합니다."
+  const parts = [
+    selection.item.crowdMessage && selection.item.crowdMessage !== fallbackMessage ? selection.item.crowdMessage : undefined,
+    selection.item.updatedAt ? `갱신 ${selection.item.updatedAt}` : undefined,
+    selection.item.sourcePlaceCode ? `장소 ${selection.item.sourcePlaceCode}` : undefined,
+  ].filter(Boolean)
+  return parts.length ? parts.join(" · ") : undefined
+}
+
+function insightSource(selection: InsightMarker): string {
+  if (selection.kind === "event") {
+    if (selection.item.source === "KTO_TOUR_API") {
+      return "한국관광공사 TourAPI"
+    }
+    if (selection.item.source === "SEOUL_CULTURE_API") {
+      return "서울 문화행사 API"
+    }
+    return selection.item.source === "CRAWLED_POPUP_TREND" ? "크롤링 팝업 트렌드" : "이벤트 후보"
+  }
+  if (selection.item.source === "TELECOM_CROWD") {
+    return "통신사 장소 혼잡도"
+  }
+  return selection.item.source === "SEOUL_CITYDATA" ? "서울 실시간 도시데이터" : "핫플 후보"
+}
+
+function openInsightDirections(selection: InsightMarker) {
+  const title = insightTitle(selection)
+  const { latitude, longitude } = selection.item
+  window.open(`https://map.kakao.com/link/to/${encodeURIComponent(title)},${latitude},${longitude}`, "_blank")
+}
+
+function mergeFocusedHotplaceInsight(place: Hotplace, insight: HotplaceInsight): HotplaceInsight {
+  return {
+    ...insight,
+    places: mergeHotplaceFirst(place, insight.places || []),
+  }
+}
+
+function mergeFocusedEventInsight(event: TrendEvent, insight: EventInsight): EventInsight {
+  return {
+    ...insight,
+    events: mergeEventFirst(event, insight.events || []),
+  }
+}
+
+function mergeHotplaceFirst(place: Hotplace, places: Hotplace[]): Hotplace[] {
+  return [place, ...places.filter((item) => item.id !== place.id)].slice(0, 8)
+}
+
+function mergeEventFirst(event: TrendEvent, events: TrendEvent[]): TrendEvent[] {
+  return [event, ...events.filter((item) => item.id !== event.id)].slice(0, 8)
+}
+
+function zoneTitle(zone: SmokingZone): string {
+  return zone.name || zone.address || `흡연구역 ${zone.id}`
+}

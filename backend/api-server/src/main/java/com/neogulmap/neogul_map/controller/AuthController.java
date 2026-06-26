@@ -9,9 +9,11 @@ import com.neogulmap.neogul_map.dto.ApiResponse;
 import com.neogulmap.neogul_map.dto.ErrorResponse;
 import com.neogulmap.neogul_map.dto.UserRequest;
 import com.neogulmap.neogul_map.dto.UserResponse;
+import com.neogulmap.neogul_map.dto.auth.AppleMobileLoginRequest;
 import com.neogulmap.neogul_map.dto.auth.AuthTokenResponse;
 import com.neogulmap.neogul_map.dto.auth.MobileOAuthExchangeRequest;
 import com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode;
+import com.neogulmap.neogul_map.service.AppleIdentityTokenService;
 import com.neogulmap.neogul_map.service.UserService;
 import com.neogulmap.neogul_map.service.ImageService;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +45,7 @@ public class AuthController {
     private final UserService userService;
     private final ImageService imageService;
     private final NativeOAuthCodeStore nativeOAuthCodeStore;
+    private final AppleIdentityTokenService appleIdentityTokenService;
     
     /**
      * Refresh 토큰으로 새로운 Access Token과 Refresh Token 발급
@@ -176,6 +179,40 @@ public class AuthController {
                 )))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(ErrorResponse.of(ErrorCode.INVALID_FORMAT, "유효하지 않거나 만료된 OAuth code입니다.")));
+    }
+
+    @PostMapping("/apple/mobile")
+    @ResponseBody
+    public ResponseEntity<?> exchangeAppleIdentityToken(@RequestBody AppleMobileLoginRequest request) {
+        try {
+            AppleIdentityTokenService.AppleIdentity identity = appleIdentityTokenService.verify(
+                    request != null ? request.getIdentityToken() : null);
+            User user = userService.processAppleUser(
+                    identity.getSubject(),
+                    identity.getEmail(),
+                    request != null ? request.getFullName() : null);
+
+            String accessToken = tokenProvider.generateToken(user, Duration.ofHours(2));
+            String refreshToken = tokenProvider.generateToken(user, Duration.ofDays(30));
+
+            return ResponseEntity.ok(ApiResponse.ok(
+                    "Apple 로그인 성공",
+                    AuthTokenResponse.builder()
+                            .accessToken(accessToken)
+                            .refreshToken(refreshToken)
+                            .profileComplete(user.isProfileComplete())
+                            .user(AuthTokenResponse.UserSummary.builder()
+                                    .id(user.getId())
+                                    .email(user.getEmail())
+                                    .nickname(user.getNickname())
+                                    .build())
+                            .build()
+            ));
+        } catch (Exception e) {
+            log.warn("Apple identity token 교환 실패: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ErrorResponse.of(ErrorCode.INVALID_FORMAT, "Apple 로그인 정보를 확인할 수 없습니다."));
+        }
     }
     
     /**

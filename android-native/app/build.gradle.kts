@@ -105,4 +105,5 @@ dependencies {
     implementation(libs.androidx.security.crypto)
     implementation(libs.kakao.map)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(kotlin("test"))
 }

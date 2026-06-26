@@ -6,6 +6,7 @@ const {
   createZone,
   deleteZone,
   fetchMyZones,
+  fetchMapInsights,
   fetchZoneReviews,
   fetchZoneById,
   fetchZonesByBounds,
@@ -101,6 +102,117 @@ describe("nugulApi", () => {
 
     expect(zones.length).toBeGreaterThan(0)
     expect(zones[0].id).toBe(1)
+  })
+
+  it("fetchMapInsights parses combined map insight response", async () => {
+    mockFetch.mockResolvedValue(
+      mockJsonResponse({
+        success: true,
+        data: {
+          hotplaces: {
+            dataFreshness: "LIVE_OR_PARTIAL",
+            updatedAt: "2026-06-18T10:00:00Z",
+            sources: ["TELECOM_CROWD"],
+            places: [
+              {
+                id: "lotte-world",
+                name: "롯데월드·잠실",
+                category: "theme_park",
+                crowdLevel: "CROWDED",
+                crowdMessage: "방문자가 많습니다.",
+                estimatedMinPeople: 12000,
+                estimatedMaxPeople: 14000,
+                latitude: 37.5111,
+                longitude: 127.0982,
+                address: "서울 송파구 올림픽로 240",
+                source: "TELECOM_CROWD",
+                sourcePlaceCode: "POI005",
+                updatedAt: "2026-06-18T10:00:00Z",
+              },
+            ],
+          },
+          events: {
+            dataFreshness: "LIVE_OR_PARTIAL",
+            updatedAt: "2026-06-18T10:00:00Z",
+            sources: ["SEOUL_CULTURE_API"],
+            events: [
+              {
+                id: "seoul-culture-1",
+                title: "성수 팝업",
+                kind: "popup",
+                period: "2026-06-18 ~ 2026-06-30",
+                startDate: "2026-06-18",
+                endDate: "2026-06-30",
+                latitude: 37.5446,
+                longitude: 127.0557,
+                address: "서울 성동구 성수동",
+                imageUrl: null,
+                source: "SEOUL_CULTURE_API",
+                sourceContentId: "1",
+              },
+            ],
+          },
+          status: {
+            seoulCityDataKeyConfigured: false,
+            telecomCrowdKeyConfigured: true,
+            telecomCrowdUrlTemplateConfigured: true,
+            ktoTourApiKeyConfigured: false,
+            seoulCultureApiKeyConfigured: true,
+            hotplaceMode: "LIVE_READY",
+            eventMode: "LIVE_OR_CRAWLED_READY",
+            telecomCrowd: {
+              configured: true,
+              qualityStatus: "OK",
+              lastSuccessAt: "2026-06-18T10:00:00Z",
+              lastFailureAt: null,
+              detail: "OK",
+            },
+            seoulCultureApi: {
+              configured: true,
+              qualityStatus: "OK",
+              lastSuccessAt: "2026-06-18T10:00:00Z",
+              lastFailureAt: null,
+              detail: "OK",
+            },
+            popupTrends: {
+              fileConfigured: true,
+              fileExists: true,
+              recordCount: 5,
+              latestCollectedAt: "2026-06-18T10:00:00Z",
+              qualityStatus: "OK",
+              detail: "OK",
+            },
+            checkedAt: "2026-06-18T10:00:00Z",
+          },
+          updatedAt: "2026-06-18T10:00:01Z",
+        },
+      }),
+    )
+
+    const insight = await fetchMapInsights("요즘 핫한 팝업 행사", 3, 4, {
+      minLat: 37.5,
+      maxLat: 37.56,
+      minLng: 127.03,
+      maxLng: 127.11,
+    })
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "/api/insights/map?hotplaceLimit=3&eventLimit=4&keyword=%EC%9A%94%EC%A6%98+%ED%95%AB%ED%95%9C+%ED%8C%9D%EC%97%85+%ED%96%89%EC%82%AC&minLat=37.5&maxLat=37.56&minLng=127.03&maxLng=127.11",
+      ),
+      expect.any(Object),
+    )
+    expect(insight.hotplaces.places[0]).toMatchObject({
+      id: "lotte-world",
+      estimatedMinPeople: 12000,
+    })
+    expect(insight.events.events[0]).toMatchObject({
+      id: "seoul-culture-1",
+      title: "성수 팝업",
+    })
+    expect(insight.status?.hotplaceMode).toBe("LIVE_READY")
+    expect(insight.status?.seoulCultureApi.qualityStatus).toBe("OK")
+    expect(insight.updatedAt).toBe("2026-06-18T10:00:01Z")
   })
 
   it("searchZones returns empty list on fetch error", async () => {

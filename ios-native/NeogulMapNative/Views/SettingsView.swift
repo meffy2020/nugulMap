@@ -5,7 +5,12 @@ struct SettingsView: View {
         List {
             Section("앱") {
                 LabeledContent("이름", value: "너굴맵 Native")
-                LabeledContent("플랫폼", value: "SwiftUI + MapKit")
+                LabeledContent("플랫폼", value: "SwiftUI + KakaoMapsSDK")
+            }
+
+            Section("정책") {
+                Link("개인정보 처리방침", destination: AppConfig.privacyPolicyURL)
+                Link("계정 삭제 안내", destination: AppConfig.accountDeletionURL)
             }
 
             Section("API") {

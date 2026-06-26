@@ -1,12 +1,19 @@
 package com.nugulmap.nativeapp.ui.map
 
 import com.nugulmap.nativeapp.data.dto.UserProfileDto
+import com.nugulmap.nativeapp.data.dto.HotplaceInsightPayload
+import com.nugulmap.nativeapp.data.dto.EventInsightPayload
+import com.nugulmap.nativeapp.data.dto.InsightStatusPayload
 import com.nugulmap.nativeapp.data.dto.ZoneDto
 import com.nugulmap.nativeapp.data.dto.ZoneReviewDto
 
 data class MapUiState(
     val isLoading: Boolean = false,
     val zones: List<ZoneDto> = emptyList(),
+    val hotplaceInsight: HotplaceInsightPayload = HotplaceInsightPayload(),
+    val eventInsight: EventInsightPayload = EventInsightPayload(),
+    val insightStatus: InsightStatusPayload? = null,
+    val isInsightLoading: Boolean = false,
     val selectedZoneId: Int? = null,
     val selectedZoneReviews: List<ZoneReviewDto> = emptyList(),
     val isReviewLoading: Boolean = false,

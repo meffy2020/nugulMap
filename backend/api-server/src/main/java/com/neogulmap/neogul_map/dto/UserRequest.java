@@ -25,7 +25,7 @@ public class UserRequest {
     private String oauthId;
     
     @NotBlank(message = "OAuth 제공자는 필수입니다")
-    @Pattern(regexp = "^(kakao|google|naver)$", message = "지원하지 않는 OAuth 제공자입니다")
+    @Pattern(regexp = "^(kakao|google|naver|apple)$", message = "지원하지 않는 OAuth 제공자입니다")
     private String oauthProvider;
     
     @Size(min = 2, max = 20, message = "닉네임은 2자 이상 20자 이하여야 합니다")

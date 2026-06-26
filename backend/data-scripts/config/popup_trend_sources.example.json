@@ -1,0 +1,29 @@
+{
+  "sources": [
+    {
+      "url": "http://openapi.seoul.go.kr:8088/${SEOUL_CULTURE_API_KEY:-${SEOUL_CITYDATA_API_KEY:-sample}}/json/culturalEventInfo/1/${SEOUL_CULTURE_API_END_INDEX:-5}/",
+      "title": "서울시 문화행사 정보",
+      "kind": "event",
+      "source": "SEOUL_CULTURE_API",
+      "period": "서울문화포털 매일 갱신",
+      "address": "서울특별시",
+      "manual": false
+    },
+    {
+      "title": "성수 팝업 수동 후보",
+      "kind": "popup",
+      "period": "최근 후보",
+      "latitude": 37.5446,
+      "longitude": 127.0557,
+      "address": "서울 성동구 성수동2가"
+    },
+    {
+      "title": "여의도 한강공원 행사 후보",
+      "kind": "festival",
+      "period": "계절 행사 후보",
+      "latitude": 37.5284,
+      "longitude": 126.9327,
+      "address": "서울 영등포구 여의동로 330"
+    }
+  ]
+}

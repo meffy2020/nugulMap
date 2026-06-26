@@ -32,6 +32,7 @@
 		A10000000000000000000011 /* NeogulMapNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeogulMapNativeApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A10000000000000000000025 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000000000000000000130 /* NeogulMapNative.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NeogulMapNative.entitlements; sourceTree = "<group>"; };
 		A10000000000000000000013 /* SmokingZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokingZone.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* ZoneReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneReview.swift; sourceTree = "<group>"; };
 		A10000000000000000000015 /* NugulAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NugulAPIClient.swift; sourceTree = "<group>"; };
@@ -83,6 +84,7 @@
 				A10000000000000000000012 /* ContentView.swift */,
 				A10000000000000000000010 /* AppConfig.swift */,
 				A10000000000000000000025 /* Info.plist */,
+				A10000000000000000000130 /* NeogulMapNative.entitlements */,
 				A10000000000000000000005 /* Models */,
 				A10000000000000000000006 /* Services */,
 				A10000000000000000000007 /* ViewModels */,
@@ -383,10 +385,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = NeogulMapNative/NeogulMapNative.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"NeogulMapNative/Preview Content\"";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = "$(NUGUL_DEVELOPMENT_TEAM)";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = NeogulMapNative/Info.plist;
@@ -415,10 +418,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = NeogulMapNative/NeogulMapNative.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"NeogulMapNative/Preview Content\"";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = "$(NUGUL_DEVELOPMENT_TEAM)";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = NeogulMapNative/Info.plist;

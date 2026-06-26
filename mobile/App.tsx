@@ -5,13 +5,14 @@ import {
   Image,
   Linking,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import * as Location from "expo-location"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context"
@@ -28,10 +29,20 @@ import { ZoneReviewModal } from "./src/components/ZoneReviewModal"
 import type { TabKey } from "./src/navigation/tabs"
 import { useAuth } from "./src/hooks/useAuth"
 import { colors, radius } from "./src/theme/tokens"
-import { searchZones } from "./src/services/nugulApi"
-import type { SmokingZone } from "./src/types"
+import { fetchMapInsights, searchZones } from "./src/services/nugulApi"
+import type { EventInsight, Hotplace, HotplaceInsight, InsightStatus, MapBounds, MapRegion, SmokingZone, TrendEvent } from "./src/types"
 
 const pinImage = require("./assets/images/pin.png")
+
+type InsightSelection = {
+  title: string
+  label: string
+  detail?: string
+  address: string
+  latitude: number
+  longitude: number
+  source: string
+}
 
 export default function App() {
   return (
@@ -49,6 +60,11 @@ function AppContent() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
+  const [hotplaceInsight, setHotplaceInsight] = useState<HotplaceInsight | null>(null)
+  const [eventInsight, setEventInsight] = useState<EventInsight | null>(null)
+  const [insightStatus, setInsightStatus] = useState<InsightStatus | null>(null)
+  const [selectedInsight, setSelectedInsight] = useState<InsightSelection | null>(null)
+  const [isHotplaceLoading, setIsHotplaceLoading] = useState(false)
   const [reviewZone, setReviewZone] = useState<SmokingZone | null>(null)
   const [editingZone, setEditingZone] = useState<SmokingZone | null>(null)
   const [reportSeed, setReportSeed] = useState<{
@@ -89,6 +105,28 @@ function AppContent() {
     isLoading: isAuthLoading,
   } = useAuth()
 
+  useEffect(() => {
+    let isCancelled = false
+    const timer = setTimeout(() => {
+      void (async () => {
+        setIsHotplaceLoading(true)
+        const bounds = toInsightBounds(region)
+        const mapInsight = await fetchMapInsights(undefined, 8, 8, bounds)
+        if (!isCancelled) {
+          setHotplaceInsight(mapInsight.hotplaces)
+          setEventInsight(mapInsight.events)
+          setInsightStatus(mapInsight.status)
+          setIsHotplaceLoading(false)
+        }
+      })()
+    }, 400)
+
+    return () => {
+      isCancelled = true
+      clearTimeout(timer)
+    }
+  }, [region.latitude, region.longitude, region.latitudeDelta, region.longitudeDelta])
+
   const moveToCurrentLocation = async () => {
     try {
       const permission = await Location.requestForegroundPermissionsAsync()
@@ -111,6 +149,7 @@ function AppContent() {
 
   const focusZoneOnMap = (zone: SmokingZone) => {
     setActiveTab("map")
+    setSelectedInsight(null)
     openDetail(zone)
     handleRegionChangeComplete({
       latitude: zone.latitude,
@@ -120,14 +159,50 @@ function AppContent() {
     })
   }
 
+  const focusHotplaceOnMap = (place: Hotplace) => {
+    setActiveTab("map")
+    setSelectedInsight(toHotplaceSelection(place))
+    handleRegionChangeComplete({
+      latitude: place.latitude,
+      longitude: place.longitude,
+      latitudeDelta: 0.018,
+      longitudeDelta: 0.018,
+    })
+  }
+
+  const focusEventOnMap = (event: TrendEvent) => {
+    setActiveTab("map")
+    setSelectedInsight(toEventSelection(event))
+    handleRegionChangeComplete({
+      latitude: event.latitude,
+      longitude: event.longitude,
+      latitudeDelta: 0.018,
+      longitudeDelta: 0.018,
+    })
+  }
+
   const handleTopSearch = async () => {
-    if (!searchQuery.trim()) return
+    const query = searchQuery.trim()
+    if (!query) return
 
     setIsSearching(true)
     try {
-      const results = await searchZones(searchQuery.trim(), region.latitude, region.longitude)
+      const results = await searchZones(query, region.latitude, region.longitude)
       if (!results.length) {
-        Alert.alert("검색 결과 없음", "해당 키워드로 찾은 흡연구역이 없습니다.")
+        const mapInsight = await fetchMapInsights(query, 5, 5, toInsightBounds(region))
+        setHotplaceInsight(mapInsight.hotplaces)
+        setEventInsight(mapInsight.events)
+        setInsightStatus(mapInsight.status)
+        if (mapInsight.events.events.length) {
+          focusEventOnMap(mapInsight.events.events[0])
+          return
+        }
+        if (mapInsight.hotplaces.places.length) {
+          focusHotplaceOnMap(mapInsight.hotplaces.places[0])
+          return
+        }
+
+        Alert.alert("검색 결과 없음", "해당 키워드로 찾은 장소가 없습니다.")
         return
       }
 
@@ -207,10 +282,17 @@ function AppContent() {
         <MapScreen
           region={region}
           zones={zones}
+          hotplaces={hotplaceInsight?.places || []}
+          events={eventInsight?.events || []}
           selectedZone={selectedZone}
           isLoading={isLoading}
           onRegionChangeComplete={handleRegionChangeComplete}
-          onSelectZone={openDetail}
+          onSelectZone={(zone) => {
+            setSelectedInsight(null)
+            openDetail(zone)
+          }}
+          onSelectHotplace={(place) => setSelectedInsight(toHotplaceSelection(place))}
+          onSelectEvent={(event) => setSelectedInsight(toEventSelection(event))}
         />
       ) : null}
 
@@ -269,8 +351,63 @@ function AppContent() {
         </Pressable>
       </View>
 
+      {activeTab === "map" ? (
+        <View style={[styles.hotplacePanel, { top: insets.top + 62 }]}>
+          <Text style={styles.season2Status} numberOfLines={1}>
+            {formatInsightStatus(insightStatus)}
+          </Text>
+          <View style={styles.hotplaceHeader}>
+            <View style={styles.hotplaceTitleRow}>
+              <MaterialCommunityIcons name="fire" size={16} color={colors.primary} />
+              <Text style={styles.hotplaceTitle}>지금 핫한 곳</Text>
+            </View>
+            <Text style={styles.hotplaceFreshness}>
+              {formatHotplacePanelStatus(hotplaceInsight, isHotplaceLoading)}
+            </Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hotplaceList}>
+            {(hotplaceInsight?.places || []).map((place) => (
+              <Pressable key={place.id} style={styles.hotplaceChip} onPress={() => focusHotplaceOnMap(place)}>
+                <Text style={styles.hotplaceName} numberOfLines={1}>
+                  {place.name}
+                </Text>
+                <Text style={styles.hotplaceMeta} numberOfLines={1}>
+                  {formatCrowdLabel(place)}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          {(eventInsight?.events || []).length ? (
+            <>
+              <View style={styles.eventDivider} />
+              <View style={styles.hotplaceHeader}>
+                <View style={styles.hotplaceTitleRow}>
+                  <MaterialCommunityIcons name="calendar-star" size={16} color={colors.primary} />
+                  <Text style={styles.hotplaceTitle}>팝업·행사·축제</Text>
+                </View>
+                <Text style={styles.hotplaceFreshness}>
+                  {formatEventPanelStatus(eventInsight)}
+                </Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hotplaceList}>
+                {(eventInsight?.events || []).map((event) => (
+                  <Pressable key={event.id} style={styles.eventChip} onPress={() => focusEventOnMap(event)}>
+                    <Text style={styles.hotplaceName} numberOfLines={1}>
+                      {event.title}
+                    </Text>
+                    <Text style={styles.hotplaceMeta} numberOfLines={1}>
+                      {formatEventLabel(event)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </>
+          ) : null}
+        </View>
+      ) : null}
+
       {errorMessage ? (
-        <View style={[styles.errorBanner, { top: insets.top + 62 }]}>
+        <View style={[styles.errorBanner, { top: insets.top + (activeTab === "map" ? 176 : 62) }]}>
           <MaterialCommunityIcons name="alert-circle-outline" size={17} color={colors.surface} />
           <Text style={styles.errorBannerText}>{errorMessage}</Text>
           <Pressable
@@ -282,6 +419,41 @@ function AppContent() {
           >
             <Text style={styles.errorRetryButtonText}>재시도</Text>
           </Pressable>
+        </View>
+      ) : null}
+
+      {activeTab === "map" && selectedInsight ? (
+        <View style={[styles.insightCard, { bottom: insets.bottom + 154 }]}>
+          <View style={styles.insightCardHeader}>
+            <View style={styles.insightTitleWrap}>
+              <Text style={styles.insightTitle} numberOfLines={1}>
+                {selectedInsight.title}
+              </Text>
+              <Text style={styles.insightLabel} numberOfLines={1}>
+                {selectedInsight.label}
+              </Text>
+            </View>
+            <Pressable style={styles.insightCloseButton} onPress={() => setSelectedInsight(null)}>
+              <MaterialCommunityIcons name="close" size={17} color={colors.textMuted} />
+            </Pressable>
+          </View>
+          <Text style={styles.insightAddress} numberOfLines={2}>
+            {selectedInsight.address || "주소 정보 없음"}
+          </Text>
+          {selectedInsight.detail ? (
+            <Text style={styles.insightDetail} numberOfLines={2}>
+              {selectedInsight.detail}
+            </Text>
+          ) : null}
+          <View style={styles.insightActionRow}>
+            <Text style={styles.insightSource} numberOfLines={1}>
+              {selectedInsight.source}
+            </Text>
+            <Pressable style={styles.insightRouteButton} onPress={() => openRouteForInsight(selectedInsight)}>
+              <MaterialCommunityIcons name="navigation-variant-outline" size={15} color={colors.surface} />
+              <Text style={styles.insightRouteText}>길찾기</Text>
+            </Pressable>
+          </View>
         </View>
       ) : null}
 
@@ -364,6 +536,193 @@ function AppContent() {
       ) : null}
     </View>
   )
+}
+
+function formatCrowdLabel(place: Hotplace): string {
+  if (place.crowdLevel && place.crowdLevel !== "UNKNOWN") {
+    const count =
+      place.estimatedMinPeople != null && place.estimatedMaxPeople != null
+        ? ` · ${place.estimatedMinPeople.toLocaleString()}-${place.estimatedMaxPeople.toLocaleString()}명`
+        : ""
+    return `${place.crowdLevel}${count}`
+  }
+
+  return place.category === "popup" ? "팝업 후보" : "핫플 후보"
+}
+
+function formatEventLabel(event: TrendEvent): string {
+  const kind = event.kind === "popup" ? "팝업" : event.kind === "festival" ? "축제" : "행사"
+  return event.period ? `${kind} · ${event.period}` : kind
+}
+
+function formatInsightStatus(status: InsightStatus | null): string {
+  if (!status) {
+    return "데이터 상태 확인 중"
+  }
+
+  return [formatProviderMode(status.hotplaceMode, "혼잡"), formatTelecomStatus(status), formatEventStatus(status)]
+    .filter(Boolean)
+    .join(" · ")
+}
+
+function formatTelecomStatus(status: InsightStatus): string | null {
+  if (status.telecomCrowd?.qualityStatus === "OK") {
+    return "통신사 연결"
+  }
+  if (status.telecomCrowdKeyConfigured && !status.telecomCrowdUrlTemplateConfigured) {
+    return "통신사 URL 필요"
+  }
+  if (status.telecomCrowdKeyConfigured && status.telecomCrowd?.qualityStatus === "CONFIGURED_UNVERIFIED") {
+    return "통신사 확인중"
+  }
+  if (status.telecomCrowd?.qualityStatus === "ERROR") {
+    return "통신사 오류"
+  }
+  return null
+}
+
+function formatEventStatus(status: InsightStatus): string {
+  const hasLiveTourApi = status.ktoTourApi?.qualityStatus === "OK"
+  const hasSeoulCultureApi = status.seoulCultureApi?.qualityStatus === "OK"
+  const liveEventApiLabel = formatLiveEventApiLabel(hasLiveTourApi, hasSeoulCultureApi)
+  const popupCount = status.popupTrends?.qualityStatus === "OK" ? status.popupTrends.recordCount : 0
+
+  if (liveEventApiLabel && popupCount > 0) {
+    return `${liveEventApiLabel}+팝업 ${popupCount}건`
+  }
+  if (liveEventApiLabel) {
+    return liveEventApiLabel
+  }
+  if (status.seoulCultureApiKeyConfigured) {
+    return "서울문화 API 확인"
+  }
+  if (popupCount > 0) {
+    return `팝업 ${popupCount}건`
+  }
+  return formatProviderMode(status.eventMode, "행사")
+}
+
+function formatLiveEventApiLabel(hasLiveTourApi: boolean, hasSeoulCultureApi: boolean): string | null {
+  if (hasLiveTourApi && hasSeoulCultureApi) {
+    return "행사 API"
+  }
+  if (hasSeoulCultureApi) {
+    return "서울문화 API"
+  }
+  if (hasLiveTourApi) {
+    return "TourAPI"
+  }
+  return null
+}
+
+function formatProviderMode(mode: string, label: string): string {
+  switch (mode) {
+    case "LIVE_READY":
+    case "LIVE_OR_CRAWLED_READY":
+      return `${label} 실시간`
+    case "LIVE_CONFIGURED_UNVERIFIED":
+      return `${label} 확인중`
+    case "LIVE_CONFIGURED_ERROR":
+      return `${label} 오류`
+    default:
+      return `${label} 후보`
+  }
+}
+
+function formatHotplacePanelStatus(insight: HotplaceInsight | null, isLoading: boolean): string {
+  if (isLoading) {
+    return "갱신 중"
+  }
+  if ((insight?.places || []).some((place) => place.source === "TELECOM_CROWD")) {
+    return "통신사"
+  }
+  if (insight?.dataFreshness === "LIVE_OR_PARTIAL") {
+    return "실시간"
+  }
+  return "후보"
+}
+
+function formatEventPanelStatus(insight: EventInsight | null): string {
+  if (insight?.dataFreshness === "LIVE_OR_PARTIAL") {
+    return "API"
+  }
+  if (insight?.dataFreshness === "CRAWLED_OR_PARTIAL") {
+    return "크롤링"
+  }
+  return "후보"
+}
+
+function toHotplaceSelection(place: Hotplace): InsightSelection {
+  return {
+    title: place.name,
+    label: formatCrowdLabel(place),
+    detail: formatHotplaceDetail(place),
+    address: place.address,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    source: formatHotplaceSource(place.source),
+  }
+}
+
+function toEventSelection(event: TrendEvent): InsightSelection {
+  return {
+    title: event.title,
+    label: formatEventLabel(event),
+    detail: event.sourceContentId ? `출처 ID ${event.sourceContentId}` : undefined,
+    address: event.address,
+    latitude: event.latitude,
+    longitude: event.longitude,
+    source: formatEventSource(event.source),
+  }
+}
+
+function formatHotplaceSource(source: string): string {
+  if (source === "TELECOM_CROWD") {
+    return "통신사 장소 혼잡도"
+  }
+  if (source === "SEOUL_CITYDATA") {
+    return "서울 실시간 도시데이터"
+  }
+  return "핫플 후보"
+}
+
+function formatEventSource(source: string): string {
+  if (source === "KTO_TOUR_API") {
+    return "한국관광공사 TourAPI"
+  }
+  if (source === "SEOUL_CULTURE_API") {
+    return "서울 문화행사 API"
+  }
+  if (source === "CRAWLED_POPUP_TREND") {
+    return "크롤링 팝업 트렌드"
+  }
+  return "이벤트 후보"
+}
+
+function formatHotplaceDetail(place: Hotplace): string | undefined {
+  const parts = [
+    place.crowdMessage && place.crowdMessage !== "실시간 혼잡도 키가 없거나 해당 장소 응답을 받을 수 없어 후보 장소만 표시합니다."
+      ? place.crowdMessage
+      : undefined,
+    place.updatedAt ? `갱신 ${place.updatedAt}` : undefined,
+    place.sourcePlaceCode ? `장소 ${place.sourcePlaceCode}` : undefined,
+  ].filter(Boolean)
+
+  return parts.length ? parts.join(" · ") : undefined
+}
+
+function openRouteForInsight(selection: InsightSelection) {
+  const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${selection.latitude},${selection.longitude}`
+  void Linking.openURL(mapUrl)
+}
+
+function toInsightBounds(region: MapRegion): MapBounds {
+  return {
+    minLat: region.latitude - region.latitudeDelta / 2,
+    maxLat: region.latitude + region.latitudeDelta / 2,
+    minLng: region.longitude - region.longitudeDelta / 2,
+    maxLng: region.longitude + region.longitudeDelta / 2,
+  }
 }
 
 const styles = StyleSheet.create({
@@ -486,6 +845,175 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 11,
     fontWeight: "800",
+  },
+  hotplacePanel: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    zIndex: 18,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    paddingVertical: 10,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  hotplaceHeader: {
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  season2Status: {
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  hotplaceTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  hotplaceTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  hotplaceFreshness: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  hotplaceList: {
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  hotplaceChip: {
+    width: 132,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  eventChip: {
+    width: 148,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  eventDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  hotplaceName: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  hotplaceMeta: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  insightCard: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 22,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "rgba(255,255,255,0.98)",
+    padding: 14,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+  },
+  insightCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  insightTitleWrap: {
+    flex: 1,
+  },
+  insightTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  insightLabel: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  insightCloseButton: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted,
+  },
+  insightAddress: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  insightDetail: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  insightActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginTop: 12,
+  },
+  insightSource: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  insightRouteButton: {
+    height: 34,
+    borderRadius: radius.full,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.primary,
+  },
+  insightRouteText: {
+    color: colors.surface,
+    fontSize: 12,
+    fontWeight: "900",
   },
   mapActionOverlay: {
     position: "absolute",

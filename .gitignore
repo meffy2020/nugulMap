@@ -4,6 +4,7 @@
 
 # Markdown files
 *.md
+!docs/season2-product-plan.md
 
 # Backup and temporary folders
 frontend_backup/
@@ -68,4 +69,5 @@ backend/uploads/zones/  # Zone 이미지 업로드 폴더
 # Local native build artifacts
 ios-native/.derivedData/
 tmp/xcodebuildmcp-derived/
+tmp/ios-native-screenshots/DerivedData/
 ios-native/Config/Secrets.xcconfig

@@ -132,6 +132,8 @@ app:
       url: /oauth2/authorization/kakao
     naver:
       url: /oauth2/authorization/naver
+    apple:
+      client-id: ${APPLE_CLIENT_ID:com.nugulmap.native}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:3000,http://nugulmap.com,https://nugulmap.com,https://www.nugulmap.com}  # 운영 도메인 추가
     allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}

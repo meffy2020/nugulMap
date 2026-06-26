@@ -1,0 +1,191 @@
+Season 2 live insights runbook
+================================
+
+This runbook verifies the Season 2 map contract:
+
+- Lotte World/Jamsil crowd estimates return a live source with an estimated people range.
+- `hot-now` ranks live crowded places.
+- popup/event/festival records are available from a public API or crawler output.
+- existing map bootstrap still responds.
+
+Required live inputs
+--------------------
+
+Crowd estimates need one of:
+
+- `SEOUL_CITYDATA_API_KEY`
+- `TELECOM_CROWD_API_KEY` and `TELECOM_CROWD_URL_TEMPLATE`
+
+Seoul CityData notes:
+
+- Official dataset: https://data.seoul.go.kr/dataList/OA-21285/A/1/datasetView.do
+- It exposes one place per call by place name or `POI###` code.
+- The sample key is limited to `광화문·덕수궁`, so Lotte World/Jamsil proof needs a real key.
+- The app tries the configured Jamsil tourism place first, then nearby current Jamsil aliases
+  (`잠실새내역`, `잠실종합운동장`) so a place-code change does not immediately break the
+  Lotte World/Jamsil estimate path.
+
+Public events need one of:
+
+- `KTO_TOUR_API_KEY`
+- `SEOUL_CULTURE_API_KEY` for runtime Seoul culture API lookup
+- `SEOUL_CULTURE_API_KEY` collected into `POPUP_TRENDS_FILE` by the popup/event collector
+
+`SEOUL_CULTURE_API_BASE_URL` defaults to `http://openapi.seoul.go.kr:8088`.
+Override it only for local mocks or controlled provider proxies.
+
+`TELECOM_CROWD_URL_TEMPLATE` can use:
+
+- `{placeId}`
+- `{placeName}`
+- `{seoulAreaCode}`
+- `{seoulAreaName}`
+- `{lat}`
+- `{lng}`
+- `{apiKey}`
+
+Default header mode is `appKey` (backend sends the key in request headers).
+Set `TELECOM_CROWD_API_KEY_HEADER=none` when the provider expects the key only
+inside the URL template, for example `...?key={apiKey}&area={seoulAreaCode}`.
+
+Refresh popup/event records
+---------------------------
+
+```bash
+python backend/data-scripts/scripts/run_popup_trend_collector.py --once --min-records 3 --timeout 10
+```
+
+Verify local fallback plus public events
+----------------------------------------
+
+```bash
+backend/api-server/scripts/check-season2-readiness.py \
+  --strict-popup-quality \
+  --max-popup-age-hours 2 \
+  --check-compose \
+  --check-ui-parity
+```
+
+Verify live crowd path with the local mock provider
+---------------------------------------------------
+
+Local API server with mock crowd provider:
+
+```bash
+MOCK_CROWD=1 REQUIRE_LIVE=1 backend/api-server/scripts/run-season2-local.sh
+```
+
+Then, in another terminal:
+
+```bash
+backend/api-server/scripts/smoke-season2-insights.py \
+  --base-url http://127.0.0.1:18080 \
+  --require-live \
+  --include-map-bootstrap
+```
+
+One-command check:
+
+```bash
+backend/api-server/scripts/smoke-season2-mock-live.sh
+```
+
+The script starts the mock telecom provider, starts the API server on `API_PORT`
+(default `18080`), runs the `--require-live` smoke, and stops both temporary
+processes. Use `API_PORT`, `MOCK_PORT`, `POPUP_TRENDS_FILE`, or `LOG_DIR` to
+override defaults.
+
+Manual check:
+
+Terminal 1:
+
+```bash
+python backend/api-server/scripts/mock-telecom-crowd-api.py --port 18081
+```
+
+Terminal 2:
+
+```bash
+cd backend/api-server
+SPRING_PROFILES_ACTIVE=dev \
+APP_STORAGE_TYPE=local \
+SPRING_JPA_HIBERNATE_DDL_AUTO=create \
+SPRING_SQL_INIT_MODE=never \
+POPUP_TRENDS_FILE="$PWD/../data-scripts/data/popup-trends.json" \
+TELECOM_CROWD_API_KEY=mock-key \
+TELECOM_CROWD_URL_TEMPLATE='http://127.0.0.1:18081/crowd?place={placeId}&area={seoulAreaCode}&name={placeName}' \
+SEOUL_CULTURE_API_KEY=culture-key \
+SEOUL_CULTURE_API_BASE_URL='http://127.0.0.1:18081' \
+./gradlew bootRun
+```
+
+Terminal 3:
+
+```bash
+backend/api-server/scripts/smoke-season2-insights.py \
+  --base-url http://localhost:8080 \
+  --require-live \
+  --include-map-bootstrap
+```
+
+Expected result:
+
+- `hotplaces` is `LIVE_OR_PARTIAL`
+- `hot-now` is `LIVE_OR_PARTIAL`
+- `status` includes `hotplace=LIVE_READY` and `telecom=OK`
+- `events` is `LIVE_OR_PARTIAL` or `CRAWLED_OR_PARTIAL`
+- `insight-map` includes live/partial hotplaces plus live/crawled events from `/api/insights/map`
+- `map-bootstrap` is `HTTP_OK`
+
+Verify real live providers
+--------------------------
+
+Use real keys instead of the mock values:
+
+```bash
+export SEOUL_CITYDATA_API_KEY='...'
+# or
+export TELECOM_CROWD_API_KEY='...'
+export TELECOM_CROWD_URL_TEMPLATE='https://provider.example/crowd?place={placeId}&area={seoulAreaCode}'
+
+# event/public-data source
+export SEOUL_CULTURE_API_KEY='...'
+# or
+export KTO_TOUR_API_KEY='...'
+```
+
+Then run:
+
+```bash
+cd frontend && npm run test:season2-intent && npm run lint && cd ..
+backend/api-server/scripts/probe-season2-live-providers.py --require-people-range
+backend/api-server/scripts/check-season2-readiness.py --check-compose --check-ui-parity --require-live --probe-live-provider --probe-public-event-provider
+REQUIRE_LIVE=1 backend/api-server/scripts/run-season2-local.sh
+backend/api-server/scripts/smoke-season2-insights.py --base-url http://localhost:8080 --require-live --include-map-bootstrap
+```
+
+Android test execution note:
+
+```bash
+JAVA_HOME=<path-to-jdk21> ./gradlew testDebugUnitTest --tests com.nugulmap.nativeapp.data.repository.Season2SearchIntentTest
+```
+
+If Gradle uses a newer JDK that fails the Android toolchain, pin `JAVA_HOME` to
+JDK 21 before running `./gradlew test`.
+
+For web UI checks against the local Season 2 API, copy the frontend env example
+and point the client at the same API server:
+
+```bash
+cd frontend
+cp .env.example .env.local
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:18080 npm run dev
+```
+
+Run the provider probe first. It checks Lotte World/Jamsil directly against the
+configured live provider before the Spring Boot server starts, and fails if the
+provider does not return a crowd level plus estimated people range.
+The public event probe checks `SEOUL_CULTURE_API_KEY` directly and fails unless
+the Seoul Culture API returns usable Seoul event rows with titles and coordinates.
+
+The goal is complete only when the real provider run, not just the mock provider run, passes.

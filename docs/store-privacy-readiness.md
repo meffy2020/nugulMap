@@ -8,12 +8,12 @@
 
 | Gate | Current state | Public launch decision |
 | --- | --- | --- |
-| Privacy policy URL | Public URL not stored in repo | **HOLD** until a public, non-placeholder URL is published and entered in Play Console/App Store Connect |
+| Privacy policy URL | `frontend/app/privacy/page.tsx` provides `/privacy` for `https://nugulmap.com/privacy` | **MANUAL** until deployed URL is reachable and entered in Play Console/App Store Connect |
 | Play Data Safety form | Draft inventory below exists; console form not submitted from repo | **HOLD** until console answers match this inventory |
 | Apple App Privacy | Draft inventory below exists; App Store Connect form not submitted from repo | **HOLD** until App Privacy answers match this inventory |
-| Account deletion | Backend `DELETE /users/{id}` exists; native discoverable deletion UX is not proven by static scan | **HOLD** until in-app and web deletion/request paths are verified |
+| Account deletion | Android Account > 계정 삭제 and iOS Profile > 계정 삭제 call authenticated `DELETE /api/users/me`; web guide exists at `/account-deletion` | **MANUAL** until real-device deletion smoke and deployed URL verification pass |
 | Store metadata | App IDs/version values exist; descriptions/screenshots/support URLs are not proven here | **HOLD** until metadata checklist is complete |
-| Review-risk gates | iOS uses Kakao/Naver/Google social login without detected Apple-equivalent login | **HOLD** until Guideline 4.8 is resolved or an approved exception is documented |
+| Review-risk gates | iOS includes Sign in with Apple and server-side Apple identity token exchange | **MANUAL** until Apple capability/App ID and real-device login smoke pass |
 
 ## 2. Data inventory from repository evidence
 
@@ -33,10 +33,10 @@
 
 ## 3. Google Play Data Safety checklist
 
-- [ ] Enter a public privacy policy URL in Play Console and in the app/store listing.
+- [ ] Deploy and enter `https://nugulmap.com/privacy` in Play Console and in the app/store listing.
 - [ ] Complete the Data Safety form even if any data is only optional or low-volume.
 - [ ] Mark account creation as supported if OAuth signup/login remains available.
-- [ ] Complete data-deletion questions and provide both in-app and web/out-of-app account deletion or deletion-request paths.
+- [ ] Complete data-deletion questions and provide the in-app deletion path plus `https://nugulmap.com/account-deletion`.
 - [ ] Declare collected data from Section 2 by the broadest production behavior across regions, versions, and user states.
 - [ ] For each data type, confirm collection, sharing, encryption in transit, deletion request support, and whether users can choose collection.
 - [ ] Confirm third-party SDK/provider processing for Kakao Maps, Kakao/Naver/Google OAuth, hosting, object storage, crash/log tooling, and analytics if enabled.
@@ -45,14 +45,14 @@
 
 ## 4. Apple App Privacy checklist
 
-- [ ] Add the privacy policy URL in App Store Connect before submission.
+- [ ] Add `https://nugulmap.com/privacy` in App Store Connect before submission.
 - [ ] Answer App Privacy for app code and third-party partners integrated into the app.
 - [ ] Declare whether each data type in Section 2 is linked to the user and whether it is used for tracking.
 - [ ] If location is only processed on device, document why it is not collected; if sent to backend/logs, disclose the relevant location category.
 - [ ] If user-uploaded photos, profile images, reviews, or zone descriptions are stored, disclose User Content and linked-user status.
 - [ ] If diagnostics, crash logs, performance data, or IP-derived metadata are retained by production tooling, disclose them.
-- [ ] Resolve App Review Guideline 4.8 before review: third-party/social login requires an equivalent privacy-preserving login option unless a valid exception applies.
-- [ ] Ensure account deletion is easy to find in the native app and does not require unnecessary extra steps.
+- [ ] Verify Sign in with Apple works on a real device/TestFlight build.
+- [ ] Ensure account deletion remains easy to find in the native app and does not require unnecessary extra steps.
 
 ## 5. Store metadata checklist
 
@@ -63,13 +63,13 @@
 | Category/content rating | Complete store questionnaires consistently with smoking-zone content | Not proven in repo |
 | Screenshots/previews | Capture real native screens after OAuth/map/profile smoke | Not proven in repo |
 | Support URL | Publish reachable support/contact page or mail path | Not proven in repo |
-| Privacy policy URL | Publish public URL naming NugulMap/developer and data practices | Missing/blocker |
-| Account deletion URL | Publish web/out-of-app deletion or request URL for Play and support flows | Missing/blocker |
+| Privacy policy URL | Publish public URL naming NugulMap/developer and data practices | `frontend/app/privacy/page.tsx`, deploy as `https://nugulmap.com/privacy` |
+| Account deletion URL | Publish web/out-of-app deletion or request URL for Play and support flows | `frontend/app/account-deletion/page.tsx`, deploy as `https://nugulmap.com/account-deletion` |
 | Review notes | Explain OAuth providers, demo/test account if required, location use, and any Apple login exception | Missing/blocker |
 
 ## 6. Account deletion acceptance checklist
 
-- [ ] In-app path is discoverable from Settings/Profile on Android and iOS native apps.
+- [ ] In-app path is discoverable from Account/Profile on Android and iOS native apps.
 - [ ] Web/out-of-app deletion or deletion-request URL exists and is entered in Play Console where required.
 - [ ] Deletion covers user account, OAuth-linked account records, tokens, profile image, user-created zones/images where legally/product-wise deletable, reviews, and operational logs according to retention policy.
 - [ ] User sees what will be deleted, what may be retained, and approximate processing time before confirming.

@@ -37,6 +37,11 @@
 	<string>public.app-category.navigation</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>현재 위치 주변의 흡연구역을 보여주기 위해 위치 권한이 필요합니다.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NUGUL_API_BASE_URL</key>
 	<string>$(NUGUL_API_BASE_URL)</string>
 	<key>UIApplicationSceneManifest</key>

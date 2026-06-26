@@ -155,6 +155,42 @@ public class UserService {
     public Optional<User> getUserByEmail(String email) {
         return userRepository.findByEmail(email);
     }
+
+    @Transactional
+    public User processAppleUser(String appleSubject, String email, String fullName) {
+        if (appleSubject == null || appleSubject.isBlank()) {
+            throw new IllegalArgumentException("Apple 사용자 식별자가 필요합니다.");
+        }
+
+        Optional<User> existingByAppleId = userRepository.findByOauthProviderAndOauthId("apple", appleSubject);
+        if (existingByAppleId.isPresent()) {
+            return existingByAppleId.get();
+        }
+
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("최초 Apple 로그인에는 이메일 동의가 필요합니다.");
+        }
+
+        Optional<User> existingByEmail = getUserByEmail(email);
+        if (existingByEmail.isPresent()) {
+            User existingUser = existingByEmail.get();
+            existingUser.setOauthId(appleSubject);
+            existingUser.setOauthProvider("apple");
+            return userRepository.save(existingUser);
+        }
+
+        String normalizedName = fullName == null || fullName.isBlank() ? null : fullName.trim();
+        User newUser = User.builder()
+                .email(email)
+                .nickname(normalizedName)
+                .profileImage(null)
+                .oauthId(appleSubject)
+                .oauthProvider("apple")
+                .createdAt(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .build();
+
+        return userRepository.save(newUser);
+    }
     
     /**
      * OAuth2 사용자 처리 (생성 또는 업데이트)

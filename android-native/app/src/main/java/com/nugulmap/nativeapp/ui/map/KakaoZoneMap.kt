@@ -35,13 +35,21 @@ import com.kakao.vectormap.label.LabelStyles
 import com.kakao.vectormap.label.LabelTextBuilder
 import com.nugulmap.nativeapp.BuildConfig
 import com.nugulmap.nativeapp.R
+import com.nugulmap.nativeapp.data.dto.HotplaceDto
+import com.nugulmap.nativeapp.data.dto.MapBounds
+import com.nugulmap.nativeapp.data.dto.TrendEventDto
 import com.nugulmap.nativeapp.data.dto.ZoneDto
 
 @Composable
 fun KakaoZoneMap(
     zones: List<ZoneDto>,
+    hotplaces: List<HotplaceDto>,
+    events: List<TrendEventDto>,
     selectedZoneId: Int?,
     onZoneSelected: (Int) -> Unit,
+    onHotplaceSelected: (String) -> Unit,
+    onEventSelected: (String) -> Unit,
+    onVisibleBoundsChanged: (MapBounds) -> Unit,
     modifier: Modifier = Modifier.fillMaxSize(),
 ) {
     if (BuildConfig.KAKAO_NATIVE_APP_KEY.isBlank()) {
@@ -55,6 +63,9 @@ fun KakaoZoneMap(
     val context = LocalContext.current
     val latestZones by rememberUpdatedState(zones)
     val latestOnZoneSelected by rememberUpdatedState(onZoneSelected)
+    val latestOnHotplaceSelected by rememberUpdatedState(onHotplaceSelected)
+    val latestOnEventSelected by rememberUpdatedState(onEventSelected)
+    val latestOnVisibleBoundsChanged by rememberUpdatedState(onVisibleBoundsChanged)
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
     var shouldShowFallback by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -115,9 +126,24 @@ fun KakaoZoneMap(
                     Log.i(KAKAO_MAP_TAG, "Kakao map ready")
                     kakaoMap = map
                     map.setOnLabelClickListener { _, _, label ->
-                        (label.tag as? Int)?.let(latestOnZoneSelected)
+                        when (val tag = label.tag) {
+                            is Int -> latestOnZoneSelected(tag)
+                            is String -> {
+                                when {
+                                    tag.startsWith("hot:") -> latestOnHotplaceSelected(tag.removePrefix("hot:"))
+                                    tag.startsWith("event:") -> latestOnEventSelected(tag.removePrefix("event:"))
+                                }
+                            }
+                        }
                         true
                     }
+                    map.setOnCameraMoveEndListener { movedMap, _, _ ->
+                        movedMap.visibleMapBounds()?.let(latestOnVisibleBoundsChanged)
+                    }
+                    map.setOnViewportChangeListener { changedMap, _ ->
+                        changedMap.visibleMapBounds()?.let(latestOnVisibleBoundsChanged)
+                    }
+                    map.visibleMapBounds()?.let(latestOnVisibleBoundsChanged)
                 }
             },
         )
@@ -140,11 +166,11 @@ fun KakaoZoneMap(
         }
     }
 
-    LaunchedEffect(kakaoMap, zones, selectedZoneId) {
+    LaunchedEffect(kakaoMap, zones, hotplaces, events, selectedZoneId) {
         kakaoMap?.let { map ->
-            runCatching { map.renderZones(zones, selectedZoneId) }
+            runCatching { map.renderMapLabels(zones, hotplaces, events, selectedZoneId) }
                 .onFailure { throwable ->
-                    Log.w(KAKAO_MAP_TAG, "Kakao zone label render failed (${throwable::class.java.simpleName})")
+                    Log.w(KAKAO_MAP_TAG, "Kakao map label render failed (${throwable::class.java.simpleName})")
                 }
         }
     }
@@ -198,12 +224,16 @@ private fun firstZonePosition(zones: List<ZoneDto>): LatLng {
     return LatLng.from(first?.latitude ?: SEOUL_LATITUDE, first?.longitude ?: SEOUL_LONGITUDE)
 }
 
-private fun KakaoMap.renderZones(zones: List<ZoneDto>, selectedZoneId: Int?) {
+private fun KakaoMap.renderMapLabels(
+    zones: List<ZoneDto>,
+    hotplaces: List<HotplaceDto>,
+    events: List<TrendEventDto>,
+    selectedZoneId: Int?,
+) {
     val labelManager = labelManager ?: return
     val layer = labelManager.layer ?: return
     layer.removeAll()
-    if (zones.isEmpty()) {
-        moveCamera(CameraUpdateFactory.newCenterPosition(LatLng.from(SEOUL_LATITUDE, SEOUL_LONGITUDE), 14))
+    if (zones.isEmpty() && hotplaces.isEmpty() && events.isEmpty()) {
         return
     }
 
@@ -223,6 +253,22 @@ private fun KakaoMap.renderZones(zones: List<ZoneDto>, selectedZoneId: Int?) {
                 .setTextStyles(13, AndroidColor.rgb(10, 10, 10), 4, AndroidColor.WHITE),
         ),
     )
+    val hotplaceStyle = labelManager.addLabelStyles(
+        LabelStyles.from(
+            LabelStyle
+                .from(R.drawable.ic_hotplace_marker)
+                .setAnchorPoint(0.5f, 0.5f)
+                .setTextStyles(12, AndroidColor.rgb(36, 36, 36), 3, AndroidColor.WHITE),
+        ),
+    )
+    val eventStyle = labelManager.addLabelStyles(
+        LabelStyles.from(
+            LabelStyle
+                .from(R.drawable.ic_event_marker)
+                .setAnchorPoint(0.5f, 0.5f)
+                .setTextStyles(12, AndroidColor.rgb(36, 36, 36), 3, AndroidColor.WHITE),
+        ),
+    )
 
     zones.forEach { zone ->
         val isSelected = zone.id == selectedZoneId
@@ -235,8 +281,85 @@ private fun KakaoMap.renderZones(zones: List<ZoneDto>, selectedZoneId: Int?) {
         layer.addLabel(options)
     }
 
-    val selected = zones.firstOrNull { it.id == selectedZoneId } ?: zones.first()
-    moveCamera(CameraUpdateFactory.newCenterPosition(LatLng.from(selected.latitude, selected.longitude), 15))
+    hotplaces.take(8).forEach { place ->
+        val options = LabelOptions
+            .from("hot-${place.id}", LatLng.from(place.latitude, place.longitude))
+            .setClickable(true)
+            .setTag("hot:${place.id}")
+            .setStyles(hotplaceStyle)
+            .setTexts(LabelTextBuilder().setTexts(formatHotplaceMapLabel(place)))
+        layer.addLabel(options)
+    }
+
+    events.take(8).forEach { event ->
+        val options = LabelOptions
+            .from("event-${event.id}", LatLng.from(event.latitude, event.longitude))
+            .setClickable(true)
+            .setTag("event:${event.id}")
+            .setStyles(eventStyle)
+            .setTexts(LabelTextBuilder().setTexts(event.title.take(12)))
+        layer.addLabel(options)
+    }
+}
+
+internal fun formatHotplaceMapLabel(place: HotplaceDto): String {
+    val peopleRange = formatCompactPeopleRange(place.estimatedMinPeople, place.estimatedMaxPeople)
+    return if (peopleRange == null) {
+        place.name.take(12)
+    } else {
+        "${place.name.take(8)} $peopleRange"
+    }
+}
+
+private fun formatCompactPeopleRange(minPeople: Int?, maxPeople: Int?): String? {
+    if (minPeople == null || maxPeople == null || minPeople <= 0 || maxPeople <= 0) {
+        return null
+    }
+    return if (minPeople == maxPeople) {
+        formatCompactPeopleCount(minPeople)
+    } else {
+        "${formatCompactPeopleCount(minPeople)}-${formatCompactPeopleCount(maxPeople)}"
+    }
+}
+
+private fun formatCompactPeopleCount(count: Int): String {
+    return if (count >= 10_000) {
+        val value = count / 10_000.0
+        val rounded = kotlin.math.round(value * 10) / 10
+        if (rounded % 1.0 == 0.0) {
+            "${rounded.toInt()}만"
+        } else {
+            "${rounded}만"
+        }
+    } else {
+        "${kotlin.math.max(1, kotlin.math.round(count / 1000.0).toInt())}천"
+    }
+}
+
+private fun KakaoMap.visibleMapBounds(): MapBounds? {
+    val viewport = viewport ?: return null
+    if (viewport.width() <= 0 || viewport.height() <= 0) {
+        return null
+    }
+
+    val points = listOfNotNull(
+        fromScreenPoint(viewport.left, viewport.top),
+        fromScreenPoint(viewport.right, viewport.top),
+        fromScreenPoint(viewport.left, viewport.bottom),
+        fromScreenPoint(viewport.right, viewport.bottom),
+    )
+    if (points.isEmpty()) {
+        return null
+    }
+
+    val latitudes = points.map { it.latitude }
+    val longitudes = points.map { it.longitude }
+    return MapBounds(
+        minLat = latitudes.minOrNull() ?: return null,
+        maxLat = latitudes.maxOrNull() ?: return null,
+        minLng = longitudes.minOrNull() ?: return null,
+        maxLng = longitudes.maxOrNull() ?: return null,
+    )
 }
 
 private const val SEOUL_LATITUDE = 37.5665

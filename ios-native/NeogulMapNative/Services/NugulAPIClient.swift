@@ -15,6 +15,7 @@ enum NugulAPIError: LocalizedError {
     case decodingFailed
     case authCancelled
     case missingToken
+    case appleIdentityUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -33,6 +34,8 @@ enum NugulAPIError: LocalizedError {
             return "로그인이 취소되었습니다."
         case .missingToken:
             return "로그인 토큰을 찾을 수 없습니다."
+        case .appleIdentityUnavailable:
+            return "Apple 로그인 정보를 확인할 수 없습니다."
         }
     }
 }
@@ -157,6 +160,45 @@ struct NugulAPIClient {
         )
     }
 
+    func exchangeAppleIdentityToken(
+        identityToken: String,
+        authorizationCode: String?,
+        fullName: String?
+    ) async throws -> OAuthLoginResult {
+        var request = URLRequest(url: try makeURL(path: "/api/auth/apple/mobile", queryItems: []))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 10
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(AppleMobileLoginRequest(
+            identityToken: identityToken,
+            authorizationCode: authorizationCode,
+            fullName: fullName
+        ))
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NugulAPIError.invalidResponse
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            let serverMessage = try? decoder.decode(ServerErrorPayload.self, from: data)
+            throw NugulAPIError.server(statusCode: httpResponse.statusCode, message: serverMessage?.message)
+        }
+
+        let result = try decoder.decode(APIEnvelope<MobileOAuthExchangePayload>.self, from: data)
+        guard let payload = result.data, !payload.accessToken.isEmpty else {
+            throw NugulAPIError.missingToken
+        }
+
+        return OAuthLoginResult(
+            accessToken: payload.accessToken,
+            refreshToken: payload.refreshToken,
+            profileComplete: payload.profileComplete,
+            email: payload.user?.email
+        )
+    }
+
     func fetchZonesByBounds(_ bounds: MapBounds = .centralSeoul) async throws -> [SmokingZone] {
         let response: APIEnvelope<ZoneCollectionPayload> = try await get(
             path: "/api/zones/bounds",
@@ -169,6 +211,26 @@ struct NugulAPIClient {
         )
 
         return response.data?.zones ?? []
+    }
+
+    func fetchMapInsights(keyword: String? = nil, hotplaceLimit: Int = 8, eventLimit: Int = 8, bounds: MapBounds = .centralSeoul) async throws -> MapInsight {
+        var queryItems = [
+            URLQueryItem(name: "hotplaceLimit", value: String(hotplaceLimit)),
+            URLQueryItem(name: "eventLimit", value: String(eventLimit)),
+            URLQueryItem(name: "minLat", value: String(bounds.minLat)),
+            URLQueryItem(name: "maxLat", value: String(bounds.maxLat)),
+            URLQueryItem(name: "minLng", value: String(bounds.minLng)),
+            URLQueryItem(name: "maxLng", value: String(bounds.maxLng))
+        ]
+        if let keyword, !keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            queryItems.append(URLQueryItem(name: "keyword", value: keyword.trimmingCharacters(in: .whitespacesAndNewlines)))
+        }
+
+        let response: APIEnvelope<MapInsight> = try await get(path: "/api/insights/map", queryItems: queryItems)
+        if response.success == false {
+            throw NugulAPIError.server(statusCode: 200, message: response.message)
+        }
+        return response.data ?? .empty
     }
 
     func searchZones(keyword: String) async throws -> [SmokingZone] {
@@ -277,6 +339,24 @@ struct NugulAPIClient {
         var request = URLRequest(url: try makeURL(path: "/api/zones/\(id)", queryItems: []))
         request.httpMethod = "DELETE"
         request.timeoutInterval = 10
+        applyAuthHeader(accessToken, to: &request)
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NugulAPIError.invalidResponse
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            let serverMessage = try? decoder.decode(ServerErrorPayload.self, from: data)
+            throw NugulAPIError.server(statusCode: httpResponse.statusCode, message: serverMessage?.message)
+        }
+    }
+
+    func deleteCurrentUser(accessToken: String? = AuthTokenStore.loadAccessToken()) async throws {
+        var request = URLRequest(url: try makeURL(path: "/api/users/me", queryItems: []))
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = 10
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         applyAuthHeader(accessToken, to: &request)
 
         let (data, response) = try await session.data(for: request)
@@ -511,6 +591,97 @@ final class OAuthWebSession: NSObject, ASWebAuthenticationPresentationContextPro
     }
 }
 
+final class AppleSignInSession: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private var continuation: CheckedContinuation<AppleCredential, Error>?
+
+    func signIn(authorization: ASAuthorization, apiClient: NugulAPIClient) async throws -> OAuthLoginResult {
+        let credential = try appleCredential(from: authorization)
+        return try await apiClient.exchangeAppleIdentityToken(
+            identityToken: credential.identityToken,
+            authorizationCode: credential.authorizationCode,
+            fullName: credential.fullName
+        )
+    }
+
+    func signIn(apiClient: NugulAPIClient) async throws -> OAuthLoginResult {
+        let credential = try await requestCredential()
+        return try await apiClient.exchangeAppleIdentityToken(
+            identityToken: credential.identityToken,
+            authorizationCode: credential.authorizationCode,
+            fullName: credential.fullName
+        )
+    }
+
+    private func requestCredential() async throws -> AppleCredential {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+
+            let request = ASAuthorizationAppleIDProvider().createRequest()
+            request.requestedScopes = [.fullName, .email]
+
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            controller.delegate = self
+            controller.presentationContextProvider = self
+            controller.performRequests()
+        }
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        defer {
+            continuation = nil
+        }
+
+        do {
+            continuation?.resume(returning: try appleCredential(from: authorization))
+        } catch {
+            continuation?.resume(throwing: error)
+        }
+    }
+
+    private func appleCredential(from authorization: ASAuthorization) throws -> AppleCredential {
+        guard
+            let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+            let identityTokenData = credential.identityToken,
+            let identityToken = String(data: identityTokenData, encoding: .utf8)
+        else {
+            throw NugulAPIError.appleIdentityUnavailable
+        }
+
+        let authorizationCode = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+        let fullName = PersonNameComponentsFormatter().string(from: credential.fullName ?? PersonNameComponents())
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return AppleCredential(
+            identityToken: identityToken,
+            authorizationCode: authorizationCode,
+            fullName: fullName.isEmpty ? nil : fullName
+        )
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        continuation?.resume(throwing: NugulAPIError.authCancelled)
+        continuation = nil
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        #if os(iOS)
+        return UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+            .first ?? ASPresentationAnchor()
+        #elseif os(macOS)
+        return NSApplication.shared.keyWindow ?? ASPresentationAnchor()
+        #else
+        return ASPresentationAnchor()
+        #endif
+    }
+}
+
+private struct AppleCredential {
+    let identityToken: String
+    let authorizationCode: String?
+    let fullName: String?
+}
+
 enum AuthTokenStore {
     private static let service = "com.nugulmap.native.auth"
     private static let accessTokenAccount = "accessToken"
@@ -634,6 +805,12 @@ private struct UserPayload: Decodable {
 private struct MobileOAuthExchangeRequest: Encodable {
     let code: String
     let codeVerifier: String
+}
+
+private struct AppleMobileLoginRequest: Encodable {
+    let identityToken: String
+    let authorizationCode: String?
+    let fullName: String?
 }
 
 private struct MobileOAuthExchangePayload: Decodable {

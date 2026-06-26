@@ -30,11 +30,12 @@
 
 ## iOS
 
-현재 iOS 네이티브 앱은 `MapKit` 기반입니다. Kakao iOS 지도 SDK로 전환하려면 별도 SDK 의존성과 지도 뷰 교체가 필요합니다.
+현재 iOS 네이티브 앱은 `KakaoMapsSDK-SPM` Swift Package와 `KAKAO_NATIVE_APP_KEY` build setting 주입 경로를 사용합니다. 키는 저장소에 커밋하지 않고 Xcode/CI secret 또는 `ios-native/Config/Secrets.xcconfig`에만 둡니다.
 
 1. Kakao Developers > 내 애플리케이션 > 앱 > 플랫폼 키 > Native app key에서 iOS 플랫폼을 등록합니다.
 2. Bundle ID: `com.nugulmap.native`
-3. Kakao iOS SDK 초기화에는 같은 **Native app key**를 사용합니다.
-4. Kakao SDK 로그인/딥링크 기능까지 쓰는 경우에는 Info.plist URL Scheme에 `kakao{NATIVE_APP_KEY}` 형식도 추가해야 합니다.
+3. `ios-native/Config/Secrets.template.xcconfig`를 `Secrets.xcconfig`로 복사하고 `KAKAO_NATIVE_APP_KEY` 값을 채웁니다.
+4. CI/App Store archive에서는 같은 값을 secure build setting 또는 secret 환경으로 주입합니다.
+5. Kakao SDK 로그인/딥링크 기능까지 쓰는 경우에는 Info.plist URL Scheme에 `kakao{NATIVE_APP_KEY}` 형식도 추가해야 합니다.
 
-> 정리: Android는 지금 바로 `KAKAO_NATIVE_APP_KEY`만 채우면 Kakao 지도 SDK 경로를 탑니다. iOS는 아직 MapKit이라 Kakao 지도를 쓰려면 SDK 전환 작업이 추가로 필요합니다.
+> 정리: Android와 iOS 모두 Kakao native app key가 필요합니다. iOS는 SDK 전환 코드가 반영되어 있으므로 남은 작업은 Kakao Developers 플랫폼 등록, secret-safe key 주입, 실제 기기 지도 smoke입니다.
