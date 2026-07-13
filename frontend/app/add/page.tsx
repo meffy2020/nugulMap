@@ -36,7 +36,7 @@ function AddZoneContent() {
   const updateAddress = useCallback((lat: number, lng: number, retryCount = 0) => {
     if (!window.kakao?.maps?.services) {
       if (retryCount < 5) { setTimeout(() => updateAddress(lat, lng, retryCount + 1), 500) }
-      else { setAddress("주소 변환 실패 (API 로드 오류)"); setIsAddressLoading(false) }
+      else { setAddress("주소를 불러오지 못했어요"); setIsAddressLoading(false) }
       return
     }
     setIsAddressLoading(true)

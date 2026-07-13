@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 interface SearchBarProps {
   className?: string
   placeholder?: string
-  onSearch?: (query: string) => void
+  onSearch?: (query: string) => void | Promise<void>
 }
 
 export function SearchBar({ className, placeholder = "장소, 주소 검색...", onSearch }: SearchBarProps) {
@@ -31,17 +31,19 @@ export function SearchBar({ className, placeholder = "장소, 주소 검색...",
     <form 
       onSubmit={handleSubmit} 
       className={cn(
-        "relative flex items-center w-full h-14 bg-background/95 backdrop-blur-md border border-border shadow-lg rounded-2xl px-4 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 group",
+        "relative flex min-w-0 items-center w-full h-14 bg-background/95 backdrop-blur-md border border-border shadow-lg rounded-2xl px-4 transition-all duration-300 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 group",
         className
       )}
     >
-      <Search className="w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+      <label htmlFor="map-search" className="sr-only">장소, 혼잡도 및 행사 검색</label>
+      <Search className="w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" aria-hidden="true" />
       <input
-        type="text"
+        id="map-search"
+        type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
-        className="flex-1 h-full bg-transparent border-none outline-none px-3 text-base text-foreground placeholder:text-muted-foreground/70"
+        className="w-0 min-w-0 flex-1 h-full bg-transparent border-none outline-none px-3 text-base text-foreground placeholder:text-muted-foreground/70"
       />
       {query && (
         <Button
@@ -50,16 +52,17 @@ export function SearchBar({ className, placeholder = "장소, 주소 검색...",
           size="icon"
           className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
           onClick={handleClear}
+          aria-label="검색어 지우기"
         >
-          <X className="w-4 h-4" />
+          <X className="w-4 h-4" aria-hidden="true" />
         </Button>
       )}
-      <div className="w-[1px] h-6 bg-border mx-2" />
+      <div className="w-[1px] h-6 shrink-0 bg-border mx-2" />
       <Button 
         type="submit" 
         variant="ghost" 
         size="sm" 
-        className="text-primary font-bold hover:bg-primary/5"
+        className="shrink-0 px-2 text-primary font-bold hover:bg-primary/5 sm:px-3"
       >
         검색
       </Button>

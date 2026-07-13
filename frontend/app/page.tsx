@@ -14,10 +14,12 @@ import { useToast } from "@/hooks/use-toast"
 import { CalendarDays, Flame, Loader2 } from "lucide-react"
 
 const INSIGHT_SHORTCUTS = [
-  { label: "롯데월드 혼잡도", query: "롯데월드", kind: "hotplace" },
-  { label: "지금 핫한 곳", query: "hot-now", kind: "hotplace" },
-  { label: "성수 팝업", query: "성수", kind: "event" },
+  { label: "롯데월드 혼잡도", query: "롯데월드", kind: "hotplace", showAll: false },
+  { label: "지금 핫한 곳", query: "hot-now", kind: "hotplace", showAll: true },
+  { label: "성수 팝업", query: "성수", kind: "event", showAll: false },
 ] as const
+
+type InsightIntent = "hotplace" | "event"
 
 function HomePageContent() {
   const mapRef = useRef<MapContainerRef>(null)
@@ -46,13 +48,9 @@ function HomePageContent() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords
-          console.log("[v0] Auto-location found:", latitude, longitude)
           if (mapRef.current?.centerOnLocation) {
             mapRef.current.centerOnLocation(latitude, longitude)
           }
-        },
-        (error) => {
-          console.error("[v0] Auto-location error:", error)
         }
       )
     }
@@ -104,17 +102,25 @@ function HomePageContent() {
     mapRef.current?.focusEvent(event)
   }
 
-  const focusFirstInsight = async (query: string, prefer?: "hotplace" | "event") => {
+  const focusFirstInsight = async (query: string, prefer?: InsightIntent, showAll = false) => {
     const insight = await fetchMapInsights(5, 5, undefined, query)
     const hotplace = insight.hotplaces.places[0]
     const event = insight.events.events[0]
 
     if (prefer === "hotplace" && hotplace) {
-      focusHotplace(hotplace)
+      if (showAll) {
+        mapRef.current?.showHotplaceResults(insight.hotplaces)
+      } else {
+        focusHotplace(hotplace)
+      }
       return true
     }
     if (prefer === "event" && event) {
-      focusEvent(event)
+      if (showAll) {
+        mapRef.current?.showEventResults(insight.events)
+      } else {
+        focusEvent(event)
+      }
       return true
     }
     if (event) {
@@ -128,16 +134,22 @@ function HomePageContent() {
     return false
   }
 
-  const handleInsightShortcut = async (query: string, kind: "hotplace" | "event") => {
+  const handleInsightShortcut = async (query: string, kind: InsightIntent, showAll: boolean) => {
     setShortcutLoading(query)
     try {
-      const found = await focusFirstInsight(query, kind)
+      const found = await focusFirstInsight(query, kind, showAll)
       if (!found) {
         toast({
           title: "검색 결과 없음",
           description: "해당 핫플, 행사, 팝업 정보를 찾을 수 없습니다.",
         })
       }
+    } catch (error) {
+      console.error("Insight shortcut failed:", error)
+      toast({
+        title: "정보 갱신 실패",
+        description: "기존 지도 정보는 유지됩니다. 잠시 후 다시 시도해 주세요.",
+      })
     } finally {
       setShortcutLoading(null)
     }
@@ -147,39 +159,28 @@ function HomePageContent() {
     if (!query.trim()) return
 
     try {
-      // 1. 카카오 장소 검색 시도 (일반 목적지 찾기용)
-      if (window.kakao && window.kakao.maps.services) {
-        const ps = new window.kakao.maps.services.Places()
-        ps.keywordSearch(query, async (data: any, status: any) => {
-          if (status === window.kakao.maps.services.Status.OK) {
-            // 가장 연관성 높은 장소로 이동
-            const first = data[0]
-            if (mapRef.current?.centerOnLocation) {
-              mapRef.current.centerOnLocation(parseFloat(first.y), parseFloat(first.x))
-              return // 장소를 찾았으면 여기서 종료 (이지역 흡연구역은 MapContainer가 자동으로 로드함)
-            }
-          }
-
-          // 2. 카카오 결과가 없거나 실패 시 너굴맵 데이터 검색
-          const found = await searchNugulData(query)
-          if (!found) {
-            toast({
-              title: "검색 결과 없음",
-              description: "해당 위치, 흡연구역, 핫플, 행사를 찾을 수 없습니다.",
-            })
-          }
-        })
-      } else {
-        const found = await searchNugulData(query)
-        if (!found) {
-          toast({
-            title: "검색 결과 없음",
-            description: "해당 위치, 흡연구역, 핫플, 행사를 찾을 수 없습니다.",
-          })
-        }
+      const insightIntent = detectInsightIntent(query)
+      if (insightIntent) {
+        const insightQuery = normalizeInsightQuery(query, insightIntent)
+        const found = await focusFirstInsight(insightQuery, insightIntent, true)
+        if (!found) showSearchEmptyToast(toast)
+        return
       }
+
+      const kakaoPlace = await findKakaoPlace(query)
+      if (kakaoPlace) {
+        mapRef.current?.centerOnLocation(kakaoPlace.latitude, kakaoPlace.longitude)
+        return
+      }
+
+      const found = await searchNugulData(query)
+      if (!found) showSearchEmptyToast(toast)
     } catch (err) {
       console.error("Search failed:", err)
+      toast({
+        title: "검색 실패",
+        description: "기존 지도 정보는 유지됩니다. 잠시 후 다시 시도해 주세요.",
+      })
     }
   }
 
@@ -191,7 +192,7 @@ function HomePageContent() {
         <div className="bg-white/80 backdrop-blur-md border-b">
           <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
           <div className="px-4 h-16 flex items-center gap-3 max-w-5xl mx-auto w-full">
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <SearchBar onSearch={handleSearch} />
             </div>
             <div className="shrink-0">
@@ -205,7 +206,8 @@ function HomePageContent() {
                 type="button"
                 className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-white/80 bg-white px-3 text-xs font-black text-zinc-700 shadow-sm transition hover:text-zinc-950 disabled:opacity-60"
                 disabled={shortcutLoading !== null}
-                onClick={() => handleInsightShortcut(shortcut.query, shortcut.kind)}
+                onClick={() => handleInsightShortcut(shortcut.query, shortcut.kind, shortcut.showAll)}
+                aria-busy={shortcutLoading === shortcut.query}
               >
                 {shortcut.kind === "hotplace" ? <Flame className="h-3.5 w-3.5 text-orange-600" /> : <CalendarDays className="h-3.5 w-3.5 text-sky-700" />}
                 <span>{shortcutLoading === shortcut.query ? "확인 중" : shortcut.label}</span>
@@ -238,6 +240,58 @@ function HomePageContent() {
       </div>
     </div>
   )
+}
+
+function detectInsightIntent(query: string): InsightIntent | null {
+  const normalized = query.toLowerCase()
+  if (/팝업|행사|축제|페스티벌|언제\s*부터|언제\s*까지/.test(normalized)) {
+    return "event"
+  }
+  if (/혼잡|붐비|붐벼|사람\s*많|인파|hot[-_\s]?now|지금\s*핫/.test(normalized)) {
+    return "hotplace"
+  }
+  return null
+}
+
+function normalizeInsightQuery(query: string, intent: InsightIntent): string {
+  if (intent === "hotplace" && /어디/.test(query)) {
+    return "hot-now"
+  }
+  if (intent === "event") {
+    const normalized = query
+      .replace(/언제\s*부터|언제\s*까지/g, " ")
+      .replace(/[?？!！]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+    return normalized || "팝업 행사"
+  }
+  return query
+}
+
+function findKakaoPlace(query: string): Promise<{ latitude: number; longitude: number } | null> {
+  if (!window.kakao?.maps?.services) {
+    return Promise.resolve(null)
+  }
+
+  return new Promise((resolve) => {
+    const places = new window.kakao.maps.services.Places()
+    places.keywordSearch(query, (data: any[], status: string) => {
+      if (status !== window.kakao.maps.services.Status.OK || !data?.[0]) {
+        resolve(null)
+        return
+      }
+      const latitude = Number.parseFloat(data[0].y)
+      const longitude = Number.parseFloat(data[0].x)
+      resolve(Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null)
+    })
+  })
+}
+
+function showSearchEmptyToast(showToast: (message: { title: string; description: string }) => unknown) {
+  showToast({
+    title: "검색 결과 없음",
+    description: "해당 위치, 흡연구역, 혼잡도, 행사를 찾을 수 없습니다.",
+  })
 }
 
 export default function HomePage() {

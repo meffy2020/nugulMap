@@ -38,7 +38,6 @@ export const FixedPinMap = forwardRef<FixedPinMapRef, FixedPinMapProps>(({
   // Initialize Map
   const initializeMap = () => {
     if (!window.kakao?.maps || !mapContainerRef.current) {
-      console.warn("[v0] Kakao maps not loaded yet or container missing")
       return
     }
 
@@ -51,7 +50,6 @@ export const FixedPinMap = forwardRef<FixedPinMapRef, FixedPinMapProps>(({
 
     const map = new window.kakao.maps.Map(mapContainerRef.current, options)
     mapRef.current = map
-    console.log("[v0] Kakao Map initialized successfully")
     if (onMapLoad) onMapLoad(map)
 
     // Event Listeners
@@ -85,7 +83,6 @@ export const FixedPinMap = forwardRef<FixedPinMapRef, FixedPinMapProps>(({
         src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAOMAP_APIKEY}&libraries=services&autoload=false`}
         strategy="afterInteractive"
         onLoad={() => {
-          console.log("[v0] Kakao Script Loaded")
           window.kakao.maps.load(() => {
             initializeMap()
           })

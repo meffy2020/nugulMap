@@ -15,6 +15,8 @@ export interface SmokingZone {
   imageUrl?: string | null
 }
 
+export type HotplaceFreshnessStatus = "CURRENT" | "DELAYED" | "STATIC" | "UNKNOWN" | "STALE"
+
 export interface Hotplace {
   id: string
   name: string
@@ -29,6 +31,8 @@ export interface Hotplace {
   source: string
   sourcePlaceCode: string
   updatedAt: string | null
+  freshnessStatus: HotplaceFreshnessStatus
+  ageSeconds: number | null
 }
 
 export interface HotplaceInsight {
@@ -51,6 +55,8 @@ export interface TrendEvent {
   imageUrl: string | null
   source: string
   sourceContentId: string
+  detailUrl: string | null
+  collectedAt: string | null
 }
 
 export interface EventInsight {
@@ -98,6 +104,10 @@ export interface InsightProviderStatus {
   detail: string
 }
 
+export interface FetchMapInsightsOptions {
+  signal?: AbortSignal
+}
+
 // Zone 생성 시 요청 DTO에 맞는 타입 정의
 export type CreateZonePayload = Omit<SmokingZone, "id" | "image">
 
@@ -108,50 +118,19 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
     ? "https://api.nugulmap.com"
     : "http://nginx"
 
-const MOCK_ZONES: SmokingZone[] = [
-  {
-    id: 1,
-    region: "서울특별시",
-    type: "실외",
-    subtype: "공원",
-    description: "시청 앞 광장 흡연구역",
-    latitude: 37.5665,
-    longitude: 126.978,
-    address: "서울특별시 중구 태평로1가 31",
-    user: "관리자",
-    image: null,
-  },
-  {
-    id: 2,
-    region: "서울특별시",
-    type: "실외",
-    subtype: "거리",
-    description: "광화문 광장 흡연구역",
-    latitude: 37.572,
-    longitude: 126.9769,
-    address: "서울특별시 종로구 세종로",
-    user: "관리자",
-    image: null,
-  },
-]
-
 export async function fetchZones(minLat: number, maxLat: number, minLng: number, maxLng: number): Promise<SmokingZone[]> {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/zones/bounds?minLat=${minLat}&maxLat=${maxLat}&minLng=${minLng}&maxLng=${maxLng}`,
-    )
-    if (!response.ok) throw new Error("Network response was not ok")
-    
-    const result = await response.json()
-    // 백엔드가 { success, data: { zones: [...] } } 형태임을 보장
-    if (result.success && result.data && Array.isArray(result.data.zones)) {
-      return result.data.zones
-    }
-    return []
-  } catch (error) {
-    console.error("Error fetching zones:", error)
-    return []
+  const response = await fetch(
+    `${API_BASE_URL}/api/zones/bounds?minLat=${minLat}&maxLat=${maxLat}&minLng=${minLng}&maxLng=${maxLng}`,
+  )
+  if (!response.ok) {
+    throw new Error(`Zone request failed: ${response.status}`)
   }
+
+  const result = await response.json()
+  if (result.success && result.data && Array.isArray(result.data.zones)) {
+    return result.data.zones
+  }
+  throw new Error("Zone response format is invalid")
 }
 
 export async function fetchMapInsights(
@@ -159,50 +138,71 @@ export async function fetchMapInsights(
   eventLimit = 8,
   bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number },
   keyword?: string,
+  options: FetchMapInsightsOptions = {},
 ): Promise<MapInsight> {
-  try {
-    const params = new URLSearchParams({
-      hotplaceLimit: String(hotplaceLimit),
-      eventLimit: String(eventLimit),
-    })
-    if (keyword?.trim()) {
-      params.set("keyword", keyword.trim())
-    }
-    if (bounds) {
-      params.set("minLat", String(bounds.minLat))
-      params.set("maxLat", String(bounds.maxLat))
-      params.set("minLng", String(bounds.minLng))
-      params.set("maxLng", String(bounds.maxLng))
-    }
+  const params = new URLSearchParams({
+    hotplaceLimit: String(hotplaceLimit),
+    eventLimit: String(eventLimit),
+  })
+  if (keyword?.trim()) {
+    params.set("keyword", keyword.trim())
+  }
+  if (bounds) {
+    params.set("minLat", String(bounds.minLat))
+    params.set("maxLat", String(bounds.maxLat))
+    params.set("minLng", String(bounds.minLng))
+    params.set("maxLng", String(bounds.maxLng))
+  }
 
-    const response = await fetch(`${API_BASE_URL}/api/insights/map?${params.toString()}`)
-    if (!response.ok) throw new Error("Network response was not ok")
-    const result = await response.json()
-    const data = result?.data || {}
-    return {
-      hotplaces: {
-        places: Array.isArray(data.hotplaces?.places) ? data.hotplaces.places : [],
-        dataFreshness: data.hotplaces?.dataFreshness || "UNAVAILABLE",
-        updatedAt: data.hotplaces?.updatedAt || "",
-        sources: Array.isArray(data.hotplaces?.sources) ? data.hotplaces.sources : [],
-      },
-      events: {
-        events: Array.isArray(data.events?.events) ? data.events.events : [],
-        dataFreshness: data.events?.dataFreshness || "UNAVAILABLE",
-        updatedAt: data.events?.updatedAt || "",
-        sources: Array.isArray(data.events?.sources) ? data.events.sources : [],
-      },
-      status: data.status || null,
-      updatedAt: data.updatedAt || "",
-    }
-  } catch (error) {
-    console.error("Error fetching map insights:", error)
-    return {
-      hotplaces: { places: [], dataFreshness: "UNAVAILABLE", updatedAt: "", sources: [] },
-      events: { events: [], dataFreshness: "UNAVAILABLE", updatedAt: "", sources: [] },
-      status: null,
-      updatedAt: "",
-    }
+  const response = await fetch(`${API_BASE_URL}/api/insights/map?${params.toString()}`, {
+    cache: "no-store",
+    signal: options.signal,
+  })
+  if (!response.ok) throw new Error(`Map insights request failed: ${response.status}`)
+
+  const result = await response.json()
+  const data = result?.data || {}
+  return {
+    hotplaces: {
+      places: Array.isArray(data.hotplaces?.places) ? data.hotplaces.places.map(normalizeHotplace) : [],
+      dataFreshness: data.hotplaces?.dataFreshness || "UNAVAILABLE",
+      updatedAt: data.hotplaces?.updatedAt || "",
+      sources: Array.isArray(data.hotplaces?.sources) ? data.hotplaces.sources : [],
+    },
+    events: {
+      events: Array.isArray(data.events?.events) ? data.events.events.map(normalizeTrendEvent) : [],
+      dataFreshness: data.events?.dataFreshness || "UNAVAILABLE",
+      updatedAt: data.events?.updatedAt || "",
+      sources: Array.isArray(data.events?.sources) ? data.events.sources : [],
+    },
+    status: data.status || null,
+    updatedAt: data.updatedAt || "",
+  }
+}
+
+function normalizeHotplace(value: Record<string, unknown>): Hotplace {
+  const source = typeof value.source === "string" ? value.source : ""
+  const supportedStatuses: HotplaceFreshnessStatus[] = ["CURRENT", "DELAYED", "STATIC", "UNKNOWN", "STALE"]
+  const rawStatus = typeof value.freshnessStatus === "string" ? value.freshnessStatus.toUpperCase() : ""
+  const freshnessStatus = supportedStatuses.includes(rawStatus as HotplaceFreshnessStatus)
+    ? rawStatus as HotplaceFreshnessStatus
+    : source.startsWith("STATIC") ? "STATIC" : "UNKNOWN"
+  const ageSeconds = typeof value.ageSeconds === "number" && Number.isFinite(value.ageSeconds)
+    ? Math.max(0, value.ageSeconds)
+    : null
+
+  return {
+    ...(value as unknown as Hotplace),
+    freshnessStatus,
+    ageSeconds,
+  }
+}
+
+function normalizeTrendEvent(value: Record<string, unknown>): TrendEvent {
+  return {
+    ...(value as unknown as TrendEvent),
+    detailUrl: typeof value.detailUrl === "string" ? value.detailUrl : null,
+    collectedAt: typeof value.collectedAt === "string" ? value.collectedAt : null,
   }
 }
 
@@ -213,35 +213,26 @@ export async function fetchMapInsights(
  * @returns 생성된 SmokingZone 객체
  */
 export async function createZone(zoneData: CreateZonePayload, imageFile?: File): Promise<SmokingZone> {
-  try {
-    const formData = new FormData()
+  const formData = new FormData()
 
-    formData.append("data", new Blob([JSON.stringify(zoneData)], { type: "application/json" }))
+  formData.append("data", new Blob([JSON.stringify(zoneData)], { type: "application/json" }))
 
-    if (imageFile) {
-      formData.append("image", imageFile)
-    }
-
-    const response = await fetch(`${API_BASE_URL}/api/zones`, {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    })
-
-    if (!response.ok) {
-      throw new Error(`API call failed: ${response.status}`)
-    }
-
-    return response.json()
-  } catch (err) {
-    console.warn("[v0] 백엔드 API 연결 실패. 임시 객체를 반환합니다:", err)
-    // 임시 ID로 새 객체 생성
-    return {
-      id: Date.now(),
-      ...zoneData,
-      image: null,
-    }
+  if (imageFile) {
+    formData.append("image", imageFile)
   }
+
+  const response = await fetch(`${API_BASE_URL}/api/zones`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  })
+
+  const result = await response.json().catch(() => null)
+  if (!response.ok || result?.success !== true || !result?.data?.zone) {
+    throw new Error(result?.message || "흡연구역 등록에 실패했습니다.")
+  }
+
+  return result.data.zone
 }
 
 // ----------------------------------------------------------------------------
@@ -341,6 +332,17 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
   } catch (err) {
     console.error("Failed to get current user:", err)
     return null
+  }
+}
+
+export async function logoutCurrentUser(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  })
+
+  if (!response.ok) {
+    throw new Error(`Logout failed: ${response.status}`)
   }
 }
 

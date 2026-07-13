@@ -1,13 +1,13 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react"
-import { getCurrentUser, type UserProfile } from "@/lib/api"
+import { getCurrentUser, logoutCurrentUser, type UserProfile } from "@/lib/api"
 
 interface AuthContextType {
   user: UserProfile | null
   isLoading: boolean
   login: () => void
-  logout: () => void
+  logout: () => Promise<void>
   refreshUser: () => Promise<void>
 }
 
@@ -39,12 +39,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = `${backendUrl}/api/oauth2/authorization/kakao`
   }
 
-  const logout = () => {
-    // 백엔드 로그아웃 API 호출이 필요할 수 있으나, 일단 클라이언트 쿠키 만료 유도
-    document.cookie = "accessToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;"
-    document.cookie = "refreshToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;"
-    setUser(null)
-    window.location.href = "/"
+  const logout = async () => {
+    try {
+      await logoutCurrentUser()
+      setUser(null)
+      window.location.href = "/"
+    } catch {
+      window.alert("로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+    }
   }
 
   return (

@@ -160,12 +160,12 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
             })
           }
         },
-        (error) => {
-          console.error("[v0] Location error:", error)
+        () => {
+          setError("현재 위치를 확인하지 못했습니다.")
         },
       )
-    } catch (error) {
-      console.error("[v0] Location error:", error)
+    } catch {
+      setError("현재 위치를 확인하지 못했습니다.")
     }
   }
 
@@ -179,8 +179,7 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
         streamRef.current = stream
       }
       setShowCamera(true)
-    } catch (err) {
-      console.error("[v0] Camera access denied:", err)
+    } catch {
       alert("카메라 접근 권한이 필요합니다.")
     }
   }
@@ -253,7 +252,6 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
       }
 
       const newZone = await createZone(zonePayload, imageFile || undefined)
-      console.log("[v0] Zone created successfully:", newZone)
 
       setShowSuccess(true)
       onZoneCreated?.(newZone)
@@ -263,7 +261,6 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
         handleCancel()
       }, 1000)
     } catch (err) {
-      console.error("[v0] Error creating zone:", err)
       setError(err instanceof Error ? err.message : "흡연구역 생성에 실패했습니다.")
     } finally {
       setIsLoading(false)
@@ -296,9 +293,7 @@ export function AddLocationModal({ isOpen, onClose, onZoneCreated }: AddLocation
         strategy="beforeInteractive"
         onLoad={() => {
           if (window.kakao?.maps) {
-            window.kakao.maps.load(() => {
-              console.log("[v0] Kakao Maps loaded")
-            })
+            window.kakao.maps.load(() => undefined)
           }
         }}
       />
