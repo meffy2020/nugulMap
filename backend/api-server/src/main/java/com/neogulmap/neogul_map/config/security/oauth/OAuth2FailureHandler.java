@@ -30,33 +30,27 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
                                         HttpServletResponse response, 
                                         AuthenticationException exception) throws IOException, ServletException {
         
-        log.error("OAuth2 인증 실패: {}", exception.getMessage());
+        log.warn("OAuth2 인증 실패: {}", exception.getClass().getSimpleName());
         
-        // 1. 쿠키 정리
+        // 세션의 redirect metadata는 정리 전에 읽어야 한다.
+        String targetUrl = isJsonRequest(request) ? null : determineTargetUrl(request);
         authorizationRequestRepository.removeAuthorizationRequest(request, response);
-        
-        // 2. JSON 요청 처리 (Postman이나 앱 테스트용)
+
+        // JSON 요청 처리 (Postman이나 앱 테스트용)
         if (isJsonRequest(request)) {
-            sendJsonResponse(response, exception);
+            sendJsonResponse(response);
             return;
         }
         
-        // 3. 리다이렉트 URL 결정
-        String targetUrl = determineTargetUrl(request, exception);
+        log.info("OAuth2 실패 리다이렉트 실행");
         
-        log.info("OAuth2 실패 리다이렉트 실행: {}", targetUrl);
-        
-        // 4. 리다이렉트 실행
+        // 리다이렉트 실행
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 
-    private String determineTargetUrl(HttpServletRequest request, AuthenticationException exception) {
+    private String determineTargetUrl(HttpServletRequest request) {
         String mobileTarget = redirectUrlResolver.resolveRedirectUri(request)
-                .map(redirectUri -> UriComponentsBuilder.fromUriString(redirectUri)
-                        .queryParam("error", exception.getLocalizedMessage())
-                        .build()
-                        .encode(StandardCharsets.UTF_8)
-                        .toUriString())
+                .map(redirectUri -> buildMobileFailureUrl(request, redirectUri))
                 .orElse(null);
         if (mobileTarget != null) {
             return mobileTarget;
@@ -73,10 +67,21 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
         // 에러 페이지 경로 설정
         // 성공 핸들러에서 썼던 UriComponentsBuilder.fromUriString 사용 (deprecated 회피)
         return UriComponentsBuilder.fromUriString(baseUrl + "/test/oauth2/failure")
-                .queryParam("error", exception.getLocalizedMessage())
+                .queryParam("error", "oauth2_authentication_failed")
                 .build()
                 .encode(StandardCharsets.UTF_8)
                 .toUriString();
+    }
+
+    private String buildMobileFailureUrl(HttpServletRequest request, String redirectUri) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(redirectUri)
+                .queryParam("error", "oauth2_authentication_failed");
+        authorizationRequestRepository.getClientState(request)
+                .ifPresent(clientState -> builder.queryParam(
+                        OAuth2AuthorizationRequestBasedOnCookieRepository.CLIENT_STATE_PARAM_NAME,
+                        clientState
+                ));
+        return builder.build().encode(StandardCharsets.UTF_8).toUriString();
     }
 
     private boolean isJsonRequest(HttpServletRequest request) {
@@ -84,12 +89,12 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
         return acceptHeader != null && acceptHeader.contains("application/json");
     }
 
-    private void sendJsonResponse(HttpServletResponse response, AuthenticationException exception) throws IOException {
+    private void sendJsonResponse(HttpServletResponse response) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(String.format(
-            "{\"success\":false,\"message\":\"OAuth2 인증 실패\",\"error\":\"%s\"}",
-            exception.getMessage()
-        ));
+        response.getWriter().write(
+                "{\"success\":false,\"message\":\"OAuth2 인증 실패\","
+                        + "\"error\":\"oauth2_authentication_failed\"}"
+        );
     }
 }

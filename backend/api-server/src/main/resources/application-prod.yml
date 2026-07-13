@@ -1,0 +1,119 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  h2:
+    console:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.MySQLDialect
+  sql:
+    init:
+      mode: never
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+          naver:
+            client-id: ${NAVER_CLIENT_ID}
+            client-secret: ${NAVER_CLIENT_SECRET}
+
+app:
+  swagger:
+    enabled: false
+  oauth:
+    mobile-code-required: true
+  oauth2:
+    apple:
+      client-id: ${APPLE_CLIENT_ID}
+      revocation:
+        enabled: true
+        team-id: ${APPLE_TEAM_ID}
+        key-id: ${APPLE_KEY_ID}
+        private-key-base64: ${APPLE_PRIVATE_KEY_BASE64}
+        token-encryption-key: ${APPLE_TOKEN_ENCRYPTION_KEY}
+  cookie:
+    secure: true
+    same-site: Lax
+  test-endpoints:
+    enabled: false
+  security:
+    csrf:
+      enabled: true
+    sensitive-rate-limit:
+      enabled: true
+      requests-per-window: 30
+      window-seconds: 60
+      max-tracked-clients: 10000
+    public-zone-rate-limit:
+      enabled: true
+      requests-per-window: 240
+      window-seconds: 60
+      max-tracked-clients: 10000
+  moderation:
+    operator-key: ${MODERATION_OPERATOR_KEY}
+    closed-report-retention-days: 30
+    closed-report-purge-cron: "0 45 3 * * *"
+  support:
+    closed-request-retention-days: 30
+    closed-request-purge-cron: "0 30 3 * * *"
+
+jwt:
+  secret: ${JWT_SECRET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+server:
+  servlet:
+    session:
+      timeout: 10m
+      cookie:
+        http-only: true
+        secure: true
+        same-site: lax
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+
+logging:
+  level:
+    root: INFO
+    com.neogulmap.neogul_map: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+
+external:
+  insights:
+    hotplace-warmup:
+      enabled: true
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

@@ -106,6 +106,16 @@ server:
 
 # 앱 설정
 app:
+  swagger:
+    enabled: ${APP_SWAGGER_ENABLED:true}
+  insights:
+    public-rate-limit:
+      # X-Forwarded-For는 여기서 직접 신뢰하지 않고 servlet container의 trusted-proxy 해석 결과만 사용합니다.
+      requests-per-window: ${APP_INSIGHTS_RATE_LIMIT_REQUESTS_PER_WINDOW:120}
+      window-seconds: ${APP_INSIGHTS_RATE_LIMIT_WINDOW_SECONDS:60}
+      max-tracked-clients: ${APP_INSIGHTS_RATE_LIMIT_MAX_TRACKED_CLIENTS:10000}
+  oauth:
+    mobile-code-required: ${APP_OAUTH_MOBILE_CODE_REQUIRED:false}
   image:
     upload-base-path: ${UPLOAD_DIR:uploads}  # 업로드 기본 경로 (환경 변수로 오버라이드 가능)
     max-size: 10485760  # 10MB in bytes
@@ -134,13 +144,41 @@ app:
       url: /oauth2/authorization/naver
     apple:
       client-id: ${APPLE_CLIENT_ID:com.nugulmap.native}
+      revocation:
+        enabled: ${APPLE_REVOCATION_ENABLED:false}
+        team-id: ${APPLE_TEAM_ID:}
+        key-id: ${APPLE_KEY_ID:}
+        private-key: ${APPLE_PRIVATE_KEY:}
+        private-key-base64: ${APPLE_PRIVATE_KEY_BASE64:}
+        token-encryption-key: ${APPLE_TOKEN_ENCRYPTION_KEY:}
+        token-endpoint: https://appleid.apple.com/auth/token
+        revoke-endpoint: https://appleid.apple.com/auth/revoke
+  moderation:
+    contact-email: ${MODERATION_CONTACT_EMAIL:}
+    operator-key: ${MODERATION_OPERATOR_KEY:}
+    blocked-terms: ${MODERATION_BLOCKED_TERMS:씨발,시발,개새끼,병신,좆,fuck}
+    closed-report-retention-days: ${MODERATION_REPORT_RETENTION_DAYS:30}
+    closed-report-purge-cron: ${MODERATION_REPORT_PURGE_CRON:0 45 3 * * *}
+  support:
+    closed-request-retention-days: ${SUPPORT_REQUEST_RETENTION_DAYS:30}
+    closed-request-purge-cron: ${SUPPORT_REQUEST_PURGE_CRON:0 30 3 * * *}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:3000,http://nugulmap.com,https://nugulmap.com,https://www.nugulmap.com}  # 운영 도메인 추가
-    allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}
+    allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,PATCH,DELETE,OPTIONS}
     allowed-headers: ${APP_CORS_ALLOWED_HEADERS:*}
   security:
     csrf:
       enabled: ${APP_SECURITY_CSRF_ENABLED:false}  # OAuth2와 JWT 사용 시 CSRF 비활성화
+    sensitive-rate-limit:
+      enabled: ${APP_SECURITY_SENSITIVE_RATE_LIMIT_ENABLED:true}
+      requests-per-window: ${APP_SECURITY_SENSITIVE_RATE_LIMIT_REQUESTS_PER_WINDOW:30}
+      window-seconds: ${APP_SECURITY_SENSITIVE_RATE_LIMIT_WINDOW_SECONDS:60}
+      max-tracked-clients: ${APP_SECURITY_SENSITIVE_RATE_LIMIT_MAX_TRACKED_CLIENTS:10000}
+    public-zone-rate-limit:
+      enabled: ${APP_SECURITY_PUBLIC_ZONE_RATE_LIMIT_ENABLED:true}
+      requests-per-window: ${APP_SECURITY_PUBLIC_ZONE_RATE_LIMIT_REQUESTS_PER_WINDOW:240}
+      window-seconds: ${APP_SECURITY_PUBLIC_ZONE_RATE_LIMIT_WINDOW_SECONDS:60}
+      max-tracked-clients: ${APP_SECURITY_PUBLIC_ZONE_RATE_LIMIT_MAX_TRACKED_CLIENTS:10000}
   test-endpoints:
     enabled: ${APP_TEST_ENDPOINTS_ENABLED:false}  # 운영에서는 /api/test/** 비활성화
 
@@ -150,3 +188,33 @@ jwt:
   token-validity-in-seconds: 7200  # 2시간
   expiration: 86400000  # 24시간
   refresh-expiration: 604800000  # 7일
+
+external:
+  seoul:
+    culture-api-page-size: ${SEOUL_CULTURE_API_PAGE_SIZE:1000}
+    culture-api-max-pages: ${SEOUL_CULTURE_API_MAX_PAGES:25}
+  insights:
+    cache-ttl-seconds: ${INSIGHTS_CACHE_TTL_SECONDS:300}
+    event-cache-ttl-seconds: ${INSIGHTS_EVENT_CACHE_TTL_SECONDS:86400}
+    provider-failure-cooldown-seconds: ${INSIGHTS_PROVIDER_FAILURE_COOLDOWN_SECONDS:60}
+    provider-circuit-failure-threshold: ${INSIGHTS_PROVIDER_CIRCUIT_FAILURE_THRESHOLD:3}
+    hotplace-warmup:
+      enabled: ${INSIGHTS_HOTPLACE_WARMUP_ENABLED:true}
+      initial-delay-ms: ${INSIGHTS_HOTPLACE_WARMUP_INITIAL_DELAY_MS:0}
+      interval-ms: ${INSIGHTS_HOTPLACE_WARMUP_INTERVAL_MS:300000}
+      max-concurrency: ${INSIGHTS_HOTPLACE_WARMUP_MAX_CONCURRENCY:4}
+    event-warmup:
+      enabled: ${INSIGHTS_EVENT_WARMUP_ENABLED:true}
+      initial-delay-ms: ${INSIGHTS_EVENT_WARMUP_INITIAL_DELAY_MS:0}
+      interval-ms: ${INSIGHTS_EVENT_WARMUP_INTERVAL_MS:86400000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true

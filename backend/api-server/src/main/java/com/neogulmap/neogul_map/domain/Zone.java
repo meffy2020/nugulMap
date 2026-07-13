@@ -1,5 +1,6 @@
 package com.neogulmap.neogul_map.domain;
 
+import com.neogulmap.neogul_map.domain.enums.ZonePublicationStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -69,6 +70,11 @@ public class Zone {
 
     @Column(length = 255)
     private String image;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "publication_status", nullable = false, length = 20)
+    private ZonePublicationStatus publicationStatus = ZonePublicationStatus.PUBLISHED;
 
     public void update(com.neogulmap.neogul_map.dto.ZoneRequest request) {
         if (request.getRegion() != null) this.region = request.getRegion();

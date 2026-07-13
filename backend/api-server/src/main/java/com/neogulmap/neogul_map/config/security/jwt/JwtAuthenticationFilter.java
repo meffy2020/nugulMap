@@ -40,9 +40,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(jwt)) {
                 log.debug("JWT 토큰 발견 - URI: {}", request.getRequestURI());
                 
-                if (tokenProvider.validToken(jwt)) {
+                if (tokenProvider.validAccessToken(jwt)) {
                 String email = tokenProvider.getEmailFromToken(jwt);
-                    log.debug("JWT 토큰 유효 - Email: {}, URI: {}", email, request.getRequestURI());
+                    log.debug("JWT 토큰 유효 - URI: {}", request.getRequestURI());
                 
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
                 
@@ -52,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                        log.debug("인증 설정 완료 - Email: {}, URI: {}", email, request.getRequestURI());
+                        log.debug("인증 설정 완료 - URI: {}", request.getRequestURI());
                     }
                 } else {
                     log.debug("JWT 토큰 유효하지 않음 - URI: {}", request.getRequestURI());

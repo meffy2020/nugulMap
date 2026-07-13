@@ -7,8 +7,8 @@ REPO_ROOT="$(cd "$API_ROOT/../.." && pwd)"
 
 API_PORT="${API_PORT:-18080}"
 MOCK_PORT="${MOCK_PORT:-18081}"
-POPUP_TRENDS_FILE="${POPUP_TRENDS_FILE:-$REPO_ROOT/backend/data-scripts/data/popup-trends.json}"
-LOG_DIR="${LOG_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/season2-mock-live.XXXXXX")}"
+LOG_DIR="${LOG_DIR:-$(mktemp -d "${TMPDIR:-/tmp}/season3-mock-live.XXXXXX")}"
+POPUP_TRENDS_FILE="${POPUP_TRENDS_FILE:-$LOG_DIR/popup-trends.json}"
 MOCK_LOG="$LOG_DIR/mock-telecom-crowd.log"
 API_LOG="$LOG_DIR/api-server.log"
 
@@ -65,6 +65,17 @@ python3 "$SCRIPT_DIR/mock-telecom-crowd-api.py" --port "$MOCK_PORT" >"$MOCK_LOG"
 mock_pid="$!"
 wait_for_url "http://127.0.0.1:$MOCK_PORT/health" "mock TELECOM_CROWD"
 
+SEOUL_CULTURE_API_KEY=culture-key \
+SEOUL_CULTURE_API_BASE_URL="http://127.0.0.1:$MOCK_PORT" \
+SEOUL_CULTURE_API_PAGE_SIZE=5 \
+SEOUL_CULTURE_API_MAX_PAGES=2 \
+NUGULMAP_ALLOW_PRIVATE_TEST_HOSTS=true \
+python3 "$REPO_ROOT/backend/data-scripts/scripts/collect_popup_trends.py" \
+  --config "$REPO_ROOT/backend/data-scripts/config/popup_trend_sources.mock.json" \
+  --output "$POPUP_TRENDS_FILE" \
+  --timeout 5 \
+  --min-records 1
+
 (
   cd "$REPO_ROOT"
   POPUP_TRENDS_FILE="$POPUP_TRENDS_FILE" \
@@ -91,7 +102,8 @@ wait_for_url "http://127.0.0.1:$MOCK_PORT/health" "mock TELECOM_CROWD"
   TELECOM_CROWD_URL_TEMPLATE="http://127.0.0.1:$MOCK_PORT/crowd?place={placeId}&area={seoulAreaCode}&name={placeName}" \
   SEOUL_CULTURE_API_KEY=culture-key \
   SEOUL_CULTURE_API_BASE_URL="http://127.0.0.1:$MOCK_PORT" \
-  SEOUL_CULTURE_API_END_INDEX=5 \
+  SEOUL_CULTURE_API_PAGE_SIZE=5 \
+  SEOUL_CULTURE_API_MAX_PAGES=2 \
   ./gradlew bootRun --args="--server.port=$API_PORT"
 ) >"$API_LOG" 2>&1 &
 api_pid="$!"
@@ -103,4 +115,4 @@ wait_for_url "http://127.0.0.1:$API_PORT/api/insights/map" "NugulMap API"
   --require-live \
   --include-map-bootstrap
 
-echo "OK season2 mock live smoke passed"
+echo "OK season3 mock live smoke passed"

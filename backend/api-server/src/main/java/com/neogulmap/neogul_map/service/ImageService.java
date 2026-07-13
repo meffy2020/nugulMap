@@ -267,8 +267,7 @@ public class ImageService {
             throw new ProfileImageProcessingException("파일명이 필요합니다");
         }
         
-        log.info("이미지 검증 성공: {} (크기: {} bytes, 타입: {})", 
-                originalFilename, image.getSize(), contentType);
+        log.debug("이미지 검증 성공 (크기: {} bytes, 타입: {})", image.getSize(), contentType);
     }
     
     /**

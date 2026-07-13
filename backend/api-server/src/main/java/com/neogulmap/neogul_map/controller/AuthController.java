@@ -13,7 +13,9 @@ import com.neogulmap.neogul_map.dto.auth.AppleMobileLoginRequest;
 import com.neogulmap.neogul_map.dto.auth.AuthTokenResponse;
 import com.neogulmap.neogul_map.dto.auth.MobileOAuthExchangeRequest;
 import com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode;
+import com.neogulmap.neogul_map.config.exceptionHandling.exception.BusinessBaseException;
 import com.neogulmap.neogul_map.service.AppleIdentityTokenService;
+import com.neogulmap.neogul_map.service.AppleTokenEndpointService;
 import com.neogulmap.neogul_map.service.UserService;
 import com.neogulmap.neogul_map.service.ImageService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,8 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.Duration;
 import java.util.Map;
@@ -40,12 +44,40 @@ import java.util.Map;
 @RequiredArgsConstructor
 @RequestMapping("/auth")
 public class AuthController {
+    private static final String ACCESS_TOKEN_COOKIE_NAME = "accessToken";
+    private static final String REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
+
     
     private final TokenProvider tokenProvider;
     private final UserService userService;
     private final ImageService imageService;
     private final NativeOAuthCodeStore nativeOAuthCodeStore;
     private final AppleIdentityTokenService appleIdentityTokenService;
+    private final AppleTokenEndpointService appleTokenEndpointService;
+
+    @Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${app.cookie.same-site:Lax}")
+    private String cookieSameSite;
+
+    @PostMapping("/logout")
+    @ResponseBody
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletResponse response) {
+        expireAuthCookie(response, ACCESS_TOKEN_COOKIE_NAME);
+        expireAuthCookie(response, REFRESH_TOKEN_COOKIE_NAME);
+        return ResponseEntity.ok(ApiResponse.ok("로그아웃되었습니다.", null));
+    }
+
+    private void expireAuthCookie(HttpServletResponse response, String name) {
+        String cookieHeader = String.format(
+                "%s=; Path=/; HttpOnly; %sMax-Age=0; SameSite=%s",
+                name,
+                cookieSecure ? "Secure; " : "",
+                cookieSameSite
+        );
+        response.addHeader("Set-Cookie", cookieHeader);
+    }
     
     /**
      * Refresh 토큰으로 새로운 Access Token과 Refresh Token 발급
@@ -66,7 +98,7 @@ public class AuthController {
             }
             
             // Refresh token 검증
-            if (!tokenProvider.validToken(refreshToken)) {
+            if (!tokenProvider.validRefreshToken(refreshToken)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
                     "success", false,
                     "message", "유효하지 않거나 만료된 refresh token입니다."
@@ -81,26 +113,27 @@ public class AuthController {
                     .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
             
             // 새로운 토큰 발급
-            String newAccessToken = tokenProvider.generateToken(user, Duration.ofHours(2));
-            String newRefreshToken = tokenProvider.generateToken(user, Duration.ofDays(30));
+            String newAccessToken = tokenProvider.generateAccessToken(user, Duration.ofHours(2));
+            String newRefreshToken = tokenProvider.generateRefreshToken(user, Duration.ofDays(30));
             
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "토큰이 성공적으로 재발급되었습니다.",
-                "accessToken", newAccessToken,
-                "refreshToken", newRefreshToken,
-                "user", Map.of(
-                    "id", user.getId(),
-                    "email", user.getEmail(),
-                    "nickname", user.getNickname()
-                )
-            ));
+            Map<String, Object> userPayload = new java.util.LinkedHashMap<>();
+            userPayload.put("id", user.getId());
+            userPayload.put("email", user.getEmail());
+            userPayload.put("nickname", user.getNickname());
+
+            Map<String, Object> responsePayload = new java.util.LinkedHashMap<>();
+            responsePayload.put("success", true);
+            responsePayload.put("message", "토큰이 성공적으로 재발급되었습니다.");
+            responsePayload.put("accessToken", newAccessToken);
+            responsePayload.put("refreshToken", newRefreshToken);
+            responsePayload.put("user", userPayload);
+            return ResponseEntity.ok(responsePayload);
             
         } catch (Exception e) {
             log.error("토큰 재발급 중 오류 발생", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "success", false,
-                "message", "토큰 재발급 중 오류가 발생했습니다: " + e.getMessage()
+                "message", "토큰 재발급 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
             ));
         }
     }
@@ -123,7 +156,7 @@ public class AuthController {
                 ));
             }
             
-            boolean isValid = tokenProvider.validToken(token);
+            boolean isValid = tokenProvider.validAccessToken(token);
             
             if (isValid) {
                 String email = tokenProvider.getEmailFromToken(token);
@@ -147,7 +180,7 @@ public class AuthController {
             log.error("토큰 검증 중 오류 발생", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "success", false,
-                "message", "토큰 검증 중 오류가 발생했습니다: " + e.getMessage()
+                "message", "토큰 검증 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
             ));
         }
     }
@@ -187,13 +220,24 @@ public class AuthController {
         try {
             AppleIdentityTokenService.AppleIdentity identity = appleIdentityTokenService.verify(
                     request != null ? request.getIdentityToken() : null);
+            AppleTokenEndpointService.TokenGrant appleTokenGrant = appleTokenEndpointService.exchangeAuthorizationCode(
+                    request != null ? request.getAuthorizationCode() : null);
+            AppleIdentityTokenService.AppleIdentity exchangedIdentity = appleIdentityTokenService.verify(
+                    appleTokenGrant.identityToken());
+            if (!identity.getSubject().equals(exchangedIdentity.getSubject())) {
+                throw new BusinessBaseException(
+                        ErrorCode.INVALID_FORMAT,
+                        "Apple identity token과 authorization code의 사용자가 일치하지 않습니다."
+                );
+            }
             User user = userService.processAppleUser(
                     identity.getSubject(),
                     identity.getEmail(),
-                    request != null ? request.getFullName() : null);
+                    request != null ? request.getFullName() : null,
+                    appleTokenGrant.refreshToken());
 
-            String accessToken = tokenProvider.generateToken(user, Duration.ofHours(2));
-            String refreshToken = tokenProvider.generateToken(user, Duration.ofDays(30));
+            String accessToken = tokenProvider.generateAccessToken(user, Duration.ofHours(2));
+            String refreshToken = tokenProvider.generateRefreshToken(user, Duration.ofDays(30));
 
             return ResponseEntity.ok(ApiResponse.ok(
                     "Apple 로그인 성공",
@@ -208,6 +252,10 @@ public class AuthController {
                                     .build())
                             .build()
             ));
+        } catch (BusinessBaseException e) {
+            log.warn("Apple 로그인 처리 실패: {}", e.getMessage());
+            return ResponseEntity.status(e.getErrorCode().getStatus())
+                    .body(ErrorResponse.of(e.getErrorCode(), "Apple 로그인 정보를 확인할 수 없습니다."));
         } catch (Exception e) {
             log.warn("Apple identity token 교환 실패: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -242,12 +290,12 @@ public class AuthController {
     public String signupPage(Model model, 
                              @RequestParam(value = "email", required = false) String email,
                              @CurrentUser(required = false) User currentUser) {
-        log.info("회원가입 페이지 접근 - Email: {}", email);
+        log.info("회원가입 페이지 접근");
         
         // 인증된 사용자가 있으면 이메일 사용
         if (currentUser != null && (email == null || email.isEmpty())) {
             email = currentUser.getEmail();
-            log.info("인증된 사용자 - Email: {}", email);
+            log.info("인증된 사용자 회원가입 페이지 접근");
         } else if (currentUser == null) {
             log.warn("인증되지 않은 사용자가 회원가입 페이지 접근 시도");
         }
@@ -299,6 +347,8 @@ public class AuthController {
                     "message", "닉네임은 2자 이상 20자 이하여야 합니다."
                 ));
             }
+
+            userService.validatePublicNickname(nickname);
             
             // 프로필 이미지 처리
             String profileImagePath = null;
@@ -334,11 +384,13 @@ public class AuthController {
                 )
             ));
             
+        } catch (BusinessBaseException e) {
+            throw e;
         } catch (Exception e) {
             log.error("회원가입 완료 처리 중 오류 발생", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "success", false,
-                "message", "회원가입 완료 처리 중 오류가 발생했습니다: " + e.getMessage()
+                "message", "회원가입 완료 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
             ));
         }
     }

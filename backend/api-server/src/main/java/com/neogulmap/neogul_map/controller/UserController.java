@@ -6,6 +6,9 @@ import com.neogulmap.neogul_map.domain.User;
 import com.neogulmap.neogul_map.service.UserService;
 import com.neogulmap.neogul_map.service.ImageService;
 import com.neogulmap.neogul_map.domain.enums.ImageType;
+import com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode;
+import com.neogulmap.neogul_map.config.exceptionHandling.exception.BusinessBaseException;
+import com.neogulmap.neogul_map.config.exceptionHandling.exception.ValidationException;
 import com.neogulmap.neogul_map.config.exceptionHandling.exception.ProfileImageRequiredException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,56 +32,36 @@ public class UserController {
     private final ImageService imageService;
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getUser(@PathVariable("id") Long id) {
+    public ResponseEntity<?> getUser(@PathVariable("id") Long id, @CurrentUser User currentUser) {
+        if (!isCurrentUser(id, currentUser)) {
+            return selfOnlyResponse();
+        }
         User user = userService.getUser(id);
         return ResponseEntity.ok()
                 .header("X-Message", "사용자 조회 성공")
                 .body(UserResponse.from(user));
     }
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> createUser(
-            @RequestPart("userData") String userData,
-            @RequestPart(value = "profileImage", required = false) MultipartFile profileImage) {
-        
-        // JSON 데이터를 UserRequest로 파싱
-        UserRequest userRequest = parseUserRequest(userData);
-        
-        // 1단계: OAuth 정보로 기본 사용자 생성 (프로필 이미지 없이)
-        UserResponse userResponse = userService.createUser(userRequest);
-        
-        // 2단계: 프로필 이미지가 있으면 설정, 없으면 기본값 유지
-        String imageFileName = null;
-        if (profileImage != null && !profileImage.isEmpty()) {
-            imageFileName = imageService.processImage(profileImage, ImageType.PROFILE);
-            userService.updateProfileImage(userResponse.getId(), imageFileName);
-        }
-        
-        // 3단계: 완성된 사용자 정보 반환
-        User updatedUser = userService.getUser(userResponse.getId());
-        String message = imageFileName != null ? 
-            "OAuth 로그인 및 프로필 설정 완료" : 
-            "OAuth 로그인 완료 (기본 이미지 사용)";
-            
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(Map.of(
-                    "success", true,
-                    "message", message,
-                    "data", Map.of(
-                        "user", UserResponse.from(updatedUser),
-                        "profileImage", imageFileName != null ? imageFileName : "default"
-                    )
-                ));
-    }
-
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateUser(
             @PathVariable("id") Long id,
             @RequestPart("userData") String userData,
-            @RequestPart(value = "profileImage", required = false) MultipartFile profileImage) {
+            @RequestPart(value = "profileImage", required = false) MultipartFile profileImage,
+            @CurrentUser User currentUser) {
+
+        if (!isCurrentUser(id, currentUser)) {
+            return selfOnlyResponse();
+        }
         
         // JSON 데이터를 UserRequest로 파싱
         UserRequest userRequest = parseUserRequest(userData);
+        validateNickname(userRequest.getNickname());
+        userService.validatePublicNickname(userRequest.getNickname());
+        // OAuth identifiers and storage paths can never be changed by client profile JSON.
+        userRequest.setEmail(null);
+        userRequest.setOauthId(null);
+        userRequest.setOauthProvider(null);
+        userRequest.setProfileImage(null);
         
         // 1단계: 프로필 이미지 처리 (있으면 업데이트, 없으면 기본값 유지)
         String imageFileName = null;
@@ -106,7 +89,12 @@ public class UserController {
     @PutMapping(value = "/{id}/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateProfileImage(
             @PathVariable("id") Long id,
-            @RequestPart("profileImage") MultipartFile profileImage) {
+            @RequestPart("profileImage") MultipartFile profileImage,
+            @CurrentUser User currentUser) {
+
+        if (!isCurrentUser(id, currentUser)) {
+            return selfOnlyResponse();
+        }
         
         if (profileImage == null || profileImage.isEmpty()) {
             throw new ProfileImageRequiredException();
@@ -164,6 +152,8 @@ public class UserController {
                     "message", "닉네임은 2자 이상 20자 이하여야 합니다."
                 ));
             }
+
+            userService.validatePublicNickname(nickname);
             
             // 프로필 이미지 처리
             String profileImagePath = null;
@@ -199,11 +189,13 @@ public class UserController {
                 )
             ));
             
+        } catch (BusinessBaseException e) {
+            throw e;
         } catch (Exception e) {
             log.error("프로필 완료 처리 중 오류 발생", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "success", false,
-                "message", "프로필 완료 처리 중 오류가 발생했습니다: " + e.getMessage()
+                "message", "프로필 완료 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
             ));
         }
     }
@@ -217,23 +209,57 @@ public class UserController {
             ));
         }
 
-        userService.deleteUser(id);
+        UserService.AccountDeletionResult deletionResult = userService.deleteUser(id);
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "message", "사용자 삭제 성공",
-            "data", Map.of("deletedUserId", id)
+            "message", deletionMessage(deletionResult),
+            "data", Map.of(
+                    "deletedUserId", id,
+                    "manualAppleRevocationRequired", deletionResult.manualAppleRevocationRequired()
+            )
         ));
     }
 
     @DeleteMapping("/me")
     public ResponseEntity<?> deleteCurrentUser(@CurrentUser User currentUser) {
         Long deletedUserId = currentUser.getId();
-        userService.deleteUser(deletedUserId);
+        UserService.AccountDeletionResult deletionResult = userService.deleteUser(deletedUserId);
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "message", "계정 삭제가 완료되었습니다.",
-            "data", Map.of("deletedUserId", deletedUserId)
+            "message", deletionMessage(deletionResult),
+            "data", Map.of(
+                    "deletedUserId", deletedUserId,
+                    "manualAppleRevocationRequired", deletionResult.manualAppleRevocationRequired()
+            )
         ));
+    }
+
+    private String deletionMessage(UserService.AccountDeletionResult result) {
+        if (result.manualAppleRevocationRequired()) {
+            return "계정 데이터가 삭제되었습니다. iPhone 설정의 Apple로 로그인에서 너굴맵 연결도 해제해 주세요.";
+        }
+        return "계정 삭제가 완료되었습니다.";
+    }
+
+    private boolean isCurrentUser(Long requestedUserId, User currentUser) {
+        return currentUser != null && currentUser.getId() != null && currentUser.getId().equals(requestedUserId);
+    }
+
+    private ResponseEntity<Map<String, Object>> selfOnlyResponse() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "success", false,
+                "message", "본인 프로필만 조회하거나 수정할 수 있습니다."
+        ));
+    }
+
+    private void validateNickname(String nickname) {
+        if (nickname == null) {
+            return;
+        }
+        String normalized = nickname.trim();
+        if (normalized.length() < 2 || normalized.length() > 20) {
+            throw new IllegalArgumentException("닉네임은 2자 이상 20자 이하여야 합니다.");
+        }
     }
     
 
@@ -244,7 +270,7 @@ public class UserController {
             return objectMapper.readValue(userData, UserRequest.class);
         } catch (Exception e) {
             log.error("사용자 데이터 파싱 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("사용자 데이터 파싱 실패: " + e.getMessage());
+            throw new ValidationException(ErrorCode.VALIDATION_ERROR, "사용자 정보 형식이 올바르지 않습니다.");
         }
     }
     

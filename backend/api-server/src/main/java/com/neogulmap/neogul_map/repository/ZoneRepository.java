@@ -1,6 +1,7 @@
 package com.neogulmap.neogul_map.repository;
 
 import com.neogulmap.neogul_map.domain.Zone;
+import com.neogulmap.neogul_map.domain.enums.ZonePublicationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,28 +13,43 @@ import java.util.Optional;
 
 public interface ZoneRepository extends JpaRepository<Zone, Integer>, JpaSpecificationExecutor<Zone> {
     Optional<Zone> findByAddress(String address);
+    Optional<Zone> findByIdAndPublicationStatus(Integer id, ZonePublicationStatus publicationStatus);
+    boolean existsByIdAndPublicationStatus(Integer id, ZonePublicationStatus publicationStatus);
+    List<Zone> findAllByPublicationStatus(ZonePublicationStatus publicationStatus);
+    Page<Zone> findAllByPublicationStatus(ZonePublicationStatus publicationStatus, Pageable pageable);
+    List<Zone> findTop100ByPublicationStatusOrderByDateAscIdAsc(ZonePublicationStatus publicationStatus);
+    List<Zone> findByPublicationStatusOrderByDateAscIdAsc(
+            ZonePublicationStatus publicationStatus,
+            Pageable pageable
+    );
     
     // 키워드로 검색 (지역, 주소, 타입, 서브타입에서 검색)
-    @Query("SELECT z FROM Zone z WHERE " +
+    @Query("SELECT z FROM Zone z WHERE z.publicationStatus = :publicationStatus AND (" +
            "LOWER(z.region) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(z.address) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(z.type) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(z.subtype) LIKE LOWER(CONCAT('%', :keyword, '%'))")
-    List<Zone> findByKeyword(@Param("keyword") String keyword);
+           "LOWER(z.subtype) LIKE LOWER(CONCAT('%', :keyword, '%'))) ")
+    List<Zone> findByKeyword(
+            @Param("keyword") String keyword,
+            @Param("publicationStatus") ZonePublicationStatus publicationStatus,
+            Pageable pageable
+    );
     
     // 키워드로 검색 + 거리순 정렬 (Haversine 공식 적용)
     @Query("SELECT z, (6371 * acos(cos(radians(:latitude)) * cos(radians(z.latitude)) * " +
            "cos(radians(z.longitude) - radians(:longitude)) + " +
            "sin(radians(:latitude)) * sin(radians(z.latitude)))) AS distance " +
-           "FROM Zone z WHERE " +
+           "FROM Zone z WHERE z.publicationStatus = :publicationStatus AND (" +
            "LOWER(z.region) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(z.address) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(z.type) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(z.subtype) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "LOWER(z.subtype) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
            "ORDER BY distance ASC")
     List<Object[]> findByKeywordOrderByDistance(@Param("keyword") String keyword, 
                                                @Param("latitude") Double latitude, 
-                                               @Param("longitude") Double longitude);
+                                               @Param("longitude") Double longitude,
+                                               @Param("publicationStatus") ZonePublicationStatus publicationStatus,
+                                               Pageable pageable);
 
     @Query("SELECT z FROM Zone z WHERE " +
            "LOWER(z.region) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
@@ -63,21 +79,30 @@ public interface ZoneRepository extends JpaRepository<Zone, Integer>, JpaSpecifi
     List<Zone> findByRegionContainingIgnoreCaseAndSubtypeContainingIgnoreCase(String region, String subtype);
     Page<Zone> findByRegionContainingIgnoreCaseAndSubtypeContainingIgnoreCase(String region, String subtype, Pageable pageable);
     
-    @Query("SELECT z FROM Zone z WHERE " +
+    @Query("SELECT z FROM Zone z WHERE z.publicationStatus = :publicationStatus AND " +
            "(6371 * acos(cos(radians(:latitude)) * cos(radians(z.latitude)) * " +
            "cos(radians(z.longitude) - radians(:longitude)) + " +
-           "sin(radians(:latitude)) * sin(radians(z.latitude)))) <= :radiusKm")
-    List<Zone> findNearbyZones(@Param("latitude") Double latitude, 
-                              @Param("longitude") Double longitude, 
-                              @Param("radiusKm") Double radiusKm);
+           "sin(radians(:latitude)) * sin(radians(z.latitude)))) <= :radiusKm " +
+           "ORDER BY (6371 * acos(cos(radians(:latitude)) * cos(radians(z.latitude)) * " +
+           "cos(radians(z.longitude) - radians(:longitude)) + " +
+           "sin(radians(:latitude)) * sin(radians(z.latitude)))) ASC")
+    List<Zone> findNearbyZones(@Param("latitude") Double latitude,
+                              @Param("longitude") Double longitude,
+                              @Param("radiusKm") Double radiusKm,
+                              @Param("publicationStatus") ZonePublicationStatus publicationStatus,
+                              Pageable pageable);
 
-    @Query("SELECT z FROM Zone z WHERE " +
+    @Query("SELECT z FROM Zone z WHERE z.publicationStatus = :publicationStatus AND " +
            "z.latitude BETWEEN :minLat AND :maxLat AND " +
            "z.longitude BETWEEN :minLng AND :maxLng")
-    List<Zone> findByLocationBounds(@Param("minLat") Double minLat, 
-                                   @Param("maxLat") Double maxLat, 
-                                   @Param("minLng") Double minLng, 
-                                   @Param("maxLng") Double maxLng);
+    List<Zone> findByLocationBounds(
+            @Param("minLat") Double minLat,
+            @Param("maxLat") Double maxLat,
+            @Param("minLng") Double minLng,
+            @Param("maxLng") Double maxLng,
+            @Param("publicationStatus") ZonePublicationStatus publicationStatus,
+            Pageable pageable
+    );
     
     List<Zone> findByAddressContainingIgnoreCase(String address);
 }

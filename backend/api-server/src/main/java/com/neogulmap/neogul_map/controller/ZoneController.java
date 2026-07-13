@@ -1,7 +1,10 @@
 package com.neogulmap.neogul_map.controller;
 
 import com.neogulmap.neogul_map.dto.ZoneRequest;
+import com.neogulmap.neogul_map.dto.ZoneReportRequest;
+import com.neogulmap.neogul_map.dto.ZoneReportResponse;
 import com.neogulmap.neogul_map.dto.ZoneResponse;
+import com.neogulmap.neogul_map.service.ZoneModerationService;
 import com.neogulmap.neogul_map.service.ZoneService;
 import com.neogulmap.neogul_map.service.ImageService;
 import com.neogulmap.neogul_map.domain.User;
@@ -35,6 +38,7 @@ public class ZoneController {
 
     private final ZoneService zoneService;
     private final ImageService imageService;
+    private final ZoneModerationService zoneModerationService;
 
     @PostMapping
     public ResponseEntity<?> createZone(@CurrentUser User creator,
@@ -67,7 +71,7 @@ public class ZoneController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of(
                     "success", true,
-                    "message", "흡연구역 생성 성공",
+                    "message", "흡연구역 등록이 접수되었습니다.",
                     "data", Map.of(
                         "zone", response,
                         "image", image != null ? "uploaded" : "none"
@@ -80,9 +84,10 @@ public class ZoneController {
             @RequestParam("minLat") Double minLat,
             @RequestParam("maxLat") Double maxLat,
             @RequestParam("minLng") Double minLng,
-            @RequestParam("maxLng") Double maxLng) {
+            @RequestParam("maxLng") Double maxLng,
+            @RequestParam(value = "limit", defaultValue = "200") int limit) {
         
-        List<ZoneResponse> response = zoneService.getZonesByBounds(minLat, maxLat, minLng, maxLng);
+        List<ZoneResponse> response = zoneService.getZonesByBounds(minLat, maxLat, minLng, maxLng, limit);
         
         return ResponseEntity.ok(Map.of(
             "success", true,
@@ -104,19 +109,37 @@ public class ZoneController {
         ));
     }
 
+    @PostMapping("/{id}/reports")
+    public ResponseEntity<?> reportZone(@PathVariable("id") Integer id,
+                                        @RequestBody ZoneReportRequest request,
+                                        @CurrentUser User reporter) {
+        ZoneReportResponse report = zoneModerationService.reportZone(id, request, reporter);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "success", true,
+                "message", "장소 신고가 접수되었습니다.",
+                "data", Map.of("report", report)
+        ));
+    }
+
     @GetMapping
     public ResponseEntity<?> getAllZones(
             @RequestParam(value = "latitude", required = false) Double latitude,
             @RequestParam(value = "longitude", required = false) Double longitude,
-            @RequestParam(value = "radius", required = false) Double radius) {
+            @RequestParam(value = "radius", required = false) Double radius,
+            @RequestParam(value = "limit", defaultValue = "100") int limit) {
         
         List<ZoneResponse> response;
         
-        // 반경 검색 파라미터가 모두 있으면 반경 검색 수행
-        if (latitude != null && longitude != null && radius != null) {
-            // radius는 km 단위로 받지만, 서비스는 미터 단위를 기대함
-            int radiusMeters = (int) (radius * 1000); // km를 미터로 변환
-            response = zoneService.searchZonesByRadius(latitude, longitude, radiusMeters);
+        boolean hasAnyRadiusParameter = latitude != null || longitude != null || radius != null;
+        if (hasAnyRadiusParameter) {
+            if (latitude == null || longitude == null || radius == null) {
+                throw new ValidationException(
+                        ErrorCode.VALIDATION_ERROR,
+                        "반경 검색에는 위도, 경도, 반경이 모두 필요합니다."
+                );
+            }
+            int radiusMeters = radiusKilometersToMeters(radius);
+            response = zoneService.searchZonesByRadius(latitude, longitude, radiusMeters, limit);
             
             return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -129,7 +152,7 @@ public class ZoneController {
         }
         
         // 파라미터가 없으면 모든 zones 반환
-        response = zoneService.getAllZones();
+        response = zoneService.getAllZones(limit);
         return ResponseEntity.ok(Map.of(
             "success", true,
             "message", "모든 흡연구역 조회 성공",
@@ -164,24 +187,6 @@ public class ZoneController {
         ));
     }
 
-    // 반경 검색 (위치 기반)
-    @GetMapping(params = {"latitude", "longitude", "radius"})
-    public ResponseEntity<?> getZonesByRadius(
-            @RequestParam("latitude") double latitude,
-            @RequestParam("longitude") double longitude,
-            @RequestParam("radius") double radius) {
-		int radiusInMeters = (int) (radius * 1000);
-        List<ZoneResponse> response = zoneService.searchZonesByRadius(latitude, longitude, radiusInMeters);
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "message", String.format("반경 %.1fkm 내 흡연구역 조회 성공", radius),
-            "data", Map.of(
-                "zones", response,
-                "count", response.size()
-            )
-        ));
-    }
-
     /**
      * 키워드로 흡연구역 검색
      * @param keyword 검색 키워드 (지역, 주소, 타입, 서브타입에서 검색)
@@ -191,8 +196,9 @@ public class ZoneController {
     public ResponseEntity<?> searchZones(
             @RequestParam("keyword") String keyword,
             @RequestParam(value = "lat", required = false) Double lat,
-            @RequestParam(value = "lng", required = false) Double lng) {
-        List<ZoneResponse> response = zoneService.searchZones(keyword, lat, lng);
+            @RequestParam(value = "lng", required = false) Double lng,
+            @RequestParam(value = "limit", defaultValue = "100") int limit) {
+        List<ZoneResponse> response = zoneService.searchZones(keyword, lat, lng, limit);
         return ResponseEntity.ok(Map.of(
             "success", true,
             "message", "흡연구역 검색 성공",
@@ -242,7 +248,7 @@ public class ZoneController {
         
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "message", "흡연구역 업데이트 성공",
+            "message", "흡연구역 수정 검토가 접수되었습니다.",
             "data", Map.of(
                 "zone", response,
                 "image", image != null ? "updated" : "unchanged"
@@ -268,8 +274,18 @@ public class ZoneController {
             return objectMapper.readValue(zoneData, ZoneRequest.class);
         } catch (Exception e) {
             log.error("Zone 데이터 파싱 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("Zone 데이터 파싱 실패: " + e.getMessage());
+            throw new ValidationException(ErrorCode.VALIDATION_ERROR, "흡연구역 정보 형식이 올바르지 않습니다.");
         }
+    }
+
+    private int radiusKilometersToMeters(double radiusKilometers) {
+        if (!Double.isFinite(radiusKilometers) || radiusKilometers <= 0 || radiusKilometers > 50.0) {
+            throw new ValidationException(
+                    ErrorCode.VALIDATION_ERROR,
+                    "검색 반경은 0km 초과 50km 이하여야 합니다."
+            );
+        }
+        return (int) Math.round(radiusKilometers * 1000.0);
     }
     
 }

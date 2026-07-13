@@ -1,6 +1,7 @@
 package com.neogulmap.neogul_map.dto;
 
 import com.neogulmap.neogul_map.domain.Zone;
+import com.neogulmap.neogul_map.domain.enums.ZonePublicationStatus;
 import com.neogulmap.neogul_map.config.web.PublicUrlBuilder;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,21 +27,12 @@ public class ZoneResponse {
     private String user;
     private String image;
     private String imageUrl;
+    private ZonePublicationStatus publicationStatus;
 
     public static ZoneResponse from(Zone zone) {
         if (zone == null) return null;
 
-        // creator 정보 안전하게 추출
-        String userEmail = "익명사용자";
-        try {
-            if (zone.getCreator() != null) {
-                userEmail = zone.getCreator().getEmail();
-            } else if (zone.getUser() != null) {
-                userEmail = zone.getUser();
-            }
-        } catch (Exception e) {
-            // Lazy loading 등 예외 발생 시 기본값 유지
-        }
+        String publicUserLabel = PublicUserLabel.from(zone.getCreator());
         
         return ZoneResponse.builder()
                 .id(zone.getId())
@@ -53,9 +45,10 @@ public class ZoneResponse {
                 .size(zone.getSize())
                 .date(zone.getDate())
                 .address(zone.getAddress())
-                .user(userEmail)
+                .user(publicUserLabel)
                 .image(zone.getImage())
                 .imageUrl(PublicUrlBuilder.imageUrl(zone.getImage()))
+                .publicationStatus(zone.getPublicationStatus())
                 .build();
     }
 }

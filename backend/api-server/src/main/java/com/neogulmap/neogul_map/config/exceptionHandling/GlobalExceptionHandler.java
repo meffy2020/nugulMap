@@ -9,6 +9,7 @@ import com.neogulmap.neogul_map.config.exceptionHandling.exception.*;
 import com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.dao.DataAccessException;
@@ -137,6 +138,15 @@ public class GlobalExceptionHandler {
     }
 
     // ==================== Spring 프레임워크 예외 처리 ====================
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    protected ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(
+            HttpRequestMethodNotSupportedException e) {
+        log.warn("[Method Not Allowed] {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ErrorResponse.of(ErrorCode.METHOD_NOT_ALLOWED));
+    }
 
 
     /**

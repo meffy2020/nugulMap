@@ -7,16 +7,19 @@ import com.neogulmap.neogul_map.config.exceptionHandling.exception.ValidationExc
 import com.neogulmap.neogul_map.domain.User;
 import com.neogulmap.neogul_map.domain.Zone;
 import com.neogulmap.neogul_map.domain.ZoneReview;
+import com.neogulmap.neogul_map.domain.enums.ZonePublicationStatus;
 import com.neogulmap.neogul_map.dto.ZoneReviewRequest;
 import com.neogulmap.neogul_map.dto.ZoneReviewResponse;
 import com.neogulmap.neogul_map.repository.ZoneRepository;
 import com.neogulmap.neogul_map.repository.ZoneReviewRepository;
+import com.neogulmap.neogul_map.repository.UserBlockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -28,12 +31,24 @@ public class ZoneReviewService {
 
     private final ZoneRepository zoneRepository;
     private final ZoneReviewRepository zoneReviewRepository;
+    private final UserBlockRepository userBlockRepository;
+    private final ReviewContentPolicy reviewContentPolicy;
 
     @Transactional(readOnly = true)
     public List<ZoneReviewResponse> getReviews(Integer zoneId) {
+        return getReviews(zoneId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ZoneReviewResponse> getReviews(Integer zoneId, User currentUser) {
         ensureZoneExists(zoneId);
+        Set<Long> blockedUserIds = currentUser == null || currentUser.getId() == null
+                ? Set.of()
+                : userBlockRepository.findBlockedUserIdsByBlockerId(currentUser.getId());
         return zoneReviewRepository.findByZoneIdWithAuthorOrderByCreatedAtDesc(zoneId)
                 .stream()
+                .filter(review -> review.getAuthor() == null
+                        || !blockedUserIds.contains(review.getAuthor().getId()))
                 .map(ZoneReviewResponse::from)
                 .collect(Collectors.toUnmodifiableList());
     }
@@ -56,7 +71,9 @@ public class ZoneReviewService {
             throw new ValidationException(ErrorCode.VALIDATION_ERROR, "리뷰는 500자 이하로 입력해주세요.");
         }
 
-        Zone zone = zoneRepository.findById(zoneId)
+        reviewContentPolicy.ensureAllowed(normalizedContent);
+
+        Zone zone = zoneRepository.findByIdAndPublicationStatus(zoneId, ZonePublicationStatus.PUBLISHED)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.ZONE_NOT_FOUND));
 
         try {
@@ -75,7 +92,7 @@ public class ZoneReviewService {
     }
 
     private void ensureZoneExists(Integer zoneId) {
-        if (!zoneRepository.existsById(zoneId)) {
+        if (!zoneRepository.existsByIdAndPublicationStatus(zoneId, ZonePublicationStatus.PUBLISHED)) {
             throw new NotFoundException(ErrorCode.ZONE_NOT_FOUND);
         }
     }

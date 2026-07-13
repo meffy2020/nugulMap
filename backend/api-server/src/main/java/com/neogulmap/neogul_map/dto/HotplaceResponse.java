@@ -22,7 +22,42 @@ public record HotplaceResponse(
             String address,
             String source,
             String sourcePlaceCode,
-            String updatedAt
+            String updatedAt,
+            String freshnessStatus,
+            Long ageSeconds
     ) {
+        public HotplaceItem(
+                String id,
+                String name,
+                String category,
+                String crowdLevel,
+                String crowdMessage,
+                Integer estimatedMinPeople,
+                Integer estimatedMaxPeople,
+                Double latitude,
+                Double longitude,
+                String address,
+                String source,
+                String sourcePlaceCode,
+                String updatedAt
+        ) {
+            this(
+                    id,
+                    name,
+                    category,
+                    crowdLevel,
+                    crowdMessage,
+                    estimatedMinPeople,
+                    estimatedMaxPeople,
+                    latitude,
+                    longitude,
+                    address,
+                    source,
+                    sourcePlaceCode,
+                    updatedAt,
+                    null,
+                    null
+            );
+        }
     }
 }

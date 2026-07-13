@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Local mock Season 2 live providers for smoke tests."""
+"""Local mock live providers for NugulMap smoke tests."""
 
 from __future__ import annotations
 
 import argparse
 import json
+from datetime import date, datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -27,22 +28,29 @@ def crowd_payload(place_id: str) -> dict[str, object]:
             "estimatedMinPeople": min_people,
             "estimatedMaxPeople": max_people,
             "sourcePlaceCode": f"mock-{place_id}",
-            "updatedAt": "2026-06-18T14:58:00Z",
+            "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
     }
 
 
 def culture_payload() -> dict[str, object]:
+    today = date.today()
+    seongsu_start = today + timedelta(days=7)
+    seongsu_end = today + timedelta(days=10)
+    jamsil_start = today + timedelta(days=14)
+    jamsil_end = today + timedelta(days=16)
+
     return {
         "culturalEventInfo": {
+            "list_total_count": 2,
             "row": [
                 {
                     "CODENAME": "전시",
-                    "TITLE": "성수 런타임 문화행사",
-                    "DATE": "2026-08-21~2026-08-23",
+                    "TITLE": "성수 런타임 팝업",
+                    "DATE": f"{seongsu_start.isoformat()}~{seongsu_end.isoformat()}",
                     "PLACE": "서울 성동구 성수동",
-                    "STRTDATE": "2026-08-21 00:00:00.0",
-                    "END_DATE": "2026-08-23 00:00:00.0",
+                    "STRTDATE": f"{seongsu_start.isoformat()} 00:00:00.0",
+                    "END_DATE": f"{seongsu_end.isoformat()} 00:00:00.0",
                     "LOT": "127.0557",
                     "LAT": "37.5446",
                     "MAIN_IMG": "https://example.com/culture.jpg",
@@ -51,10 +59,10 @@ def culture_payload() -> dict[str, object]:
                 {
                     "CODENAME": "축제",
                     "TITLE": "잠실 호수 축제",
-                    "DATE": "2026-09-10~2026-09-12",
+                    "DATE": f"{jamsil_start.isoformat()}~{jamsil_end.isoformat()}",
                     "PLACE": "서울 송파구 석촌호수",
-                    "STRTDATE": "2026-09-10 00:00:00.0",
-                    "END_DATE": "2026-09-12 00:00:00.0",
+                    "STRTDATE": f"{jamsil_start.isoformat()} 00:00:00.0",
+                    "END_DATE": f"{jamsil_end.isoformat()} 00:00:00.0",
                     "LOT": "127.1035",
                     "LAT": "37.5130",
                     "MAIN_IMG": "https://example.com/jamsil.jpg",
@@ -103,7 +111,7 @@ def main() -> int:
 
     server = ThreadingHTTPServer((args.host, args.port), MockTelecomCrowdHandler)
     print(
-        f"mock Season 2 providers listening on http://{args.host}:{args.port}/crowd?place={{placeId}} "
+        f"mock NugulMap providers listening on http://{args.host}:{args.port}/crowd?place={{placeId}} "
         f"and http://{args.host}:{args.port}/culture-key/json/culturalEventInfo/1/5",
         flush=True,
     )

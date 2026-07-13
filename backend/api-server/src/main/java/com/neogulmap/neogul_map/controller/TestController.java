@@ -646,7 +646,7 @@ public class TestController {
                 return ResponseEntity.badRequest().body(response);
             }
             
-            if (!tokenProvider.validToken(refreshToken)) {
+            if (!tokenProvider.validRefreshToken(refreshToken)) {
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", false);
                 response.put("message", "유효하지 않거나 만료된 refresh token입니다.");
@@ -657,8 +657,8 @@ public class TestController {
             User user = userService.getUserByEmail(email)
                     .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
             
-            String newAccessToken = tokenProvider.generateToken(user, java.time.Duration.ofHours(2));
-            String newRefreshToken = tokenProvider.generateToken(user, java.time.Duration.ofDays(30));
+            String newAccessToken = tokenProvider.generateAccessToken(user, java.time.Duration.ofHours(2));
+            String newRefreshToken = tokenProvider.generateRefreshToken(user, java.time.Duration.ofDays(30));
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

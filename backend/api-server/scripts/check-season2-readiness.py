@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Check local readiness for NugulMap Season 2 hotplace/event insights."""
+"""Check local readiness for NugulMap live hotplace/event insights."""
 
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import os
 import subprocess
@@ -11,7 +12,7 @@ import sys
 import re
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,14 @@ SEOUL_BOUNDS = {
     "min_lng": 126.76,
     "max_lng": 127.20,
 }
+SEONGSU_BOUNDS = {
+    "min_lat": 37.532,
+    "max_lat": 37.558,
+    "min_lng": 127.032,
+    "max_lng": 127.072,
+}
+SEONGSU_LOCATION_TERMS = ("성수", "서울숲", "연무장", "성동구")
+POPUP_TERM_RE = re.compile(r"(?<![a-z])popup(?![a-z])", re.IGNORECASE)
 TELECOM_TEMPLATE_PLACEHOLDERS = {
     "placeId",
     "placeName",
@@ -43,6 +52,7 @@ TELECOM_TEMPLATE_REQUIRED_LOCATION_PLACEHOLDERS = {
 }
 TELECOM_URL_PLACEHOLDER_RE = re.compile(r"\{([A-Za-z0-9_]+)\}")
 TELECOM_API_KEY_HEADER_DEFAULT = "appkey"
+DEFAULT_POPUP_MAX_AGE_HOURS = 24
 
 
 def status_line(ok: bool, label: str, detail: str) -> None:
@@ -52,6 +62,14 @@ def status_line(ok: bool, label: str, detail: str) -> None:
 
 def has_env(name: str) -> bool:
     return bool(os.environ.get(name, "").strip())
+
+
+def positive_env_int(name: str, fallback: int) -> int:
+    try:
+        value = int(os.environ.get(name, str(fallback)))
+    except ValueError:
+        return fallback
+    return value if value > 0 else fallback
 
 
 def parse_items(payload: Any) -> list[Any] | None:
@@ -75,6 +93,14 @@ def parse_collected_at(value: Any) -> datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def safe_detail_url(item: dict[str, Any]) -> str | None:
+    value = item.get("detailUrl")
+    if not value and item.get("collectionMode") is None:
+        # Season 2 crawler compatibility: URLs used to be stored as identifiers.
+        value = item.get("sourceContentId")
+    return safe_http_url(value)
 
 
 def validate_telecom_template(
@@ -104,15 +130,95 @@ def validate_telecom_template(
     return len(issues) == 0, issues
 
 
-def is_in_seoul_bounds(item: dict[str, Any]) -> bool:
+def is_in_bounds(item: dict[str, Any], bounds: dict[str, float]) -> bool:
     try:
         latitude = float(item.get("latitude"))
         longitude = float(item.get("longitude"))
     except (TypeError, ValueError):
         return False
     return (
-        SEOUL_BOUNDS["min_lat"] <= latitude <= SEOUL_BOUNDS["max_lat"]
-        and SEOUL_BOUNDS["min_lng"] <= longitude <= SEOUL_BOUNDS["max_lng"]
+        bounds["min_lat"] <= latitude <= bounds["max_lat"]
+        and bounds["min_lng"] <= longitude <= bounds["max_lng"]
+    )
+
+
+def is_in_seoul_bounds(item: dict[str, Any]) -> bool:
+    return is_in_bounds(item, SEOUL_BOUNDS)
+
+
+def parse_event_date(value: Any) -> date | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return date.fromisoformat(value.strip())
+    except ValueError:
+        return None
+
+
+def is_verified_seongsu_popup_record(item: dict[str, Any]) -> bool:
+    title = str(item.get("title") or "").strip()
+    address = str(item.get("address") or "").strip()
+    start_date = parse_event_date(item.get("startDate"))
+    end_date = parse_event_date(item.get("endDate"))
+    location_text = f"{title} {address}".lower()
+    has_popup_term = "팝업" in title or POPUP_TERM_RE.search(title) is not None
+
+    return (
+        item.get("source") == "SEOUL_CULTURE_API"
+        and item.get("collectionMode") == "NETWORK"
+        and str(item.get("kind") or "").strip().lower() == "popup"
+        and has_popup_term
+        and any(term in location_text for term in SEONGSU_LOCATION_TERMS)
+        and is_in_bounds(item, SEONGSU_BOUNDS)
+        and start_date is not None
+        and end_date is not None
+        and start_date <= end_date
+        and bool(address)
+        and safe_detail_url(item) is not None
+        and bool(str(item.get("attribution") or "").strip())
+        and bool(str(item.get("license") or "").strip())
+        and safe_http_url(item.get("licenseUrl")) is not None
+        and item.get("publicationPolicy") == "allowed_with_attribution"
+    )
+
+
+def safe_http_url(value: Any) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    parsed = urllib.parse.urlparse(value.strip())
+    host = (parsed.hostname or "").strip().lower().rstrip(".")
+    if (
+        parsed.scheme.lower() not in {"http", "https"}
+        or not parsed.netloc
+        or not host
+        or parsed.username is not None
+        or parsed.password is not None
+        or not is_public_link_host(host)
+    ):
+        return None
+    return value.strip()
+
+
+def is_public_link_host(host: str) -> bool:
+    normalized = host.strip().lower().strip("[]").rstrip(".")
+    if (
+        normalized == "localhost"
+        or normalized.endswith(".localhost")
+        or normalized.endswith(".local")
+        or normalized.endswith(".internal")
+    ):
+        return False
+    try:
+        address = ipaddress.ip_address(normalized)
+    except ValueError:
+        return True
+    return not (
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_multicast
+        or address.is_reserved
+        or address.is_unspecified
     )
 
 
@@ -125,12 +231,27 @@ def popup_quality_errors(items: list[Any], max_age_hours: int | None) -> list[st
             errors.append(f"item[{index}] must be an object")
             continue
 
-        for field in ("id", "title", "kind", "latitude", "longitude", "source"):
+        for field in (
+            "id",
+            "title",
+            "kind",
+            "startDate",
+            "endDate",
+            "latitude",
+            "longitude",
+            "address",
+            "source",
+            "detailUrl",
+            "collectedAt",
+        ):
             if item.get(field) in (None, ""):
                 errors.append(f"item[{index}] missing {field}")
 
-        if not is_in_seoul_bounds(item):
-            errors.append(f"item[{index}] outside Seoul bounds or has invalid coordinates")
+        if not is_verified_seongsu_popup_record(item):
+            errors.append(
+                f"item[{index}] is not a verified Seoul Culture Seongsu popup "
+                "with dates, address, individual link, and attribution"
+            )
 
         if max_age_hours is not None:
             collected_at = parse_collected_at(item.get("collectedAt"))
@@ -156,9 +277,13 @@ def check_popup_file(path: Path, *, strict_quality: bool, max_age_hours: int | N
         return False
 
     items = parse_items(payload)
-    if not isinstance(items, list) or not items:
-        status_line(False, "popup_trends_file", "JSON must contain non-empty items[]")
+    if not isinstance(items, list):
+        status_line(False, "popup_trends_file", "JSON must contain items[]")
         return False
+    if not items:
+        status_line(True, "popup_trends_quality", "valid empty items[]; no verified popup is currently publishable")
+        status_line(True, "popup_trends_file", f"0 items at {path}")
+        return True
 
     errors = popup_quality_errors(items, max_age_hours)
     if errors:
@@ -169,13 +294,17 @@ def check_popup_file(path: Path, *, strict_quality: bool, max_age_hours: int | N
         if strict_quality or max_age_hours is not None:
             return False
     else:
-        status_line(True, "popup_trends_quality", "required fields, Seoul bounds, and freshness checks passed")
+        status_line(
+            True,
+            "popup_trends_quality",
+            "verified Seongsu popup fields, bounds, individual links, rights, and freshness checks passed",
+        )
 
     status_line(True, "popup_trends_file", f"{len(items)} items at {path}")
     return True
 
 
-def has_public_event_api_records(path: Path) -> bool:
+def has_public_event_api_records(path: Path, max_age_hours: int | None) -> bool:
     if not path.exists():
         return False
 
@@ -188,12 +317,18 @@ def has_public_event_api_records(path: Path) -> bool:
     if not isinstance(items, list):
         return False
 
-    return any(
-        isinstance(item, dict)
-        and item.get("source") in {"SEOUL_CULTURE_API", "KTO_TOUR_API"}
-        and is_in_seoul_bounds(item)
-        for item in items
-    )
+    now = datetime.now(timezone.utc)
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        if not is_verified_seongsu_popup_record(item):
+            continue
+        if max_age_hours is not None:
+            collected_at = parse_collected_at(item.get("collectedAt"))
+            if collected_at is None or (now - collected_at).total_seconds() > max_age_hours * 3600:
+                continue
+        return True
+    return False
 
 
 def run_smoke(base_url: str, require_live: bool) -> int:
@@ -237,10 +372,35 @@ def seoul_culture_rows(payload: Any) -> list[dict[str, Any]]:
 
 
 def seoul_culture_probe_item_ok(item: dict[str, Any]) -> bool:
-    title = item.get("TITLE") or item.get("title")
+    title = str(item.get("TITLE") or item.get("title") or "").strip()
+    address = str(
+        item.get("PLACE")
+        or item.get("place")
+        or item.get("address")
+        or item.get("GUNAME")
+        or ""
+    ).strip()
     latitude = item.get("LAT") or item.get("latitude")
     longitude = item.get("LOT") or item.get("longitude")
-    return bool(title) and is_in_seoul_bounds({"latitude": latitude, "longitude": longitude})
+    start_date = parse_event_date(str(item.get("STRTDATE") or item.get("startDate") or "")[:10])
+    end_date = parse_event_date(str(item.get("END_DATE") or item.get("endDate") or "")[:10])
+    detail_url = safe_http_url(
+        item.get("ORG_LINK")
+        or item.get("HMPG_ADDR")
+        or item.get("detailUrl")
+        or item.get("url")
+    )
+    location_text = f"{title} {address}".lower()
+    return (
+        ("팝업" in title or POPUP_TERM_RE.search(title) is not None)
+        and any(term in location_text for term in SEONGSU_LOCATION_TERMS)
+        and is_in_bounds({"latitude": latitude, "longitude": longitude}, SEONGSU_BOUNDS)
+        and start_date is not None
+        and end_date is not None
+        and start_date <= end_date
+        and bool(address)
+        and detail_url is not None
+    )
 
 
 def run_public_event_provider_probe(timeout: int, limit: int) -> int:
@@ -249,7 +409,7 @@ def run_public_event_provider_probe(timeout: int, limit: int) -> int:
         status_line(False, "SEOUL_CULTURE_API_PROBE", "SEOUL_CULTURE_API_KEY is not configured")
         return 2
 
-    normalized_limit = max(1, min(limit, 50))
+    normalized_limit = max(1, min(limit, 100))
     base_url = os.environ.get("SEOUL_CULTURE_API_BASE_URL", "http://openapi.seoul.go.kr:8088").strip()
     if not base_url:
         base_url = "http://openapi.seoul.go.kr:8088"
@@ -266,7 +426,7 @@ def run_public_event_provider_probe(timeout: int, limit: int) -> int:
     usable_count = sum(1 for item in rows if seoul_culture_probe_item_ok(item))
     if usable_count == 0:
         result = payload.get("RESULT") if isinstance(payload, dict) else None
-        detail = "no usable Seoul event rows with title and coordinates"
+        detail = "no verified Seongsu popup rows with dates, address, coordinates, and individual link"
         if isinstance(result, dict):
             code = result.get("CODE") or "unknown"
             message = result.get("MESSAGE") or ""
@@ -274,7 +434,7 @@ def run_public_event_provider_probe(timeout: int, limit: int) -> int:
         status_line(False, "SEOUL_CULTURE_API_PROBE", detail)
         return 2
 
-    status_line(True, "SEOUL_CULTURE_API_PROBE", f"{usable_count}/{len(rows)} usable Seoul event rows returned")
+    status_line(True, "SEOUL_CULTURE_API_PROBE", f"{usable_count}/{len(rows)} verified Seongsu popup rows returned")
     return 0
 
 
@@ -292,10 +452,10 @@ def live_readiness_errors(
     errors: list[str] = []
     if not seoul_key and not (telecom_key and telecom_url and telecom_template_ok):
         errors.append("SEOUL_CITYDATA_API_KEY or complete TELECOM_CROWD_API settings are required for live crowd estimates")
-    if not kto_key and not seoul_culture_key and not public_event_api_records:
-        errors.append("KTO_TOUR_API_KEY, SEOUL_CULTURE_API_KEY, or SEOUL_CULTURE_API popup trend records are required for live public event data")
+    if not seoul_culture_key and not public_event_api_records:
+        errors.append("SEOUL_CULTURE_API_KEY or verified SEOUL_CULTURE_API popup records are required for live Seongsu popup data")
     if not popup_ok:
-        errors.append("POPUP_TRENDS_FILE must contain valid crawled popup/event records")
+        errors.append("POPUP_TRENDS_FILE must be valid JSON with a structurally valid items[] array")
     return errors
 
 
@@ -324,10 +484,19 @@ def check_compose_config() -> bool:
         "KTO_TOUR_API_KEY:",
         "SEOUL_CULTURE_API_KEY:",
         "SEOUL_CULTURE_API_BASE_URL:",
-        "SEOUL_CULTURE_API_END_INDEX:",
+        'SEOUL_CULTURE_API_PAGE_SIZE: "1000"',
+        'SEOUL_CULTURE_API_MAX_PAGES: "25"',
         "POPUP_TRENDS_FILE: /app/data/popup-trends.json",
+        "POPUP_TRENDS_MAX_AGE_HOURS:",
         "POPUP_TRENDS_REFRESH_SECONDS:",
         "INSIGHTS_CACHE_TTL_SECONDS:",
+        'INSIGHTS_EVENT_CACHE_TTL_SECONDS: "86400"',
+        "INSIGHTS_CROWD_CURRENT_MAX_AGE_MINUTES:",
+        "INSIGHTS_CROWD_LIVE_MAX_AGE_MINUTES:",
+        "INSIGHTS_CROWD_ALLOW_MISSING_OBSERVATION_TIME:",
+        "INSIGHTS_EVENT_WARMUP_ENABLED:",
+        "INSIGHTS_EVENT_WARMUP_INITIAL_DELAY_MS:",
+        'INSIGHTS_EVENT_WARMUP_INTERVAL_MS: "86400000"',
         "scripts/run_popup_trend_collector.py",
         "backend/data-scripts/data",
         "target: /app/data",
@@ -335,426 +504,337 @@ def check_compose_config() -> bool:
     )
     missing = [fragment for fragment in required_fragments if fragment not in output]
     if missing:
-        status_line(False, "docker_compose_config", f"missing Season 2 fragments: {', '.join(missing)}")
+        status_line(False, "docker_compose_config", f"missing Season 3 fragments: {', '.join(missing)}")
         return False
 
-    status_line(True, "docker_compose_config", "Season 2 public, telecom, event API keys, popup data mount, and cache TTL are present")
+    status_line(
+        True,
+        "docker_compose_config",
+        "Season 3 provider settings, popup data mount, and scheduled cache settings are present",
+    )
     return True
 
 
-def file_contains(path: str, *fragments: str) -> list[str]:
-    text = (REPO_ROOT / path).read_text(encoding="utf-8")
-    return [fragment for fragment in fragments if fragment not in text]
-
-
 def check_ui_parity() -> bool:
-    checks = {
-        "web_shortcuts": (
-            "frontend/app/page.tsx",
-            (
-                "롯데월드 혼잡도",
-                "지금 핫한 곳",
-                "hot-now",
-                "성수 팝업",
-                "fetchMapInsights(5, 5, undefined, query)",
-                "focusHotplace(first)",
-                "focusEvent(first)",
-            ),
-        ),
-        "web_local_env_example": (
-            "frontend/.env.example",
-            (
-                "NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:18080",
-                "NEXT_PUBLIC_API_BASE_URL=https://api.nugulmap.com",
-                "MOCK_CROWD=1 REQUIRE_LIVE=1",
-                "NEXT_PUBLIC_KAKAOMAP_APIKEY=",
-            ),
-        ),
-        "web_development_season2_local": (
-            "frontend/DEVELOPMENT.md",
-            (
-                "로컬 Season 2 API 검증",
-                "cp .env.example .env.local",
-                "NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:18080",
-                "롯데월드 사람 많아?",
-                "요즘 핫한 팝업 행사",
-            ),
-        ),
-        "web_map_layers": (
-            "frontend/components/map-container.tsx",
-            (
-                'type Season2LayerMode = "all" | "zones" | "hotplaces" | "events"',
-                "fetchMapInsights",
-                "focusHotplace: (place: Hotplace) => void",
-                "focusEvent: (event: TrendEvent) => void",
-                'setLayerMode("hotplaces")',
-                'setLayerMode("events")',
-                "formatTelecomStatus",
-                "통신사 URL 필요",
-                "formatHotplacePanelStatus",
-                "formatEventPanelStatus",
-                "CRAWLED_OR_PARTIAL",
-                "서울 문화행사 API",
-                "formatCrowdLabel",
-                "estimatedMinPeople.toLocaleString()",
-                "estimatedMaxPeople.toLocaleString()",
-                "mergeFocusedHotplaceInsight",
-            ),
-        ),
-        "expo_map_people_range": (
-            "mobile/src/screens/MapScreen.tsx",
-            (
-                "formatHotplaceOverlayLabel",
-                "estimatedMinPeople",
-                "estimatedMaxPeople",
-                "formatPeopleRange",
-                "formatPeopleCount",
-            ),
-        ),
-        "expo_status_contract": (
-            "mobile/src/services/nugulApi.ts",
-            (
-                "telecomCrowdKeyConfigured",
-                "telecomCrowdUrlTemplateConfigured",
-                "seoulCultureApiKeyConfigured",
-                "seoulCultureApi",
-                "popupTrends",
-            ),
-        ),
-        "expo_map_insight_contract": (
-            "mobile/src/services/nugulApi.ts",
-            (
-                "export async function fetchMapInsights",
-                "/api/insights/map",
-                "hotplaceLimit",
-                "eventLimit",
-                "pickMapInsight",
-            ),
-        ),
-        "expo_status_ui": (
-            "mobile/App.tsx",
-            (
-                "fetchMapInsights",
-                "formatInsightStatus",
-                "formatTelecomStatus",
-                "formatHotplacePanelStatus",
-                "formatEventPanelStatus",
-                "통신사 URL 필요",
-                "서울문화 API 확인",
-                "CRAWLED_OR_PARTIAL",
-                "크롤링 팝업 트렌드",
-                "서울 문화행사 API",
-                "fetchMapInsights(query, 5, 5",
-                "focusEventOnMap(mapInsight.events.events[0])",
-            ),
-        ),
-        "ios_shortcuts": (
+    required_checks = {
+        "ios_season3_map_ui": (
             "ios-native/NeogulMapNative/Views/ZoneMapView.swift",
             (
-                "Season2QuickActionStrip",
-                "Season2Shortcut",
-                'return "롯데월드 혼잡도"',
-                'return "지금 핫한 곳"',
-                'return "hot-now"',
-                'return "성수 팝업"',
-                "layerMode = shortcut.layerMode",
-                "model.search()",
-                "hotplaceDetail(_ place: Hotplace)",
-                "eventDetail(_ event: TrendEvent)",
+                "UnifiedSearchMenuBar(",
+                'TextField("장소, 혼잡, 팝업 검색..."',
+                'Image(systemName: "magnifyingglass")',
+                'return "흡연구역"',
+                'return "실시간 핫플"',
+                'return "팝업"',
+                "model.eventInsight.events.filter(\\.isVerifiedSeongsuPopup)",
+                'keyword: intentKeyword ?? "hot-now"',
+                'keyword: "성수 팝업"',
+                'UIImage(named: "HotRaccoonMarker")',
             ),
         ),
-        "ios_source_labels": (
+        "ios_verified_seongsu_popup": (
             "ios-native/NeogulMapNative/Models/SmokingZone.swift",
             (
-                "var sourceLabel: String",
-                '"TELECOM_CROWD"',
-                '"통신사 장소 혼잡도"',
-                '"CRAWLED_POPUP_TREND"',
-                '"크롤링 팝업 트렌드"',
-                '"SEOUL_CULTURE_API"',
-                '"서울 문화행사 API"',
-                "struct InsightStatus",
-                "telecomCrowdUrlTemplateConfigured",
-                "seoulCultureApiKeyConfigured",
-                "seoulCultureApi",
-                "popupTrends",
-                "var compactMapLabel: String",
-                "estimatedMinPeople",
-                "estimatedMaxPeople",
-                "compactPeopleRange",
-            ),
-        ),
-        "ios_status_api": (
-            "ios-native/NeogulMapNative/Services/NugulAPIClient.swift",
-            (
-                "func fetchMapInsights",
-                "/api/insights/map",
+                "var isVerifiedSeongsuPopup: Bool",
+                'title.range(of: "팝업"',
+                "MapBounds.seongsu.minLat",
+                "Self.parseISODate(startDate)",
+                "Self.parseISODate(endDate)",
+                "hasAddress",
+                "safeSourceURL != nil",
             ),
         ),
         "ios_map_insight_api": (
             "ios-native/NeogulMapNative/Services/NugulAPIClient.swift",
             (
                 "func fetchMapInsights",
-                "/api/insights/map",
+                'path: "/api/insights/map"',
                 "hotplaceLimit",
                 "eventLimit",
             ),
         ),
-        "ios_status_state": (
-            "ios-native/NeogulMapNative/ViewModels/ZoneExplorerModel.swift",
-            (
-                "insightStatus",
-                "fetchMapInsights",
-                "insight.events",
-                "insight.hotplaces",
-            ),
-        ),
-        "ios_status_ui": (
-            "ios-native/NeogulMapNative/Views/ZoneMapView.swift",
-            (
-                "formatInsightStatus",
-                "formatTelecomStatus",
-                "formatHotplacePanelStatus",
-                "formatEventPanelStatus",
-                "통신사 URL 필요",
-                "서울문화 API 확인",
-                "CRAWLED_OR_PARTIAL",
-                "hotplaceSubtitle(_ place: Hotplace)",
-                "place.compactMapLabel",
-            ),
-        ),
-        "android_shortcuts": (
+        "android_season3_map_ui": (
             "android-native/app/src/main/java/com/nugulmap/nativeapp/ui/map/MapScreen.kt",
             (
-                "Season2QuickActionStrip",
-                "Season2Shortcut",
-                'LotteWorldCrowd("롯데월드 혼잡도"',
-                'HotNow("지금 핫한 곳", "hot-now"',
-                'SeongsuPopup("성수 팝업", "성수"',
-                "layerMode = shortcut.targetLayerMode",
-                "viewModel.runSeason2Shortcut(shortcut)",
-                '"TELECOM_CROWD" -> "통신사 장소 혼잡도"',
-                '"CRAWLED_POPUP_TREND" -> "크롤링 팝업 트렌드"',
-                '"SEOUL_CULTURE_API" -> "서울 문화행사 API"',
-                "formatInsightStatus",
-                "formatTelecomStatus",
-                "formatHotplacePanelStatus",
-                "formatEventPanelStatus",
-                "통신사 URL 필요",
-                "서울문화 API 확인",
-                "CRAWLED_OR_PARTIAL",
+                "BasicTextField(",
+                '"장소·혼잡·팝업 검색"',
+                "CompactSearchIcon(",
+                'Zones("흡연구역"',
+                'Hotplaces("실시간 핫플"',
+                'Events("팝업"',
+                "widthIn(max = MAP_CATEGORY_SELECTOR_MAX_WIDTH_DP.dp)",
+                "hotNowSearchRequest()",
+                "seongsuPopupSearchRequest()",
             ),
         ),
-        "android_map_people_range": (
+        "android_season3_search": (
+            "android-native/app/src/main/java/com/nugulmap/nativeapp/ui/map/Season3Search.kt",
+            (
+                'keyword = "성수 팝업"',
+                'keyword = "hot-now"',
+                'displayKeyword = "실시간 핫플"',
+                "request.displayKeyword",
+                "events.filter(TrendEventDto::isVerifiedSeongsuPopup)",
+            ),
+        ),
+        "android_verified_seongsu_popup": (
+            "android-native/app/src/main/java/com/nugulmap/nativeapp/data/dto/InsightDto.kt",
+            (
+                "val isVerifiedSeongsuPopup: Boolean",
+                "title.containsExplicitPopupTerm()",
+                "MapBounds.seongsu.minLat",
+                "hasValidIsoDateRange(startDate, endDate)",
+                "hasAddress",
+                "hasSafeDetailLink",
+            ),
+        ),
+        "android_hot_raccoon_marker": (
             "android-native/app/src/main/java/com/nugulmap/nativeapp/ui/map/KakaoZoneMap.kt",
             (
-                "formatHotplaceMapLabel",
-                "estimatedMinPeople",
-                "estimatedMaxPeople",
-                "formatCompactPeopleRange",
-                "LabelTextBuilder().setTexts(formatHotplaceMapLabel(place))",
-            ),
-        ),
-        "android_status_contract": (
-            "android-native/app/src/main/java/com/nugulmap/nativeapp/data/dto/InsightDto.kt",
-            (
-                "data class InsightStatusPayload",
-                "telecomCrowdKeyConfigured",
-                "telecomCrowdUrlTemplateConfigured",
-                "seoulCultureApiKeyConfigured",
-                "seoulCultureApi",
-                "popupTrends",
-            ),
-        ),
-        "android_map_insight_contract": (
-            "android-native/app/src/main/java/com/nugulmap/nativeapp/data/dto/InsightDto.kt",
-            (
-                "data class MapInsightPayload",
-                "val hotplaces: HotplaceInsightPayload",
-                "val events: EventInsightPayload",
-                "val status: InsightStatusPayload?",
-            ),
-        ),
-        "android_status_api": (
-            "android-native/app/src/main/java/com/nugulmap/nativeapp/data/api/NugulApiService.kt",
-            (
-                "api/insights/map",
-                "getMapInsights",
+                "HOT_RACCOON_MARKER_RESOURCE_NAME",
+                '"hot_raccoon_marker"',
+                "chooseHotplaceMarkerResource",
             ),
         ),
         "android_map_insight_api": (
             "android-native/app/src/main/java/com/nugulmap/nativeapp/data/api/NugulApiService.kt",
             (
-                "api/insights/map",
-                "getMapInsights",
+                '@GET("api/insights/map")',
+                "suspend fun getMapInsights",
                 "hotplaceLimit",
                 "eventLimit",
             ),
         ),
-        "android_repository_keyword_search": (
-            "android-native/app/src/main/java/com/nugulmap/nativeapp/data/repository/ZoneRepository.kt",
+        "backend_native_oauth_failure_callback": (
+            "backend/api-server/src/main/java/com/neogulmap/neogul_map/config/security/oauth/OAuth2SuccessHandler.java",
             (
-                "loadMapInsights",
-                "keyword?.trim()?.takeIf",
-                "hotplaceLimit",
-                "eventLimit",
+                "determineProcessingFailureTargetUrl(request)",
+                'queryParam("error", OAUTH2_PROCESSING_FAILED)',
+                "authorizationRequestRepository.getClientState(request)",
+                "expireAuthenticationCookies(response)",
+                "authorizationRequestRepository.removeAuthorizationRequestCookies(request, response)",
             ),
         ),
-        "android_status_state": (
-            "android-native/app/src/main/java/com/nugulmap/nativeapp/ui/map/MapUiState.kt",
+        "backend_native_oauth_session_ttl": (
+            "backend/api-server/src/main/resources/application-prod.yml",
             (
-                "InsightStatusPayload",
-                "insightStatus",
+                "session:",
+                "timeout: 10m",
             ),
         ),
-        "android_status_view_model": (
-            "android-native/app/src/main/java/com/nugulmap/nativeapp/ui/map/MapViewModel.kt",
+        "ios_native_oauth_transaction_ttl": (
+            "ios-native/NeogulMapNative/Services/NugulAPIClient.swift",
             (
-                "loadMapInsights",
-                "insightStatus = status",
-                "InsightStatusPayload",
+                "validityInterval: TimeInterval = 10 * 60",
+                "age <= validityInterval",
             ),
         ),
-        "web_map_insight_contract": (
-            "frontend/lib/api.ts",
+        "android_native_oauth_transaction_ttl": (
+            "android-native/app/src/main/java/com/nugulmap/nativeapp/data/repository/AuthRepository.kt",
             (
-                "export interface MapInsight",
-                "export async function fetchMapInsights",
-                "/api/insights/map",
-                "hotplaceLimit",
-                "eventLimit",
+                "OAUTH_PENDING_REQUEST_TTL_MILLIS = 10 * 60 * 1000L",
+                "ttlMillis = OAUTH_PENDING_REQUEST_TTL_MILLIS",
             ),
         ),
-        "backend_status_contract": (
-            "backend/api-server/src/main/java/com/neogulmap/neogul_map/dto/InsightStatusResponse.java",
+        "backend_cached_hotplaces": (
+            "backend/api-server/src/main/java/com/neogulmap/neogul_map/service/HotplaceService.java",
             (
-                "boolean seoulCityDataKeyConfigured",
-                "boolean telecomCrowdKeyConfigured",
-                "boolean telecomCrowdUrlTemplateConfigured",
-                "boolean ktoTourApiKeyConfigured",
-                "boolean seoulCultureApiKeyConfigured",
-                "ProviderStatus telecomCrowd",
-                "ProviderStatus seoulCultureApi",
-                "PopupTrendStatus popupTrends",
+                ".map(this::findVerifiedCachedHotplace)",
+                '"NO_VERIFIED_DATA"',
+                "public void warmHotplaceCache()",
+                'case "SEOUL_CITYDATA"',
+                'case "TELECOM_CROWD"',
             ),
         ),
-        "backend_map_insight_contract": (
-            "backend/api-server/src/main/java/com/neogulmap/neogul_map/dto/MapInsightResponse.java",
-            (
-                "HotplaceResponse hotplaces",
-                "EventInsightResponse events",
-                "InsightStatusResponse status",
-                "Instant updatedAt",
-            ),
-        ),
-        "backend_map_insight_controller": (
-            "backend/api-server/src/main/java/com/neogulmap/neogul_map/controller/InsightController.java",
-            (
-                '@GetMapping("/map")',
-                "hotplaceLimit",
-                "eventLimit",
-                "getHotplaces(keyword, hotplaceLimit",
-                "getEvents(keyword, eventLimit",
-                "insightStatusService.getStatus()",
-            ),
-        ),
-        "backend_status_service": (
-            "backend/api-server/src/main/java/com/neogulmap/neogul_map/service/InsightStatusService.java",
-            (
-                "TELECOM_CROWD_API_KEY",
-                "TELECOM_CROWD_URL_TEMPLATE",
-                "SEOUL_CULTURE_API_KEY",
-                "hasTelecomUrlTemplate",
-                "hasTelecomUrlTemplate,",
-                "inspectPopupTrends()",
-            ),
-        ),
-        "backend_seoul_culture_runtime_provider": (
+        "backend_cached_verified_events": (
             "backend/api-server/src/main/java/com/neogulmap/neogul_map/service/EventInsightService.java",
             (
-                "SEOUL_CULTURE_API_KEY",
-                "SEOUL_CULTURE_API_BASE_URL",
-                "fetchSeoulCultureEvents",
-                "오늘",
-                "가볼만한",
-                "culturalEventInfo",
-                "toSeoulCultureEvent",
-                "SEOUL_CULTURE_API",
+                "readFreshCachedEvents(tourEventsCache)",
+                "readFreshCachedEvents(seoulCultureEventsCache)",
+                "readPopupTrendEvents()",
+                "${SEOUL_CULTURE_API_PAGE_SIZE:1000}",
+                "${SEOUL_CULTURE_API_MAX_PAGES:25}",
+                "${INSIGHTS_EVENT_CACHE_TTL_SECONDS:86400}",
+                "SEOUL_CULTURE_MAX_PAGE_SIZE = 1000",
+                "SEOUL_CULTURE_HARD_MAX_PAGES = 50",
+                "readSeoulCultureTotalCount(response)",
+                "rows.size() != totalCount",
+                "new CachedTourEvents(cached.events(), now.plus(lastGoodCacheDuration()))",
+                ".filter(this::hasVerifiableEventMetadata)",
+                ".filter(this::isPublishableSeongsuPopup)",
+                "!isSeongsuPopupIntent(keyword) || isPublishableSeongsuPopup(event)",
+                "if (event == null || isManualTrendRecord(item))",
+                "safeHttpUrl(event.detailUrl()) == null",
+                "!startDate.isAfter(endDate)",
+                "isPublicLinkHost(uri.getHost())",
+                '"NO_VERIFIED_DATA"',
+                "public void warmEventCache()",
             ),
         ),
-        "season2_env_sample": (
-            "backend/api-server/.env.sample",
+        "backend_hotplace_warmup": (
+            "backend/api-server/src/main/java/com/neogulmap/neogul_map/service/HotplaceCacheWarmupScheduler.java",
             (
-                "SEOUL_CITYDATA_API_KEY, or",
-                "TELECOM_CROWD_API_KEY + TELECOM_CROWD_URL_TEMPLATE",
-                "SEOUL_CULTURE_API_KEY for runtime Seoul culture API lookup",
-                "public event API records collected in POPUP_TRENDS_FILE",
-                "SEOUL_CULTURE_API_BASE_URL=http://openapi.seoul.go.kr:8088",
+                "external.insights.hotplace-warmup.enabled",
+                "fixedDelayString",
+                "hotplaceService.warmHotplaceCache()",
             ),
         ),
-        "season2_runbook_real_live": (
-            "docs/season2-live-insights-runbook.txt",
+        "backend_event_warmup": (
+            "backend/api-server/src/main/java/com/neogulmap/neogul_map/service/EventCacheWarmupScheduler.java",
             (
-                "export SEOUL_CULTURE_API_KEY",
-                "export KTO_TOUR_API_KEY",
-                "npm run lint",
-                "cp .env.example .env.local",
-                "NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:18080",
-                "--probe-public-event-provider",
-                "The goal is complete only when the real provider run",
+                "external.insights.event-warmup.enabled",
+                "fixedDelayString",
+                "external.insights.event-warmup.interval-ms:86400000",
+                "eventInsightService.warmEventCache()",
             ),
         ),
-        "season2_product_plan": (
-            "docs/season2-product-plan.md",
+        "collector_verified_publish_gate": (
+            "backend/data-scripts/scripts/collect_popup_trends.py",
             (
-                "롯데월드 사람 많아?",
-                "지금 핫한 곳",
-                "요즘 핫한 팝업 행사",
-                "요즘 뜨는 장소 어디",
-                "TELECOM_CROWD_API_KEY",
-                "SEOUL_CITYDATA_API_KEY",
-                "SEOUL_CULTURE_API_KEY",
-                "KTO_TOUR_API_KEY",
-                "POPUP_TRENDS_FILE",
-                "GET /api/insights/map",
-                "--probe-live-provider",
-                "--probe-public-event-provider",
-                "strict live gate passes",
-            ),
-        ),
-        "backend_smoke_scenarios": (
-            "backend/api-server/scripts/smoke-season2-insights.py",
-            (
-                "def smoke_hotplaces",
-                "def smoke_hot_now",
-                "def smoke_seongsu_popup",
-                "def smoke_generic_event_discovery",
-                "def smoke_insight_map",
-                "/api/insights/map",
-                "요즘 핫한 팝업 행사",
-                "telecomCrowdKeyConfigured",
-                "telecomCrowdUrlTemplateConfigured",
-                "seoulCultureApiKeyConfigured",
-                "seoulCultureApi",
-                "estimatedMinPeople and estimatedMaxPeople",
+                "def is_verifiable_record",
+                'record.get("collectionMode") == "NETWORK"',
+                'normalized_start = normalize_date_text(record.get("startDate"))',
+                'normalized_end = normalize_date_text(record.get("endDate"))',
+                "start_date is not None",
+                "end_date is not None",
+                "start_date <= end_date",
+                "end_date >= seoul_reference_date(as_of)",
+                'safe_http_url(record.get("detailUrl")) is not None',
+                'record.get("publicationPolicy") == "allowed_with_attribution"',
+                "def is_public_link_host",
             ),
         ),
     }
+    forbidden_checks = {
+        "ios_primary_ui_copy": (
+            "ios-native/NeogulMapNative/Views/ZoneMapView.swift",
+            (
+                "통신사 URL 필요",
+                "서울문화 API 확인",
+                "크롤링 팝업 트렌드",
+                "STATIC_FALLBACK",
+            ),
+        ),
+        "android_primary_ui_copy": (
+            "android-native/app/src/main/java/com/nugulmap/nativeapp/ui/map/MapScreen.kt",
+            (
+                "통신사 URL 필요",
+                "서울문화 API 확인",
+                "크롤링 팝업 트렌드",
+                "STATIC_FALLBACK",
+            ),
+        ),
+        "backend_fake_fallbacks": (
+            "backend/api-server/src/main/java/com/neogulmap/neogul_map/service/EventInsightService.java",
+            (
+                "FALLBACK_EVENTS",
+                "STATIC_EVENT_SEED",
+                "STATIC_FALLBACK",
+            ),
+        ),
+        "backend_fake_hotplaces": (
+            "backend/api-server/src/main/java/com/neogulmap/neogul_map/service/HotplaceService.java",
+            (
+                "STATIC_SEED",
+                "STATIC_FALLBACK",
+            ),
+        ),
+    }
+    required_paths = (
+        "ios-native/NeogulMapNative/Assets.xcassets/HotRaccoonMarker.imageset/Contents.json",
+        "ios-native/NeogulMapNative/Assets.xcassets/HotRaccoonMarker.imageset/hot_raccoon_marker.png",
+        "android-native/app/src/main/res/drawable-mdpi/hot_raccoon_marker.png",
+        "android-native/app/src/main/res/drawable-xxxhdpi/hot_raccoon_marker.png",
+    )
 
     ok = True
-    for label, (path, fragments) in checks.items():
-        missing = file_contains(path, *fragments)
+    for label, (path, fragments) in required_checks.items():
+        target = REPO_ROOT / path
+        if not target.is_file():
+            status_line(False, label, f"missing {path}")
+            ok = False
+            continue
+        text = target.read_text(encoding="utf-8")
+        missing = [fragment for fragment in fragments if fragment not in text]
         if missing:
             status_line(False, label, f"{path} missing: {', '.join(missing)}")
             ok = False
         else:
-            status_line(True, label, f"{path} contains required Season 2 contract fragments")
+            status_line(True, label, f"{path} contains the required Season 3 contract")
+
+    for label, (path, fragments) in forbidden_checks.items():
+        target = REPO_ROOT / path
+        if not target.is_file():
+            status_line(False, label, f"missing {path}")
+            ok = False
+            continue
+        text = target.read_text(encoding="utf-8")
+        present = [fragment for fragment in fragments if fragment in text]
+        if present:
+            status_line(False, label, f"{path} still contains forbidden fragments: {', '.join(present)}")
+            ok = False
+        else:
+            status_line(True, label, f"{path} has no fake fallback or provider-jargon copy")
+
+    for path in required_paths:
+        if not (REPO_ROOT / path).is_file():
+            status_line(False, "season3_marker_assets", f"missing {path}")
+            ok = False
+    if all((REPO_ROOT / path).is_file() for path in required_paths):
+        status_line(True, "season3_marker_assets", "hot raccoon marker assets exist for iOS and Android")
+
+    config_path = REPO_ROOT / "backend/data-scripts/config/popup_trend_sources.json"
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        status_line(False, "popup_source_policy", f"invalid {config_path}: {error}")
+        return False
+
+    sources = config.get("sources")
+    if not isinstance(sources, list):
+        status_line(False, "popup_source_policy", "popup source config must contain sources[]")
+        return False
+
+    active_sources = [
+        source
+        for source in sources
+        if isinstance(source, dict) and source.get("enabled", True) is not False
+    ]
+    skt_source = next(
+        (
+            source
+            for source in sources
+            if isinstance(source, dict) and source.get("id") == "skt-newsroom-seongsu-discovery"
+        ),
+        None,
+    )
+    source_policy_ok = (
+        config.get("allowSampleFallback") is False
+        and config.get("allowManualFallback") is False
+        and len(active_sources) == 1
+        and active_sources[0].get("id") == "seoul-culture-seongsu-popups"
+        and active_sources[0].get("source") == "SEOUL_CULTURE_API"
+        and active_sources[0].get("publicationPolicy") == "allowed_with_attribution"
+        and isinstance(skt_source, dict)
+        and skt_source.get("enabled") is False
+        and bool(str(skt_source.get("disabledReason") or "").strip())
+    )
+    if source_policy_ok:
+        status_line(
+            True,
+            "popup_source_policy",
+            "only the official Seoul Culture Seongsu popup source can auto-publish; manual/sample/SKT paths are disabled",
+        )
+    else:
+        status_line(False, "popup_source_policy", "popup source policy is not strict enough for production")
+        ok = False
 
     return ok
 
 
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Check Season 2 API keys, crawled data, and optional HTTP smoke.")
+    parser = argparse.ArgumentParser(description="Check NugulMap live provider keys, verified popup data, and optional HTTP smoke.")
     parser.add_argument("--base-url", default=None, help="When provided, smoke-test a running API server.")
     parser.add_argument(
         "--popup-file",
@@ -774,18 +854,18 @@ def main() -> int:
     parser.add_argument(
         "--max-popup-age-hours",
         type=int,
-        default=None,
-        help="Fail when any popup trend record is older than this many hours.",
+        default=positive_env_int("POPUP_TRENDS_MAX_AGE_HOURS", DEFAULT_POPUP_MAX_AGE_HOURS),
+        help="Fail when any popup trend record is older than this many hours (default: %(default)s).",
     )
     parser.add_argument(
         "--check-compose",
         action="store_true",
-        help="Validate docker compose config contains Season 2 env vars and popup data mount.",
+        help="Validate docker compose config contains Season 3 provider, cache, and popup mount settings.",
     )
     parser.add_argument(
         "--check-ui-parity",
         action="store_true",
-        help="Validate web, iOS, and Android Season 2 quick actions and layer controls are wired.",
+        help="Validate the iOS, Android, backend, and collector Season 3 native contract.",
     )
     parser.add_argument(
         "--probe-live-provider",
@@ -812,7 +892,7 @@ def main() -> int:
     parser.add_argument(
         "--public-event-probe-limit",
         type=int,
-        default=10,
+        default=100,
         help="Seoul culture rows to request for --probe-public-event-provider, default: %(default)s",
     )
     args = parser.parse_args()
@@ -836,8 +916,8 @@ def main() -> int:
         strict_quality=args.strict_popup_quality,
         max_age_hours=args.max_popup_age_hours,
     )
-    public_event_api_records = has_public_event_api_records(popup_file)
-    status_line(seoul_key, "SEOUL_CITYDATA_API_KEY", "set" if seoul_key else "unset; hotplaces will use STATIC_FALLBACK")
+    public_event_api_records = has_public_event_api_records(popup_file, args.max_popup_age_hours)
+    status_line(seoul_key, "SEOUL_CITYDATA_API_KEY", "set" if seoul_key else "unset; hotplaces will use NO_VERIFIED_DATA")
     status_line(
         telecom_key and telecom_url,
         "TELECOM_CROWD_API",
@@ -848,12 +928,12 @@ def main() -> int:
         "TELECOM_CROWD_TEMPLATE",
         telecom_template_status,
     )
-    status_line(kto_key, "KTO_TOUR_API_KEY", "set" if kto_key else "unset; events depend on crawled/fallback data")
-    status_line(seoul_culture_key, "SEOUL_CULTURE_API_KEY", "set" if seoul_culture_key else "unset; runtime Seoul culture API adapter will stay disabled")
+    status_line(kto_key, "KTO_TOUR_API_KEY", "set; optional general festival feed" if kto_key else "unset; not used as a Seongsu popup fallback")
+    status_line(seoul_culture_key, "SEOUL_CULTURE_API_KEY", "set" if seoul_culture_key else "unset; scheduled Seoul culture refresh will stay disabled")
     status_line(
         seoul_culture_key or public_event_api_records,
         "PUBLIC_EVENT_API_RECORDS",
-        "set" if public_event_api_records else "missing; event live gate can also use SEOUL_CULTURE_API_KEY",
+        "verified rows present" if public_event_api_records else "no verified rows in the current popup file",
     )
 
     smoke_code = 0

@@ -1,5 +1,6 @@
 package com.neogulmap.neogul_map.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -36,20 +38,42 @@ public class User implements UserDetails {
     
     @Column(name = "profile_image_url")
     private String profileImage;
+
+    @JsonIgnore
+    @Lob
+    @Column(name = "apple_refresh_token_ciphertext")
+    private String appleRefreshTokenCiphertext;
     
-    @Column(name = "created_at")
-    private String createdAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     public User() {}
 
-    public User(Long id, String nickname, String email, String oauthId, String oauthProvider, String profileImage, String createdAt) {
+    public User(
+            Long id,
+            String nickname,
+            String email,
+            String oauthId,
+            String oauthProvider,
+            String profileImage,
+            String appleRefreshTokenCiphertext,
+            LocalDateTime createdAt
+    ) {
         this.id = id;
         this.nickname = nickname;
         this.email = email;
         this.oauthId = oauthId;
         this.oauthProvider = oauthProvider;
         this.profileImage = profileImage;
+        this.appleRefreshTokenCiphertext = appleRefreshTokenCiphertext;
         this.createdAt = createdAt;
+    }
+
+    @PrePersist
+    void initializeCreatedAt() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     public void update(UserRequest userRequest) {

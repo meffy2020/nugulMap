@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
@@ -39,6 +41,9 @@ public class InsightStatusService {
 
     @Value("${external.popup-trends.file:${POPUP_TRENDS_FILE:}}")
     private String popupTrendsFile;
+
+    @Value("${external.popup-trends.max-age-hours:${POPUP_TRENDS_MAX_AGE_HOURS:24}}")
+    private long popupTrendsMaxAgeHours;
 
     public InsightStatusResponse getStatus() {
         boolean hasSeoulKey = hasText(seoulCityDataApiKey);
@@ -76,7 +81,7 @@ public class InsightStatusService {
             ProviderStatus telecomCrowdStatus
     ) {
         if (!hasSeoulKey && !hasTelecomKey) {
-            return "STATIC_FALLBACK";
+            return "NO_VERIFIED_DATA";
         }
         if ("OK".equals(telecomCrowdStatus.qualityStatus()) || "OK".equals(seoulCityDataStatus.qualityStatus())) {
             return "LIVE_READY";
@@ -104,7 +109,7 @@ public class InsightStatusService {
                     ? "LIVE_CONFIGURED_ERROR"
                     : "LIVE_CONFIGURED_UNVERIFIED";
         }
-        return "STATIC_FALLBACK";
+        return "NO_VERIFIED_DATA";
     }
 
     private InsightStatusResponse.PopupTrendStatus inspectPopupTrends() {
@@ -146,15 +151,14 @@ public class InsightStatusService {
             }
 
             PopupInspection inspection = inspectItems(items);
+            String qualityStatus = popupQualityStatus(inspection);
             return new InsightStatusResponse.PopupTrendStatus(
                     true,
                     true,
                     items.size(),
                     inspection.latestCollectedAt(),
-                    inspection.invalidRecords() == 0 ? "OK" : "INVALID_RECORDS",
-                    inspection.invalidRecords() == 0
-                            ? "Popup trends file is readable"
-                            : inspection.invalidRecords() + " popup trend records are missing required fields"
+                    qualityStatus,
+                    popupQualityDetail(inspection, qualityStatus)
             );
         } catch (Exception error) {
             return new InsightStatusResponse.PopupTrendStatus(
@@ -181,7 +185,9 @@ public class InsightStatusService {
 
     private PopupInspection inspectItems(List<?> items) {
         int invalidRecords = 0;
+        int liveEligibleRecords = 0;
         Instant latestCollectedAt = null;
+        Instant latestLiveCollectedAt = null;
 
         for (Object item : items) {
             if (!(item instanceof Map<?, ?> map)) {
@@ -189,8 +195,18 @@ public class InsightStatusService {
                 continue;
             }
 
-            if (!hasText(map.get("id")) || !hasText(map.get("title")) || !hasText(map.get("kind"))
-                    || !isNumber(map.get("latitude")) || !isNumber(map.get("longitude"))) {
+            boolean manualSeed = isManualSeed(map);
+            boolean invalidRecord = !hasText(map.get("id"))
+                    || !hasText(map.get("title"))
+                    || !hasText(map.get("kind"))
+                    || !isNumber(map.get("latitude"))
+                    || !isNumber(map.get("longitude"));
+            if (!manualSeed && (!hasText(map.get("startDate"))
+                    || !hasText(map.get("endDate"))
+                    || !hasSafeDetailUrl(map))) {
+                invalidRecord = true;
+            }
+            if (invalidRecord) {
                 invalidRecords += 1;
             }
 
@@ -198,9 +214,71 @@ public class InsightStatusService {
             if (collectedAt != null && (latestCollectedAt == null || collectedAt.isAfter(latestCollectedAt))) {
                 latestCollectedAt = collectedAt;
             }
+            if (!manualSeed && !invalidRecord) {
+                liveEligibleRecords += 1;
+                if (collectedAt != null && (latestLiveCollectedAt == null || collectedAt.isAfter(latestLiveCollectedAt))) {
+                    latestLiveCollectedAt = collectedAt;
+                }
+            }
         }
 
-        return new PopupInspection(invalidRecords, latestCollectedAt);
+        return new PopupInspection(invalidRecords, liveEligibleRecords, latestCollectedAt, latestLiveCollectedAt);
+    }
+
+    private String popupQualityStatus(PopupInspection inspection) {
+        if (inspection.invalidRecords() > 0) {
+            return "INVALID_RECORDS";
+        }
+        if (inspection.latestCollectedAt() == null) {
+            return "MISSING_COLLECTED_AT";
+        }
+        if (inspection.liveEligibleRecords() == 0) {
+            return "MANUAL_ONLY";
+        }
+        if (inspection.latestLiveCollectedAt() == null) {
+            return "MISSING_COLLECTED_AT";
+        }
+        Instant staleBefore = Instant.now().minus(Duration.ofHours(normalizedPopupTrendsMaxAgeHours()));
+        return inspection.latestLiveCollectedAt().isBefore(staleBefore) ? "STALE" : "OK";
+    }
+
+    private String popupQualityDetail(PopupInspection inspection, String qualityStatus) {
+        return switch (qualityStatus) {
+            case "INVALID_RECORDS" -> inspection.invalidRecords() + " popup trend records are missing required fields";
+            case "MISSING_COLLECTED_AT" -> "Popup trends file has no valid collectedAt timestamp";
+            case "MANUAL_ONLY" -> "Popup trends file contains only manual seed records";
+            case "STALE" -> "Popup trends file is older than " + normalizedPopupTrendsMaxAgeHours() + " hours";
+            default -> "Popup trends file is readable and fresh";
+        };
+    }
+
+    private boolean isManualSeed(Map<?, ?> item) {
+        return "MANUAL".equalsIgnoreCase(String.valueOf(item.get("collectionMode")))
+                || "MANUAL_SEED".equalsIgnoreCase(String.valueOf(item.get("source")));
+    }
+
+    private boolean hasSafeDetailUrl(Map<?, ?> item) {
+        Object value = item.get("detailUrl");
+        if (!hasText(value) && item.get("collectionMode") == null) {
+            value = item.get("sourceContentId");
+        }
+        if (!hasText(value)) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(String.valueOf(value).trim());
+            String scheme = uri.getScheme();
+            return uri.isAbsolute()
+                    && uri.getHost() != null
+                    && !uri.getHost().isBlank()
+                    && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme));
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private long normalizedPopupTrendsMaxAgeHours() {
+        return popupTrendsMaxAgeHours > 0 ? popupTrendsMaxAgeHours : 24L;
     }
 
     private boolean hasText(Object value) {
@@ -239,6 +317,11 @@ public class InsightStatusService {
         }
     }
 
-    private record PopupInspection(int invalidRecords, Instant latestCollectedAt) {
+    private record PopupInspection(
+            int invalidRecords,
+            int liveEligibleRecords,
+            Instant latestCollectedAt,
+            Instant latestLiveCollectedAt
+    ) {
     }
 }

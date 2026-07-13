@@ -1,37 +1,212 @@
 {
+  "version": 1,
+  "allowSampleFallback": false,
+  "allowManualFallback": false,
   "sources": [
     {
-      "url": "http://openapi.seoul.go.kr:8088/${SEOUL_CULTURE_API_KEY:-${SEOUL_CITYDATA_API_KEY:-sample}}/json/culturalEventInfo/1/${SEOUL_CULTURE_API_END_INDEX:-5}/",
-      "title": "서울시 문화행사 정보",
-      "kind": "event",
+      "id": "seoul-culture-seongsu-popups",
+      "sourceType": "seoul_culture_api",
+      "url": "${SEOUL_CULTURE_API_BASE_URL:-http://openapi.seoul.go.kr:8088}/${SEOUL_CULTURE_API_KEY}/json/culturalEventInfo/{{PAGE_START}}/{{PAGE_END}}/",
+      "officialSourceUrl": "https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do",
+      "allowedHosts": [
+        "openapi.seoul.go.kr",
+        "data.seoul.go.kr",
+        "culture.seoul.go.kr"
+      ],
+      "requiredEnv": [
+        "SEOUL_CULTURE_API_KEY"
+      ],
+      "title": "서울시 문화행사 중 제목에 팝업이 명시된 성수 행사",
+      "kind": "popup",
       "source": "SEOUL_CULTURE_API",
       "period": "서울문화포털 매일 갱신",
-      "address": "서울특별시",
-      "manual": false
+      "attribution": "서울특별시 문화행사 정보",
+      "license": "공공누리 제1유형",
+      "licenseUrl": "https://www.kogl.or.kr/info/licenseType1.do",
+      "usagePolicyUrl": "https://data.seoul.go.kr/etc/openInfo.do",
+      "publicationPolicy": "allowed_with_attribution",
+      "pagination": {
+        "enabled": true,
+        "pageSize": "${SEOUL_CULTURE_API_PAGE_SIZE:-1000}",
+        "maxPages": "${SEOUL_CULTURE_API_MAX_PAGES:-25}"
+      },
+      "recordFilter": {
+        "locationTerms": [
+          "성수",
+          "서울숲",
+          "연무장"
+        ],
+        "titleTerms": [
+          "팝업",
+          "popup"
+        ],
+        "topicTerms": [
+          "팝업",
+          "popup"
+        ],
+        "bounds": {
+          "minLatitude": 37.532,
+          "maxLatitude": 37.558,
+          "minLongitude": 127.032,
+          "maxLongitude": 127.072
+        }
+      },
+      "schedule": {
+        "intervalSeconds": 86400,
+        "maxJitterSeconds": 0
+      }
     },
     {
-      "title": "성수 팝업 수동 후보",
-      "kind": "popup",
-      "period": "최근 후보",
-      "latitude": 37.5446,
-      "longitude": 127.0557,
-      "address": "서울 성동구 성수동2가"
-    },
-    {
-      "title": "여의도 한강공원 행사 후보",
+      "id": "tourapi-festival-events",
+      "enabled": false,
+      "disabledReason": "한국관광공사 searchFestival2는 일반 축제 API로 성수 팝업 전용 피드가 아니며, 명시적 축제 검색 경로에서만 별도로 사용",
+      "sourceType": "tour_api",
+      "url": "https://apis.data.go.kr/B551011/KorService2/searchFestival2?serviceKey=${KTO_TOUR_API_KEY}&MobileOS=ETC&MobileApp=NugulMap&_type=json&numOfRows=${KTO_TOUR_API_ROWS:-100}&pageNo=1&eventStartDate={{TODAY_MINUS_7D}}",
+      "officialSourceUrl": "https://www.data.go.kr/data/15101578/openapi.do",
+      "allowedHosts": [
+        "apis.data.go.kr",
+        "www.data.go.kr",
+        "data.go.kr",
+        "korean.visitkorea.or.kr",
+        "visitkorea.or.kr"
+      ],
+      "requiredEnv": [
+        "KTO_TOUR_API_KEY"
+      ],
+      "title": "한국관광공사 축제 행사 정보",
       "kind": "festival",
-      "period": "계절 행사 후보",
-      "latitude": 37.5284,
-      "longitude": 126.9327,
-      "address": "서울 영등포구 여의동로 330"
+      "source": "KTO_TOUR_API",
+      "schedule": {
+        "intervalSeconds": 21600,
+        "maxJitterSeconds": 300
+      }
     },
     {
-      "title": "홍대 거리 공연·플리마켓 후보",
-      "kind": "street_event",
-      "period": "주말 후보",
-      "latitude": 37.5563,
-      "longitude": 126.9236,
-      "address": "서울 마포구 홍대입구역 일대"
+      "id": "shinsegae-official-popups",
+      "sourceType": "official_mall",
+      "enabled": false,
+      "disabledReason": "강남점 공식 팝업으로 성수 팝업 탭의 지역 범위와 일치하지 않음",
+      "url": "https://www.shinsegae.com/shopping/list.do?storeCd=SC00002",
+      "officialSourceUrl": "https://www.shinsegae.com/shopping/list.do?storeCd=SC00002",
+      "allowedHosts": [
+        "shinsegae.com",
+        "www.shinsegae.com"
+      ],
+      "parser": "shinsegae_shopping",
+      "storeCode": "SC00002",
+      "popupKeywords": [
+        "팝업",
+        "popup",
+        "pop-up"
+      ],
+      "title": "신세계백화점 강남점 공식 팝업 정보",
+      "kind": "popup",
+      "source": "SHINSEGAE_OFFICIAL",
+      "latitude": 37.503822,
+      "longitude": 127.00453,
+      "address": "서울특별시 서초구 신반포로 176 (반포동)",
+      "schedule": {
+        "intervalSeconds": 14400,
+        "maxJitterSeconds": 900
+      }
+    },
+    {
+      "id": "skt-newsroom-seongsu-discovery",
+      "sourceType": "discovery",
+      "enabled": false,
+      "disabledReason": "뉴스룸 콘텐츠의 상업적 이용이 금지되어 있어 SKT의 서면 허락 전에는 발견용 수집도 실행하지 않음",
+      "url": "https://news.sktelecom.com/wp-json/wp/v2/posts?search=T%20%ED%8C%A9%ED%86%A0%EB%A6%AC%20%EC%84%B1%EC%88%98&per_page=20&orderby=date&order=desc&_fields=id,date,modified,link,title,excerpt,content",
+      "officialSourceUrl": "https://news.sktelecom.com/",
+      "allowedHosts": [
+        "news.sktelecom.com"
+      ],
+      "parser": "skt_newsroom_seongsu",
+      "robotsUrl": "https://news.sktelecom.com/robots.txt",
+      "usagePolicyUrl": "https://news.sktelecom.com/information-use",
+      "publicationPolicy": "review_required",
+      "persistRecords": false,
+      "rightsStatus": "PROVIDER_PERMISSION_REQUIRED",
+      "locationTerms": [
+        "T 팩토리 성수",
+        "T팩토리 성수",
+        "서울시 성수동",
+        "서울 성수동"
+      ],
+      "topicTerms": [
+        "팝업",
+        "전시",
+        "체험",
+        "프로모션",
+        "미니 포레스트"
+      ],
+      "activeWindowDays": 120,
+      "title": "SKT 뉴스룸 T 팩토리 성수 발견 큐",
+      "kind": "popup",
+      "source": "SKT_NEWSROOM_DISCOVERY",
+      "latitude": 37.54481912,
+      "longitude": 127.05040398,
+      "address": "서울특별시 성동구 연무장1길 7-1",
+      "schedule": {
+        "intervalSeconds": 21600,
+        "maxJitterSeconds": 600
+      }
+    },
+    {
+      "id": "lotte-official-popups",
+      "sourceType": "official_mall",
+      "enabled": false,
+      "disabledReason": "공식 검색 HTML에서 제목과 내부 ID는 확인되지만 시작일·종료일·정확한 지점 좌표를 함께 제공하는 안정적 레코드 구조가 검증되지 않음",
+      "url": "https://m.lotteshopping.com/search/searchResult?cstrCd=0344&searchTerm=POP-UP",
+      "officialSourceUrl": "https://m.lotteshopping.com/search/searchResult?cstrCd=0344&searchTerm=POP-UP",
+      "allowedHosts": [
+        "lotteshopping.com",
+        "m.lotteshopping.com"
+      ],
+      "title": "롯데백화점 공식 POP-UP 정보",
+      "kind": "popup",
+      "source": "LOTTE_OFFICIAL",
+      "schedule": {
+        "intervalSeconds": 14400,
+        "maxJitterSeconds": 900
+      }
+    },
+    {
+      "id": "hyundai-official-events",
+      "sourceType": "official_mall",
+      "enabled": false,
+      "disabledReason": "공식 이벤트 HTML 초기 응답에서 시작일·종료일·지점 좌표가 포함된 안정적 행사 레코드 구조가 검증되지 않음",
+      "url": "https://www.ehyundai.com/newPortal/EV/EV000003_V.do",
+      "officialSourceUrl": "https://www.ehyundai.com/newPortal/EV/EV000003_V.do",
+      "allowedHosts": [
+        "ehyundai.com",
+        "www.ehyundai.com"
+      ],
+      "title": "현대백화점 공식 이벤트 정보",
+      "kind": "popup",
+      "source": "HYUNDAI_OFFICIAL",
+      "schedule": {
+        "intervalSeconds": 14400,
+        "maxJitterSeconds": 900
+      }
+    },
+    {
+      "id": "starfield-official-events",
+      "sourceType": "official_mall",
+      "enabled": false,
+      "disabledReason": "스타필드 코엑스몰 공식 HTML에서 시작일·종료일·지점 좌표를 함께 제공하는 안정적 행사 레코드 구조가 검증되지 않음",
+      "url": "https://www.starfield.co.kr/coexmall/eventBenefit/events",
+      "officialSourceUrl": "https://www.starfield.co.kr/coexmall/eventBenefit/events",
+      "allowedHosts": [
+        "starfield.co.kr",
+        "www.starfield.co.kr"
+      ],
+      "title": "스타필드 공식 이벤트 정보",
+      "kind": "popup",
+      "source": "STARFIELD_OFFICIAL",
+      "schedule": {
+        "intervalSeconds": 14400,
+        "maxJitterSeconds": 900
+      }
     }
   ]
 }

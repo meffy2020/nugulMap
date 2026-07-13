@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "allowSampleFallback": false,
+  "allowManualFallback": false,
+  "sources": [
+    {
+      "id": "seoul-culture-seongsu-popups-mock",
+      "sourceType": "seoul_culture_api",
+      "url": "${SEOUL_CULTURE_API_BASE_URL:-http://127.0.0.1:18081}/${SEOUL_CULTURE_API_KEY}/json/culturalEventInfo/{{PAGE_START}}/{{PAGE_END}}/",
+      "officialSourceUrl": "https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do",
+      "allowedHosts": [
+        "127.0.0.1",
+        "data.seoul.go.kr",
+        "culture.seoul.go.kr"
+      ],
+      "testOnlyAllowPrivateHost": true,
+      "requiredEnv": [
+        "SEOUL_CULTURE_API_KEY"
+      ],
+      "title": "로컬 모의 서울시 문화행사 중 성수 팝업",
+      "kind": "popup",
+      "source": "SEOUL_CULTURE_API",
+      "address": "서울특별시 성동구 성수동",
+      "attribution": "서울특별시 문화행사 정보",
+      "license": "공공누리 제1유형",
+      "licenseUrl": "https://www.kogl.or.kr/info/licenseType1.do",
+      "usagePolicyUrl": "https://data.seoul.go.kr/etc/openInfo.do",
+      "publicationPolicy": "allowed_with_attribution",
+      "pagination": {
+        "enabled": true,
+        "pageSize": "${SEOUL_CULTURE_API_PAGE_SIZE:-5}",
+        "maxPages": "${SEOUL_CULTURE_API_MAX_PAGES:-2}"
+      },
+      "recordFilter": {
+        "locationTerms": [
+          "성수",
+          "서울숲",
+          "연무장"
+        ],
+        "titleTerms": [
+          "팝업",
+          "popup"
+        ],
+        "topicTerms": [
+          "팝업",
+          "popup"
+        ],
+        "bounds": {
+          "minLatitude": 37.532,
+          "maxLatitude": 37.558,
+          "minLongitude": 127.032,
+          "maxLongitude": 127.072
+        }
+      },
+      "schedule": {
+        "intervalSeconds": 86400,
+        "maxJitterSeconds": 0
+      }
+    }
+  ]
+}

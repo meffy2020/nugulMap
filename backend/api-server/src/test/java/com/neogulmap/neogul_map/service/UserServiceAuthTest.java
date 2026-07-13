@@ -1,7 +1,10 @@
 package com.neogulmap.neogul_map.service;
 
 import com.neogulmap.neogul_map.config.security.oauth.OAuth2UserCustomService;
+import com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode;
+import com.neogulmap.neogul_map.config.exceptionHandling.exception.ValidationException;
 import com.neogulmap.neogul_map.domain.User;
+import com.neogulmap.neogul_map.dto.UserRequest;
 import com.neogulmap.neogul_map.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +17,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -24,6 +29,12 @@ class UserServiceAuthTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ReviewContentPolicy contentPolicy;
+
+    @Mock
+    private AppleRefreshTokenCipher appleRefreshTokenCipher;
 
     @InjectMocks
     private UserService userService;
@@ -64,6 +75,7 @@ class UserServiceAuthTest {
         assertEquals(email, result.getEmail());
         assertEquals(providerId, result.getOauthId());
         assertEquals(provider, result.getOauthProvider());
+        assertNotNull(result.getCreatedAt());
         verify(userRepository, times(1)).save(any(User.class));
     }
 
@@ -100,5 +112,51 @@ class UserServiceAuthTest {
         assertEquals(providerId, result.getOauthId());
         assertEquals(provider, result.getOauthProvider());
         verify(userRepository, times(1)).save(existingUser);
+    }
+
+    @Test
+    @DisplayName("공개 닉네임은 콘텐츠 정책을 통과해야 한다")
+    void updateUserRejectsObjectionableNickname() {
+        User existingUser = User.builder()
+                .id(1L)
+                .nickname("기존너굴")
+                .build();
+        UserRequest request = UserRequest.builder()
+                .nickname("F.U C-K")
+                .build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser));
+        org.mockito.Mockito.doThrow(new ValidationException(ErrorCode.REVIEW_CONTENT_REJECTED))
+                .when(contentPolicy)
+                .ensureAllowed("F.U C-K");
+
+        ValidationException exception = assertThrows(
+                ValidationException.class,
+                () -> userService.updateUser(1L, request)
+        );
+        assertEquals(ErrorCode.NICKNAME_CONTENT_REJECTED, exception.getErrorCode());
+        assertEquals("기존너굴", existingUser.getNickname());
+    }
+
+    @Test
+    @DisplayName("Apple 이름이 콘텐츠 정책에 맞지 않으면 로그인은 유지하고 프로필 설정을 요구한다")
+    void processAppleUserDropsObjectionableProviderNickname() {
+        when(appleRefreshTokenCipher.encrypt("refresh-token")).thenReturn("encrypted-token");
+        when(userRepository.findByOauthProviderAndOauthId("apple", "apple-subject"))
+                .thenReturn(Optional.empty());
+        when(userRepository.findByEmail("apple@example.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        org.mockito.Mockito.doThrow(new ValidationException(ErrorCode.REVIEW_CONTENT_REJECTED))
+                .when(contentPolicy)
+                .ensureAllowed("F.U C-K");
+
+        User result = userService.processAppleUser(
+                "apple-subject",
+                "apple@example.com",
+                " F.U C-K ",
+                "refresh-token"
+        );
+
+        assertNull(result.getNickname());
+        assertEquals("apple", result.getOauthProvider());
     }
 }

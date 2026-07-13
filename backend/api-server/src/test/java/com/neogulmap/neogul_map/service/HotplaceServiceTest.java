@@ -4,44 +4,56 @@ import com.neogulmap.neogul_map.dto.HotplaceResponse;
 import com.neogulmap.neogul_map.dto.InsightStatusResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.http.client.MockClientHttpResponse;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class HotplaceServiceTest {
 
-    private static final String JAMSIL_TOURISM_CITYDATA_URL = "http://openapi.seoul.go.kr:8088/test-key/xml/citydata/1/5/POI005";
-    private static final String JAMSIL_SAENAE_CITYDATA_URL = "http://openapi.seoul.go.kr:8088/test-key/xml/citydata/1/5/POI118";
-    private static final String SONGRIDAN_CITYDATA_URL = "http://openapi.seoul.go.kr:8088/test-key/xml/citydata/1/5/%EC%86%A1%EB%A6%AC%EB%8B%A8%EA%B8%B8%C2%B7%ED%98%B8%EC%88%98%EB%8B%A8%EA%B8%B8";
+    private static final String JAMSIL_TOURISM_CITYDATA_URL = "http://openapi.seoul.go.kr:8088/test-key/xml/citydata_ppltn/1/5/POI005";
+    private static final String JAMSIL_STATION_CITYDATA_URL = "http://openapi.seoul.go.kr:8088/test-key/xml/citydata_ppltn/1/5/POI119";
+    private static final String LOTTE_TOWER_CITYDATA_URL = "http://openapi.seoul.go.kr:8088/test-key/xml/citydata_ppltn/1/5/POI120";
+    private static final String SONGRIDAN_CITYDATA_URL = "http://openapi.seoul.go.kr:8088/test-key/xml/citydata_ppltn/1/5/POI121";
+    private static final String IKSEON_CITYDATA_URL = "http://openapi.seoul.go.kr:8088/test-key/xml/citydata_ppltn/1/5/POI116";
 
     @Test
-    void getHotplacesReturnsLotteWorldFallbackWithoutExternalKey() {
+    void getHotplacesReturnsNoVerifiedDataWithoutExternalKey() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
         ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
 
         HotplaceResponse response = service.getHotplaces("롯데", 3);
 
-        assertThat(response.dataFreshness()).isEqualTo("STATIC_FALLBACK");
-        assertThat(response.places()).isNotEmpty();
-        assertThat(response.places().getFirst().name()).contains("롯데월드");
-        assertThat(response.places().getFirst().source()).isEqualTo("STATIC_SEED");
-        assertThat(response.sources())
-                .contains("서울특별시_실시간 도시데이터(통신 기지국 기반 실시간 인구 추정)");
+        assertThat(response.dataFreshness()).isEqualTo("NO_VERIFIED_DATA");
+        assertThat(response.places()).isEmpty();
+        assertThat(response.sources()).isEmpty();
     }
 
     @Test
-    void getHotplacesCapsLimitAndKeepsSeededHotplaceCandidates() {
-        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
-        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
-        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+    void getHotplacesCapsLimitForVerifiedHotplaceCandidates() {
+        HotplaceService service = newVerifiedTelecomService();
+        service.warmHotplaceCache();
 
         HotplaceResponse response = service.getHotplaces(null, 50);
 
@@ -49,13 +61,15 @@ class HotplaceServiceTest {
         assertThat(response.places())
                 .extracting(HotplaceResponse.HotplaceItem::name)
                 .contains("롯데월드·잠실", "성수동 카페거리", "강남역", "명동");
+        assertThat(response.sources()).containsExactly("계약된 통신사 장소 혼잡도");
     }
 
     @Test
     void getHotplacesSearchesExpandedSeoulRealtimeCityDataCandidates() {
-        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
-        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
-        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        HotplaceService service = newVerifiedTelecomService();
+        service.refreshHotplaceCacheEntry("gangnam-station");
+        service.refreshHotplaceCacheEntry("gangnam-mice");
+        service.refreshHotplaceCacheEntry("seongsu");
 
         HotplaceResponse gangnam = service.getHotplaces("강남", 10);
         HotplaceResponse seongsu = service.getHotplaces("성수", 10);
@@ -70,13 +84,12 @@ class HotplaceServiceTest {
 
     @Test
     void getHotplacesTreatsHotNowAsCitywideRankedShortcut() {
-        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
-        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
-        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        HotplaceService service = newVerifiedTelecomService();
+        service.warmHotplaceCache();
 
         HotplaceResponse response = service.getHotplaces("hot-now", 5);
 
-        assertThat(response.dataFreshness()).isEqualTo("STATIC_FALLBACK");
+        assertThat(response.dataFreshness()).isEqualTo("LIVE_OR_PARTIAL");
         assertThat(response.places()).hasSize(5);
         assertThat(response.places())
                 .extracting(HotplaceResponse.HotplaceItem::name)
@@ -85,9 +98,10 @@ class HotplaceServiceTest {
 
     @Test
     void getHotplacesTreatsKoreanHotNowAsCitywideRankedShortcut() {
-        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
-        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
-        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        HotplaceService service = newVerifiedTelecomService();
+        service.refreshHotplaceCacheEntry("hongdae");
+        service.refreshHotplaceCacheEntry("seongsu");
+        service.refreshHotplaceCacheEntry("gangnam-station");
 
         HotplaceResponse response = service.getHotplaces("지금 핫한 곳", 5);
 
@@ -98,9 +112,8 @@ class HotplaceServiceTest {
 
     @Test
     void getHotplacesUnderstandsNaturalCrowdQuestionForLotteWorld() {
-        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
-        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
-        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        HotplaceService service = newVerifiedTelecomService();
+        service.refreshHotplaceCacheEntry("lotte-world");
 
         HotplaceResponse response = service.getHotplaces("롯데월드 사람 많아?", 3);
 
@@ -110,10 +123,37 @@ class HotplaceServiceTest {
     }
 
     @Test
-    void getHotplacesKeepsSpecificPlaceWhenHotplaceWordIsIncluded() {
+    void season3HotplacesUseCurrentOfficialSeoulPlaceCodes() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
-        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
+        setNow(service, "2026-06-18T13:05:00Z");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "test-key");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo(LOTTE_TOWER_CITYDATA_URL))
+                .andRespond(withSuccess(cityPopulationXml("잠실롯데타워·석촌호수"), new MediaType("application", "xml", StandardCharsets.UTF_8)));
+        server.expect(requestTo(SONGRIDAN_CITYDATA_URL))
+                .andRespond(withSuccess(cityPopulationXml("송리단길·호수단길"), new MediaType("application", "xml", StandardCharsets.UTF_8)));
+        server.expect(requestTo(IKSEON_CITYDATA_URL))
+                .andRespond(withSuccess(cityPopulationXml("익선동"), new MediaType("application", "xml", StandardCharsets.UTF_8)));
+
+        service.refreshHotplaceCacheEntry("lotte-tower-lake");
+        service.refreshHotplaceCacheEntry("songridan");
+        service.refreshHotplaceCacheEntry("ikseon");
+
+        server.verify();
+        assertThat(service.getHotplaces("롯데타워", 1).places().getFirst().sourcePlaceCode())
+                .isEqualTo("잠실롯데타워·석촌호수");
+        assertThat(service.getHotplaces("송리단", 1).places().getFirst().sourcePlaceCode())
+                .isEqualTo("송리단길·호수단길");
+        assertThat(service.getHotplaces("익선", 1).places().getFirst().sourcePlaceCode())
+                .isEqualTo("익선동");
+    }
+
+    @Test
+    void getHotplacesKeepsSpecificPlaceWhenHotplaceWordIsIncluded() {
+        HotplaceService service = newVerifiedTelecomService();
+        service.refreshHotplaceCacheEntry("seongsu");
 
         HotplaceResponse response = service.getHotplaces("성수 핫플", 5);
 
@@ -124,9 +164,11 @@ class HotplaceServiceTest {
 
     @Test
     void getHotplacesTreatsCitywideHotplaceQuestionAsHotNow() {
-        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
-        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
-        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        HotplaceService service = newVerifiedTelecomService();
+        service.refreshHotplaceCacheEntry("hongdae");
+        service.refreshHotplaceCacheEntry("seongsu");
+        service.refreshHotplaceCacheEntry("gangnam-station");
+        service.refreshHotplaceCacheEntry("lotte-world");
 
         HotplaceResponse response = service.getHotplaces("서울 핫플 어디야", 4);
 
@@ -138,9 +180,8 @@ class HotplaceServiceTest {
 
     @Test
     void getHotplacesFiltersCandidatesByViewportBounds() {
-        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
-        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
-        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        HotplaceService service = newVerifiedTelecomService();
+        service.refreshHotplaceCacheEntry("seongsu");
 
         HotplaceResponse response = service.getHotplaces(null, 10, 37.53, 37.56, 127.04, 127.07);
 
@@ -150,8 +191,26 @@ class HotplaceServiceTest {
     }
 
     @Test
+    void getHotplacesDoesNotCallProviderWhenCacheIsColdAndReturnsNoVerifiedData() {
+        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
+        ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "test-key");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+
+        HotplaceResponse response = service.getHotplaces("롯데월드", 1);
+
+        server.verify();
+        assertThat(response.dataFreshness()).isEqualTo("NO_VERIFIED_DATA");
+        assertThat(response.places()).isEmpty();
+    }
+
+    @Test
     void getHotplacesParsesSeoulCityDataCrowdEstimateForLotteWorld() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T11:05:00Z");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
         ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "test-key");
         RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
@@ -174,6 +233,7 @@ class HotplaceServiceTest {
                         </SeoulRtd.citydata>
                         """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8)));
 
+        service.refreshHotplaceCacheEntry("lotte-world");
         HotplaceResponse response = service.getHotplaces("롯데월드", 1);
 
         server.verify();
@@ -186,6 +246,41 @@ class HotplaceServiceTest {
         assertThat(lotteWorld.estimatedMaxPeople()).isEqualTo(14000);
         assertThat(lotteWorld.source()).isEqualTo("SEOUL_CITYDATA");
         assertThat(lotteWorld.sourcePlaceCode()).isEqualTo("잠실 관광특구");
+        assertThat(lotteWorld.freshnessStatus()).isEqualTo("CURRENT");
+        assertThat(lotteWorld.ageSeconds()).isEqualTo(300L);
+    }
+
+    @Test
+    void getHotplacesRejectsSeoulCityDataOlderThanThirtyMinutes() {
+        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T11:00:00Z");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "test-key");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo(JAMSIL_TOURISM_CITYDATA_URL))
+                .andRespond(withSuccess("""
+                        <SeoulRtd.citydata>
+                          <CITYDATA>
+                            <AREA_NM>잠실 관광특구</AREA_NM>
+                            <LIVE_PPLTN_STTS>
+                              <LIVE_PPLTN_STTS>
+                                <AREA_CONGEST_LVL>붐빔</AREA_CONGEST_LVL>
+                                <AREA_PPLTN_MIN>30000</AREA_PPLTN_MIN>
+                                <AREA_PPLTN_MAX>35000</AREA_PPLTN_MAX>
+                                <PPLTN_TIME>2000-01-01 00:00</PPLTN_TIME>
+                              </LIVE_PPLTN_STTS>
+                            </LIVE_PPLTN_STTS>
+                          </CITYDATA>
+                        </SeoulRtd.citydata>
+                        """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8)));
+
+        service.refreshHotplaceCacheEntry("lotte-world");
+        HotplaceResponse response = service.getHotplaces("롯데월드", 1);
+
+        server.verify();
+        assertThat(response.dataFreshness()).isEqualTo("NO_VERIFIED_DATA");
+        assertThat(response.places()).isEmpty();
     }
 
     @Test
@@ -204,18 +299,18 @@ class HotplaceServiceTest {
                         </SeoulRtd.citydata>
                         """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8)));
 
+        service.refreshHotplaceCacheEntry("lotte-world");
         HotplaceResponse response = service.getHotplaces("롯데월드", 1);
 
         server.verify();
-        assertThat(response.dataFreshness()).isEqualTo("STATIC_FALLBACK");
-        assertThat(response.places()).hasSize(1);
-        assertThat(response.places().getFirst().source()).isEqualTo("STATIC_SEED");
-        assertThat(response.places().getFirst().sourcePlaceCode()).isEqualTo("잠실 관광특구");
+        assertThat(response.dataFreshness()).isEqualTo("NO_VERIFIED_DATA");
+        assertThat(response.places()).isEmpty();
     }
 
     @Test
-    void getHotplacesTriesJamsilCityDataAliasesWhenLegacyPlaceCodeIsInvalid() {
+    void getHotplacesTriesCurrentJamsilStationAliasWhenTourismAreaIsUnavailable() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T13:05:00Z");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
         ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "test-key");
         RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
@@ -229,7 +324,7 @@ class HotplaceServiceTest {
                           </RESULT>
                         </SeoulRtd.citydata>
                         """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8)));
-        server.expect(requestTo("http://openapi.seoul.go.kr:8088/test-key/xml/citydata/1/5/%EC%9E%A0%EC%8B%A4%20%EA%B4%80%EA%B4%91%ED%8A%B9%EA%B5%AC"))
+        server.expect(requestTo("http://openapi.seoul.go.kr:8088/test-key/xml/citydata_ppltn/1/5/%EC%9E%A0%EC%8B%A4%20%EA%B4%80%EA%B4%91%ED%8A%B9%EA%B5%AC"))
                 .andRespond(withSuccess("""
                         <SeoulRtd.citydata>
                           <RESULT>
@@ -238,11 +333,11 @@ class HotplaceServiceTest {
                           </RESULT>
                         </SeoulRtd.citydata>
                         """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8)));
-        server.expect(requestTo(JAMSIL_SAENAE_CITYDATA_URL))
+        server.expect(requestTo(JAMSIL_STATION_CITYDATA_URL))
                 .andRespond(withSuccess("""
                         <SeoulRtd.citydata>
                           <CITYDATA>
-                            <AREA_NM>잠실새내역</AREA_NM>
+                            <AREA_NM>잠실역</AREA_NM>
                             <LIVE_PPLTN_STTS>
                               <LIVE_PPLTN_STTS>
                                 <AREA_CONGEST_LVL>붐빔</AREA_CONGEST_LVL>
@@ -256,13 +351,14 @@ class HotplaceServiceTest {
                         </SeoulRtd.citydata>
                         """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8)));
 
+        service.refreshHotplaceCacheEntry("lotte-world");
         HotplaceResponse response = service.getHotplaces("롯데월드", 1);
 
         server.verify();
         HotplaceResponse.HotplaceItem item = response.places().getFirst();
         assertThat(response.dataFreshness()).isEqualTo("LIVE_OR_PARTIAL");
         assertThat(item.source()).isEqualTo("SEOUL_CITYDATA");
-        assertThat(item.sourcePlaceCode()).isEqualTo("잠실새내역");
+        assertThat(item.sourcePlaceCode()).isEqualTo("잠실역");
         assertThat(item.estimatedMinPeople()).isEqualTo(19000);
         assertThat(item.estimatedMaxPeople()).isEqualTo(23000);
     }
@@ -270,6 +366,7 @@ class HotplaceServiceTest {
     @Test
     void getHotplacesCachesSeoulCityDataWithinTtl() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T12:05:00Z");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
         ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "test-key");
         ReflectionTestUtils.setField(service, "cacheTtlSeconds", 180L);
@@ -293,6 +390,8 @@ class HotplaceServiceTest {
                         </SeoulRtd.citydata>
                         """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8)));
 
+        service.refreshHotplaceCacheEntry("lotte-world");
+        service.refreshHotplaceCacheEntry("lotte-world");
         HotplaceResponse first = service.getHotplaces("롯데월드", 1);
         HotplaceResponse second = service.getHotplaces("롯데월드", 1);
 
@@ -318,17 +417,18 @@ class HotplaceServiceTest {
                         </SeoulRtd.citydata>
                         """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8)));
 
+        service.refreshHotplaceCacheEntry("songridan");
         HotplaceResponse response = service.getHotplaces("송리단길", 1);
 
         server.verify();
-        assertThat(response.places()).hasSize(1);
-        assertThat(response.places().getFirst().source()).isEqualTo("STATIC_SEED");
-        assertThat(response.places().getFirst().sourcePlaceCode()).isEqualTo("송리단길·호수단길");
+        assertThat(response.dataFreshness()).isEqualTo("NO_VERIFIED_DATA");
+        assertThat(response.places()).isEmpty();
     }
 
     @Test
     void getHotplacesUsesConfiguredTelecomCrowdAdapterBeforeSeoulCityData() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T12:05:00Z");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
         ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
@@ -349,6 +449,7 @@ class HotplaceServiceTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
+        service.refreshHotplaceCacheEntry("lotte-world");
         HotplaceResponse response = service.getHotplaces("롯데월드", 1);
 
         server.verify();
@@ -359,13 +460,121 @@ class HotplaceServiceTest {
         assertThat(item.estimatedMinPeople()).isEqualTo(21000);
         assertThat(item.estimatedMaxPeople()).isEqualTo(25000);
         assertThat(item.sourcePlaceCode()).isEqualTo("sk-lotte-world");
+        assertThat(item.freshnessStatus()).isEqualTo("CURRENT");
+        assertThat(item.ageSeconds()).isEqualTo(300L);
         InsightStatusResponse.ProviderStatus status = service.getTelecomCrowdProviderStatus();
         assertThat(status.qualityStatus()).isEqualTo("OK");
     }
 
     @Test
+    void getHotplacesSkipsStaleTelecomSignalAndUsesFreshSeoulCityData() {
+        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T12:00:00Z");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
+        ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "test-key");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo("https://telecom.example/crowd?place=lotte-world"))
+                .andRespond(withSuccess("""
+                        {
+                          "data": {
+                            "crowdLevel": "붐빔",
+                            "estimatedMinPeople": 30000,
+                            "estimatedMaxPeople": 35000,
+                            "updatedAt": "2026-06-18T11:20:00Z"
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(JAMSIL_TOURISM_CITYDATA_URL))
+                .andRespond(withSuccess("""
+                        <SeoulRtd.citydata>
+                          <CITYDATA>
+                            <AREA_NM>잠실 관광특구</AREA_NM>
+                            <LIVE_PPLTN_STTS>
+                              <LIVE_PPLTN_STTS>
+                                <AREA_CONGEST_LVL>보통</AREA_CONGEST_LVL>
+                                <AREA_PPLTN_MIN>9000</AREA_PPLTN_MIN>
+                                <AREA_PPLTN_MAX>11000</AREA_PPLTN_MAX>
+                                <PPLTN_TIME>2026-06-18 20:55</PPLTN_TIME>
+                              </LIVE_PPLTN_STTS>
+                            </LIVE_PPLTN_STTS>
+                          </CITYDATA>
+                        </SeoulRtd.citydata>
+                        """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8)));
+
+        service.refreshHotplaceCacheEntry("lotte-world");
+        HotplaceResponse response = service.getHotplaces("롯데월드", 1);
+
+        server.verify();
+        HotplaceResponse.HotplaceItem item = response.places().getFirst();
+        assertThat(item.source()).isEqualTo("SEOUL_CITYDATA");
+        assertThat(item.freshnessStatus()).isEqualTo("CURRENT");
+        assertThat(item.ageSeconds()).isEqualTo(300L);
+    }
+
+    @Test
+    void getHotplacesRejectsTimestampLessProviderByDefault() {
+        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
+        ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo("https://telecom.example/crowd?place=lotte-world"))
+                .andRespond(withSuccess("""
+                        {
+                          "data": {
+                            "crowdLevel": "붐빔",
+                            "estimatedMinPeople": 30000,
+                            "estimatedMaxPeople": 35000
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        service.refreshHotplaceCacheEntry("lotte-world");
+        HotplaceResponse response = service.getHotplaces("롯데월드", 1);
+
+        server.verify();
+        assertThat(response.dataFreshness()).isEqualTo("NO_VERIFIED_DATA");
+        assertThat(response.places()).isEmpty();
+    }
+
+    @Test
+    void getHotplacesDoesNotPublishTimestampLessProviderEvenWhenLegacyCachingIsEnabled() {
+        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        ReflectionTestUtils.setField(service, "allowMissingObservationTime", true);
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
+        ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo("https://telecom.example/crowd?place=lotte-world"))
+                .andRespond(withSuccess("""
+                        {
+                          "data": {
+                            "crowdLevel": "보통",
+                            "estimatedMinPeople": 9000,
+                            "estimatedMaxPeople": 11000
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        service.refreshHotplaceCacheEntry("lotte-world");
+        HotplaceResponse response = service.getHotplaces("롯데월드", 1);
+
+        server.verify();
+        assertThat(response.dataFreshness()).isEqualTo("NO_VERIFIED_DATA");
+        assertThat(response.places()).isEmpty();
+    }
+
+    @Test
     void getHotplacesSupportsTelecomApiKeyInUrlTemplateWithoutHeader() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T15:05:00Z");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom key");
         ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?key={apiKey}&area={seoulAreaCode}");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "none");
@@ -380,11 +589,13 @@ class HotplaceServiceTest {
                             "congestionLevel": "붐빔",
                             "populationMin": 22000,
                             "populationMax": 27000,
-                            "sourcePlaceCode": "query-key-lotte-world"
+                            "sourcePlaceCode": "query-key-lotte-world",
+                            "updatedAt": "2026-06-18T15:00:00Z"
                           }
                         }
                         """, MediaType.APPLICATION_JSON));
 
+        service.refreshHotplaceCacheEntry("lotte-world");
         HotplaceResponse response = service.getHotplaces("롯데월드", 1);
 
         server.verify();
@@ -398,6 +609,7 @@ class HotplaceServiceTest {
     @Test
     void getHotplacesParsesNestedTelecomCrowdItemResponse() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T13:15:00Z");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
         ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
@@ -424,6 +636,7 @@ class HotplaceServiceTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
+        service.refreshHotplaceCacheEntry("lotte-world");
         HotplaceResponse response = service.getHotplaces("롯데월드", 1);
 
         server.verify();
@@ -434,11 +647,14 @@ class HotplaceServiceTest {
         assertThat(item.estimatedMaxPeople()).isEqualTo(18000);
         assertThat(item.sourcePlaceCode()).isEqualTo("carrier-lotte-world");
         assertThat(item.updatedAt()).isEqualTo("2026-06-18T13:00:00Z");
+        assertThat(item.freshnessStatus()).isEqualTo("DELAYED");
+        assertThat(item.ageSeconds()).isEqualTo(900L);
     }
 
     @Test
     void getHotplacesParsesGeoJsonTelecomCrowdProperties() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T14:05:00Z");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
         ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?name={placeName}");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
@@ -464,6 +680,7 @@ class HotplaceServiceTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
+        service.refreshHotplaceCacheEntry("lotte-world");
         HotplaceResponse response = service.getHotplaces("롯데월드", 1);
 
         server.verify();
@@ -478,6 +695,7 @@ class HotplaceServiceTest {
     @Test
     void getHotplacesNormalizesTelecomCrowdCodesAndPopulationRanges() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T16:05:00Z");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
         ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
@@ -490,11 +708,13 @@ class HotplaceServiceTest {
                           "data": {
                             "congestionLevel": "VERY_CROWDED",
                             "populationRange": "12,000 - 18,500명",
-                            "message": "carrier crowd range"
+                            "message": "carrier crowd range",
+                            "updatedAt": "2026-06-18T16:00:00Z"
                           }
                         }
                         """, MediaType.APPLICATION_JSON));
 
+        service.refreshHotplaceCacheEntry("lotte-world");
         HotplaceResponse response = service.getHotplaces("롯데월드", 1);
 
         server.verify();
@@ -508,6 +728,7 @@ class HotplaceServiceTest {
     @Test
     void getHotplacesRanksSameCrowdLevelByEstimatedPeopleBeforeStaticHotRank() {
         HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T17:05:00Z");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
         ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
         ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
@@ -519,7 +740,8 @@ class HotplaceServiceTest {
                         {
                           "data": {
                             "congestionLevel": "HIGH",
-                            "populationRange": "8,000~10,000명"
+                            "populationRange": "8,000~10,000명",
+                            "updatedAt": "2026-06-18T17:00:00Z"
                           }
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -528,11 +750,14 @@ class HotplaceServiceTest {
                         {
                           "data": {
                             "congestionLevel": "HIGH",
-                            "populationRange": "22,000~28,000명"
+                            "populationRange": "22,000~28,000명",
+                            "updatedAt": "2026-06-18T17:00:00Z"
                           }
                         }
                         """, MediaType.APPLICATION_JSON));
 
+        service.refreshHotplaceCacheEntry("lotte-world");
+        service.refreshHotplaceCacheEntry("lotte-tower-lake");
         HotplaceResponse response = service.getHotplaces("롯데", 2);
 
         server.verify();
@@ -541,6 +766,184 @@ class HotplaceServiceTest {
                 .extracting(HotplaceResponse.HotplaceItem::id)
                 .containsExactly("lotte-tower-lake", "lotte-world");
         assertThat(response.places().getFirst().estimatedMaxPeople()).isEqualTo(28000);
+    }
+
+    @Test
+    void concurrentWarmupsShareOneSeoulCityDataCall() throws Exception {
+        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        setNow(service, "2026-06-18T12:05:00Z");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "test-key");
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        CountDownLatch providerCallStarted = new CountDownLatch(1);
+        CountDownLatch secondWarmupStarted = new CountDownLatch(1);
+        CountDownLatch releaseProvider = new CountDownLatch(1);
+        server.expect(ExpectedCount.once(), requestTo(JAMSIL_TOURISM_CITYDATA_URL))
+                .andRespond(request -> {
+                    providerCallStarted.countDown();
+                    try {
+                        assertThat(releaseProvider.await(2, TimeUnit.SECONDS)).isTrue();
+                    } catch (InterruptedException error) {
+                        Thread.currentThread().interrupt();
+                        throw new AssertionError("provider response wait was interrupted", error);
+                    }
+                    return withSuccess("""
+                            <SeoulRtd.citydata>
+                              <CITYDATA>
+                                <AREA_NM>잠실 관광특구</AREA_NM>
+                                <LIVE_PPLTN_STTS>
+                                  <LIVE_PPLTN_STTS>
+                                    <AREA_CONGEST_LVL>붐빔</AREA_CONGEST_LVL>
+                                    <AREA_PPLTN_MIN>18000</AREA_PPLTN_MIN>
+                                    <AREA_PPLTN_MAX>22000</AREA_PPLTN_MAX>
+                                    <PPLTN_TIME>2026-06-18 21:00</PPLTN_TIME>
+                                  </LIVE_PPLTN_STTS>
+                                </LIVE_PPLTN_STTS>
+                              </CITYDATA>
+                            </SeoulRtd.citydata>
+                            """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8))
+                            .createResponse(request);
+                });
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> first = executor.submit(() -> service.refreshHotplaceCacheEntry("lotte-world"));
+            assertThat(providerCallStarted.await(2, TimeUnit.SECONDS)).isTrue();
+            Future<?> second = executor.submit(() -> {
+                secondWarmupStarted.countDown();
+                service.refreshHotplaceCacheEntry("lotte-world");
+            });
+            assertThat(secondWarmupStarted.await(2, TimeUnit.SECONDS)).isTrue();
+            releaseProvider.countDown();
+
+            first.get(2, TimeUnit.SECONDS);
+            second.get(2, TimeUnit.SECONDS);
+            server.verify();
+            assertThat(service.getHotplaces("롯데월드", 1).places().getFirst().source())
+                    .isEqualTo("SEOUL_CITYDATA");
+        } finally {
+            releaseProvider.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void failedPlaceLookupIsNegativeCachedDuringCooldown() {
+        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "test-key");
+        ReflectionTestUtils.setField(service, "providerFailureCooldownSeconds", 60L);
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(ExpectedCount.once(), requestTo(SONGRIDAN_CITYDATA_URL))
+                .andRespond(withSuccess("""
+                        <SeoulRtd.citydata>
+                          <CITYDATA>
+                            <AREA_NM>송리단길·호수단길</AREA_NM>
+                          </CITYDATA>
+                        </SeoulRtd.citydata>
+                        """, new org.springframework.http.MediaType("application", "xml", StandardCharsets.UTF_8)));
+
+        service.refreshHotplaceCacheEntry("songridan");
+        service.refreshHotplaceCacheEntry("songridan");
+        HotplaceResponse first = service.getHotplaces("송리단길", 1);
+        HotplaceResponse second = service.getHotplaces("송리단길", 1);
+
+        server.verify();
+        assertThat(first.dataFreshness()).isEqualTo("NO_VERIFIED_DATA");
+        assertThat(second.dataFreshness()).isEqualTo("NO_VERIFIED_DATA");
+        assertThat(first.places()).isEmpty();
+        assertThat(second.places()).isEmpty();
+    }
+
+    @Test
+    void repeatedTransportFailuresOpenProviderCircuitForRemainingSeeds() {
+        HotplaceService service = new HotplaceService(new RestTemplateBuilder());
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
+        ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
+        ReflectionTestUtils.setField(service, "providerFailureCooldownSeconds", 60L);
+        ReflectionTestUtils.setField(service, "providerCircuitFailureThreshold", 2);
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo("https://telecom.example/crowd?place=lotte-world"))
+                .andRespond(withServerError());
+        server.expect(requestTo("https://telecom.example/crowd?place=lotte-tower-lake"))
+                .andRespond(withServerError());
+
+        service.refreshHotplaceCacheEntry("lotte-world");
+        service.refreshHotplaceCacheEntry("lotte-tower-lake");
+        HotplaceResponse response = service.getHotplaces(null, 20);
+
+        server.verify();
+        assertThat(response.places()).isEmpty();
+        assertThat(response.dataFreshness()).isEqualTo("NO_VERIFIED_DATA");
+    }
+
+    @Test
+    void backgroundWarmupUsesBoundedVirtualThreadConcurrencyAndWarmsAllSeeds() throws Exception {
+        AtomicInteger activeCalls = new AtomicInteger();
+        AtomicInteger maxActiveCalls = new AtomicInteger();
+        AtomicInteger totalCalls = new AtomicInteger();
+        AtomicBoolean allCallsUsedVirtualThreads = new AtomicBoolean(true);
+        CountDownLatch firstWaveStarted = new CountDownLatch(3);
+        CountDownLatch releaseCalls = new CountDownLatch(1);
+        RestTemplateBuilder builder = new RestTemplateBuilder().additionalInterceptors((request, body, execution) -> {
+            int active = activeCalls.incrementAndGet();
+            maxActiveCalls.accumulateAndGet(active, Math::max);
+            totalCalls.incrementAndGet();
+            allCallsUsedVirtualThreads.compareAndSet(true, Thread.currentThread().isVirtual());
+            firstWaveStarted.countDown();
+            try {
+                if (!releaseCalls.await(2, TimeUnit.SECONDS)) {
+                    throw new java.io.IOException("warm-up test timed out");
+                }
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+                throw new java.io.IOException("warm-up test interrupted", error);
+            } finally {
+                activeCalls.decrementAndGet();
+            }
+            MockClientHttpResponse response = new MockClientHttpResponse("""
+                    {
+                      "data": {
+                        "congestionLevel": "NORMAL",
+                        "populationRange": "1,000~2,000명",
+                        "updatedAt": "2026-06-18T17:00:00Z"
+                      }
+                    }
+                    """.getBytes(StandardCharsets.UTF_8), HttpStatus.OK);
+            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+            return response;
+        });
+        HotplaceService service = new HotplaceService(builder);
+        setNow(service, "2026-06-18T17:05:00Z");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
+        ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
+        ReflectionTestUtils.setField(service, "warmupMaxConcurrency", 3);
+
+        ExecutorService coordinator = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> warmup = coordinator.submit(service::warmHotplaceCache);
+            assertThat(firstWaveStarted.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(maxActiveCalls.get()).isEqualTo(3);
+            releaseCalls.countDown();
+            warmup.get(3, TimeUnit.SECONDS);
+        } finally {
+            releaseCalls.countDown();
+            coordinator.shutdownNow();
+        }
+
+        assertThat(totalCalls.get()).isEqualTo(21);
+        assertThat(maxActiveCalls.get()).isLessThanOrEqualTo(3);
+        assertThat(allCallsUsedVirtualThreads).isTrue();
+        assertThat(service.getHotplaces(null, 20).places())
+                .filteredOn(item -> "TELECOM_CROWD".equals(item.source()))
+                .hasSize(20);
     }
 
     @Test
@@ -553,5 +956,46 @@ class HotplaceServiceTest {
 
         assertThat(status.qualityStatus()).isEqualTo("CONFIGURED_UNVERIFIED");
         assertThat(status.detail()).contains("TELECOM_CROWD_URL_TEMPLATE");
+    }
+
+    private static HotplaceService newVerifiedTelecomService() {
+        RestTemplateBuilder builder = new RestTemplateBuilder().additionalInterceptors((request, body, execution) -> {
+            MockClientHttpResponse response = new MockClientHttpResponse("""
+                    {
+                      "data": {
+                        "congestionLevel": "NORMAL",
+                        "populationRange": "1,000~2,000명",
+                        "updatedAt": "2026-06-18T17:00:00Z"
+                      }
+                    }
+                    """.getBytes(StandardCharsets.UTF_8), HttpStatus.OK);
+            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+            return response;
+        });
+        HotplaceService service = new HotplaceService(builder);
+        setNow(service, "2026-06-18T17:05:00Z");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "telecom-key");
+        ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "https://telecom.example/crowd?place={placeId}");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKeyHeader", "appKey");
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
+        ReflectionTestUtils.setField(service, "cacheTtlSeconds", 180L);
+        return service;
+    }
+
+    private static String cityPopulationXml(String areaName) {
+        return """
+                <SeoulRtd.citydata_ppltn>
+                  <AREA_NM>%s</AREA_NM>
+                  <AREA_CONGEST_LVL>약간 붐빔</AREA_CONGEST_LVL>
+                  <AREA_CONGEST_MSG>이동에 약간 주의가 필요합니다.</AREA_CONGEST_MSG>
+                  <AREA_PPLTN_MIN>12000</AREA_PPLTN_MIN>
+                  <AREA_PPLTN_MAX>16000</AREA_PPLTN_MAX>
+                  <PPLTN_TIME>2026-06-18 22:00</PPLTN_TIME>
+                </SeoulRtd.citydata_ppltn>
+                """.formatted(areaName);
+    }
+
+    private static void setNow(HotplaceService service, String instant) {
+        ReflectionTestUtils.setField(service, "clock", Clock.fixed(Instant.parse(instant), ZoneOffset.UTC));
     }
 }

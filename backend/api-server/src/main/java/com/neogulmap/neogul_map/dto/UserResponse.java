@@ -5,6 +5,7 @@ import lombok.Setter;
 import lombok.Builder;
 import com.neogulmap.neogul_map.domain.User;
 import com.neogulmap.neogul_map.config.web.PublicUrlBuilder;
+import java.time.format.DateTimeFormatter;
 
 @Getter
 @Setter
@@ -24,7 +25,9 @@ public class UserResponse {
                 .nickname(user.getNickname())
                 .profileImage(user.getProfileImage() != null ? "/images/" + user.getProfileImage() : null)
                 .profileImageUrl(PublicUrlBuilder.imageUrl(user.getProfileImage()))
-                .createdAt(user.getCreatedAt())
+                .createdAt(user.getCreatedAt() == null
+                        ? null
+                        : user.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .build();
     }
 }

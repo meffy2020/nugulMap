@@ -1,5 +1,6 @@
-# Python 3.9 이미지를 기반으로 사용
-FROM python:3.9-slim
+# Collector code uses Python 3.10+ typing syntax; keep the container aligned
+# with the tested local runtime.
+FROM python:3.11-slim
 
 # 작업 디렉토리 설정
 WORKDIR /app

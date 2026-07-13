@@ -8,6 +8,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -38,10 +39,14 @@ class InsightStatusServiceTest {
                     "latitude": 37.5446,
                     "longitude": 127.0557,
                     "source": "CRAWLED_POPUP_TREND",
-                    "collectedAt": "2026-06-18T00:00:00Z"
+                    "startDate": "2026-07-10",
+                    "endDate": "2026-07-20",
+                    "detailUrl": "https://example.com/popup-seongsu",
+                    "collectionMode": "NETWORK",
+                    "collectedAt": "%s"
                   }
                 ]
-                """);
+                """.formatted(Instant.now()));
         when(hotplaceService.getSeoulCityDataProviderStatus())
                 .thenReturn(InsightStatusResponse.ProviderStatus.ok(
                         Instant.parse("2026-06-18T00:05:00Z"),
@@ -99,8 +104,8 @@ class InsightStatusServiceTest {
 
         InsightStatusResponse response = service.getStatus();
 
-        assertThat(response.hotplaceMode()).isEqualTo("STATIC_FALLBACK");
-        assertThat(response.eventMode()).isEqualTo("STATIC_FALLBACK");
+        assertThat(response.hotplaceMode()).isEqualTo("NO_VERIFIED_DATA");
+        assertThat(response.eventMode()).isEqualTo("NO_VERIFIED_DATA");
         assertThat(response.telecomCrowdKeyConfigured()).isFalse();
         assertThat(response.telecomCrowdUrlTemplateConfigured()).isFalse();
         assertThat(response.seoulCultureApiKeyConfigured()).isFalse();
@@ -139,10 +144,124 @@ class InsightStatusServiceTest {
 
         InsightStatusResponse response = service.getStatus();
 
-        assertThat(response.eventMode()).isEqualTo("STATIC_FALLBACK");
+        assertThat(response.eventMode()).isEqualTo("NO_VERIFIED_DATA");
         assertThat(response.popupTrends().recordCount()).isEqualTo(1);
         assertThat(response.popupTrends().qualityStatus()).isEqualTo("INVALID_RECORDS");
         assertThat(response.popupTrends().detail()).contains("missing required fields");
+    }
+
+    @Test
+    void getStatusRejectsFreshNetworkRowsWithoutDatesAndSafeDetailUrl(@TempDir Path tempDir) throws Exception {
+        Path trendFile = tempDir.resolve("popup-trends-incomplete-network.json");
+        Files.writeString(trendFile, """
+                [
+                  {
+                    "id": "fresh-but-incomplete",
+                    "title": "기간과 링크가 없는 수집 결과",
+                    "kind": "popup",
+                    "latitude": 37.5446,
+                    "longitude": 127.0557,
+                    "source": "CRAWLED_POPUP_TREND",
+                    "collectionMode": "NETWORK",
+                    "collectedAt": "%s"
+                  }
+                ]
+                """.formatted(Instant.now()));
+        when(hotplaceService.getSeoulCityDataProviderStatus())
+                .thenReturn(InsightStatusResponse.ProviderStatus.notConfigured("SEOUL_CITYDATA_API_KEY is not configured"));
+        when(hotplaceService.getTelecomCrowdProviderStatus())
+                .thenReturn(InsightStatusResponse.ProviderStatus.notConfigured("TELECOM_CROWD_API_KEY is not configured"));
+        when(eventInsightService.getTourApiProviderStatus())
+                .thenReturn(InsightStatusResponse.ProviderStatus.notConfigured("KTO_TOUR_API_KEY is not configured"));
+        InsightStatusService service = new InsightStatusService(new ObjectMapper(), hotplaceService, eventInsightService);
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "");
+        ReflectionTestUtils.setField(service, "tourApiKey", "");
+        ReflectionTestUtils.setField(service, "seoulCultureApiKey", "");
+        ReflectionTestUtils.setField(service, "popupTrendsFile", trendFile.toString());
+
+        InsightStatusResponse response = service.getStatus();
+
+        assertThat(response.popupTrends().qualityStatus()).isEqualTo("INVALID_RECORDS");
+        assertThat(response.eventMode()).isEqualTo("NO_VERIFIED_DATA");
+    }
+
+    @Test
+    void getStatusMarksStalePopupFileAndDoesNotReportLiveReady(@TempDir Path tempDir) throws Exception {
+        Path trendFile = tempDir.resolve("popup-trends-stale.json");
+        Files.writeString(trendFile, """
+                [
+                  {
+                    "id": "stale-popup",
+                    "title": "오래된 팝업",
+                    "kind": "popup",
+                    "latitude": 37.5446,
+                    "longitude": 127.0557,
+                    "source": "SEOUL_CULTURE_API",
+                    "startDate": "2026-07-10",
+                    "endDate": "2026-07-20",
+                    "detailUrl": "https://culture.seoul.go.kr/stale-popup",
+                    "collectionMode": "NETWORK",
+                    "collectedAt": "%s"
+                  }
+                ]
+                """.formatted(Instant.now().minus(Duration.ofHours(25))));
+        when(hotplaceService.getSeoulCityDataProviderStatus())
+                .thenReturn(InsightStatusResponse.ProviderStatus.notConfigured("SEOUL_CITYDATA_API_KEY is not configured"));
+        when(hotplaceService.getTelecomCrowdProviderStatus())
+                .thenReturn(InsightStatusResponse.ProviderStatus.notConfigured("TELECOM_CROWD_API_KEY is not configured"));
+        when(eventInsightService.getTourApiProviderStatus())
+                .thenReturn(InsightStatusResponse.ProviderStatus.notConfigured("KTO_TOUR_API_KEY is not configured"));
+        InsightStatusService service = new InsightStatusService(new ObjectMapper(), hotplaceService, eventInsightService);
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "");
+        ReflectionTestUtils.setField(service, "tourApiKey", "");
+        ReflectionTestUtils.setField(service, "seoulCultureApiKey", "");
+        ReflectionTestUtils.setField(service, "popupTrendsFile", trendFile.toString());
+
+        InsightStatusResponse response = service.getStatus();
+
+        assertThat(response.popupTrends().qualityStatus()).isEqualTo("STALE");
+        assertThat(response.eventMode()).isEqualTo("NO_VERIFIED_DATA");
+    }
+
+    @Test
+    void getStatusDoesNotTreatFreshManualSeedsAsLiveReady(@TempDir Path tempDir) throws Exception {
+        Path trendFile = tempDir.resolve("popup-trends-manual.json");
+        Files.writeString(trendFile, """
+                [
+                  {
+                    "id": "manual-popup",
+                    "title": "수동 팝업 후보",
+                    "kind": "popup",
+                    "latitude": 37.5446,
+                    "longitude": 127.0557,
+                    "source": "MANUAL_SEED",
+                    "collectionMode": "MANUAL",
+                    "collectedAt": "%s"
+                  }
+                ]
+                """.formatted(Instant.now()));
+        when(hotplaceService.getSeoulCityDataProviderStatus())
+                .thenReturn(InsightStatusResponse.ProviderStatus.notConfigured("SEOUL_CITYDATA_API_KEY is not configured"));
+        when(hotplaceService.getTelecomCrowdProviderStatus())
+                .thenReturn(InsightStatusResponse.ProviderStatus.notConfigured("TELECOM_CROWD_API_KEY is not configured"));
+        when(eventInsightService.getTourApiProviderStatus())
+                .thenReturn(InsightStatusResponse.ProviderStatus.notConfigured("KTO_TOUR_API_KEY is not configured"));
+        InsightStatusService service = new InsightStatusService(new ObjectMapper(), hotplaceService, eventInsightService);
+        ReflectionTestUtils.setField(service, "seoulCityDataApiKey", "");
+        ReflectionTestUtils.setField(service, "telecomCrowdApiKey", "");
+        ReflectionTestUtils.setField(service, "telecomCrowdUrlTemplate", "");
+        ReflectionTestUtils.setField(service, "tourApiKey", "");
+        ReflectionTestUtils.setField(service, "seoulCultureApiKey", "");
+        ReflectionTestUtils.setField(service, "popupTrendsFile", trendFile.toString());
+
+        InsightStatusResponse response = service.getStatus();
+
+        assertThat(response.popupTrends().qualityStatus()).isEqualTo("MANUAL_ONLY");
+        assertThat(response.eventMode()).isEqualTo("NO_VERIFIED_DATA");
     }
 
     @Test

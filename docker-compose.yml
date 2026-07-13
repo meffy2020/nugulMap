@@ -4,8 +4,8 @@ services:
     image: minio/minio:latest
     container_name: neogul-map-minio
     ports:
-      - "9000:9000"  # S3 API 포트
-      - "9001:9001"  # 콘솔 포트
+      - "127.0.0.1:9000:9000"  # S3 API 포트
+      - "127.0.0.1:9001:9001"  # 콘솔 포트
     environment:
       MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-admin}
       MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-password}
@@ -47,7 +47,7 @@ services:
     image: mysql:8.0
     container_name: neogul-map-mysql
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-password}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-mydb}
@@ -66,12 +66,13 @@ services:
 
   # 3. Spring Boot (Backend)
   api-server:
+    image: ${API_SERVER_IMAGE:-nugulmap-api:local}
     build:
       context: ./backend/api-server
       dockerfile: Dockerfile
     container_name: neogul-map-api
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     env_file:
       - ./backend/api-server/.env.local
     environment:
@@ -103,9 +104,22 @@ services:
       KTO_TOUR_API_KEY: ${KTO_TOUR_API_KEY:-}
       SEOUL_CULTURE_API_KEY: ${SEOUL_CULTURE_API_KEY:-}
       SEOUL_CULTURE_API_BASE_URL: ${SEOUL_CULTURE_API_BASE_URL:-http://openapi.seoul.go.kr:8088}
-      SEOUL_CULTURE_API_END_INDEX: ${SEOUL_CULTURE_API_END_INDEX:-20}
+      SEOUL_CULTURE_API_PAGE_SIZE: ${SEOUL_CULTURE_API_PAGE_SIZE:-1000}
+      SEOUL_CULTURE_API_MAX_PAGES: ${SEOUL_CULTURE_API_MAX_PAGES:-25}
       POPUP_TRENDS_FILE: /app/data/popup-trends.json
-      INSIGHTS_CACHE_TTL_SECONDS: ${INSIGHTS_CACHE_TTL_SECONDS:-180}
+      POPUP_TRENDS_MAX_AGE_HOURS: ${POPUP_TRENDS_MAX_AGE_HOURS:-24}
+      INSIGHTS_CACHE_TTL_SECONDS: ${INSIGHTS_CACHE_TTL_SECONDS:-300}
+      INSIGHTS_EVENT_CACHE_TTL_SECONDS: ${INSIGHTS_EVENT_CACHE_TTL_SECONDS:-86400}
+      INSIGHTS_HOTPLACE_WARMUP_ENABLED: ${INSIGHTS_HOTPLACE_WARMUP_ENABLED:-true}
+      INSIGHTS_HOTPLACE_WARMUP_INITIAL_DELAY_MS: ${INSIGHTS_HOTPLACE_WARMUP_INITIAL_DELAY_MS:-0}
+      INSIGHTS_HOTPLACE_WARMUP_INTERVAL_MS: ${INSIGHTS_HOTPLACE_WARMUP_INTERVAL_MS:-300000}
+      INSIGHTS_HOTPLACE_WARMUP_MAX_CONCURRENCY: ${INSIGHTS_HOTPLACE_WARMUP_MAX_CONCURRENCY:-4}
+      INSIGHTS_EVENT_WARMUP_ENABLED: ${INSIGHTS_EVENT_WARMUP_ENABLED:-true}
+      INSIGHTS_EVENT_WARMUP_INITIAL_DELAY_MS: ${INSIGHTS_EVENT_WARMUP_INITIAL_DELAY_MS:-0}
+      INSIGHTS_EVENT_WARMUP_INTERVAL_MS: ${INSIGHTS_EVENT_WARMUP_INTERVAL_MS:-86400000}
+      INSIGHTS_CROWD_CURRENT_MAX_AGE_MINUTES: ${INSIGHTS_CROWD_CURRENT_MAX_AGE_MINUTES:-10}
+      INSIGHTS_CROWD_LIVE_MAX_AGE_MINUTES: ${INSIGHTS_CROWD_LIVE_MAX_AGE_MINUTES:-30}
+      INSIGHTS_CROWD_ALLOW_MISSING_OBSERVATION_TIME: ${INSIGHTS_CROWD_ALLOW_MISSING_OBSERVATION_TIME:-false}
     volumes:
       - ./backend/data-scripts/data:/app/data:ro
     depends_on:
@@ -129,11 +143,23 @@ services:
     environment:
       POPUP_TRENDS_SOURCE_CONFIG: /app/config/popup_trend_sources.json
       POPUP_TRENDS_FILE: /app/data/popup-trends.json
-      POPUP_TRENDS_REFRESH_SECONDS: ${POPUP_TRENDS_REFRESH_SECONDS:-3600}
+      # The process wakes every five minutes, while each source keeps its own
+      # cadence (official malls 4h, Tour/RSS 6h, discovery 12h, Seoul 24h).
+      POPUP_TRENDS_REFRESH_SECONDS: ${POPUP_TRENDS_REFRESH_SECONDS:-300}
       POPUP_TRENDS_TIMEOUT_SECONDS: ${POPUP_TRENDS_TIMEOUT_SECONDS:-10}
-      POPUP_TRENDS_MIN_RECORDS: ${POPUP_TRENDS_MIN_RECORDS:-3}
-      SEOUL_CULTURE_API_KEY: ${SEOUL_CULTURE_API_KEY:-${SEOUL_CITYDATA_API_KEY:-sample}}
-      SEOUL_CULTURE_API_END_INDEX: ${SEOUL_CULTURE_API_END_INDEX:-5}
+      # Zero is intentional: a verified empty refresh keeps the last-good file,
+      # which naturally ages out through collectedAt; no sample/manual rows are
+      # invented merely to satisfy a minimum count.
+      POPUP_TRENDS_MIN_RECORDS: ${POPUP_TRENDS_MIN_RECORDS:-0}
+      POPUP_TRENDS_ALLOW_SAMPLE_FALLBACK: "false"
+      POPUP_TRENDS_ALLOW_MANUAL_FALLBACK: "false"
+      POPUP_TRENDS_STATE_FILE: /app/data/popup-source-state.json
+      POPUP_TRENDS_STATUS_FILE: /app/data/popup-source-status.json
+      SEOUL_CULTURE_API_KEY: ${SEOUL_CULTURE_API_KEY:-}
+      SEOUL_CULTURE_API_PAGE_SIZE: ${SEOUL_CULTURE_API_PAGE_SIZE:-1000}
+      SEOUL_CULTURE_API_MAX_PAGES: ${SEOUL_CULTURE_API_MAX_PAGES:-25}
+      KTO_TOUR_API_KEY: ${KTO_TOUR_API_KEY:-}
+      KTO_TOUR_API_ROWS: ${KTO_TOUR_API_ROWS:-100}
     volumes:
       - ./backend/data-scripts/data:/app/data
     restart: unless-stopped

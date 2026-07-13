@@ -1,0 +1,6 @@
+# Runtime-only collector cache and health state.
+data/popup-source-state.json
+data/popup-source-status.json
+data/popup-verification-queue.json
+data/*.tmp
+!config/SEONGSU_POPUP_SOURCES.md

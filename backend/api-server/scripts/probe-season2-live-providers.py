@@ -27,10 +27,10 @@ LOTTE_WORLD = {
 JAMSIL_CITYDATA_QUERIES = (
     "POI005",
     "잠실 관광특구",
-    "POI118",
-    "잠실새내역",
-    "POI109",
-    "잠실종합운동장",
+    "POI119",
+    "잠실역",
+    "POI120",
+    "잠실롯데타워·석촌호수",
 )
 INTEGER_PATTERN = re.compile(r"\d[\d,]*")
 
@@ -258,7 +258,7 @@ def probe_citydata(timeout: int) -> CrowdProbe | None:
     last_probe: CrowdProbe | None = None
     for query in JAMSIL_CITYDATA_QUERIES:
         encoded_query = urllib.parse.quote(query)
-        url = f"http://openapi.seoul.go.kr:8088/{urllib.parse.quote(api_key)}/xml/citydata/1/5/{encoded_query}"
+        url = f"http://openapi.seoul.go.kr:8088/{urllib.parse.quote(api_key)}/xml/citydata_ppltn/1/5/{encoded_query}"
         try:
             probe = parse_citydata_xml(fetch_bytes(url, timeout=timeout), query)
         except Exception as error:

@@ -14,6 +14,7 @@ public enum ErrorCode {
     EMAIL_DUPLICATION(HttpStatus.CONFLICT, "U002", "이미 존재하는 이메일입니다."),
     LOGIN_INPUT_INVALID(HttpStatus.BAD_REQUEST, "U003", "로그인 정보가 올바르지 않습니다."),
     USER_DATA_INTEGRITY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "U004", "사용자 데이터 무결성 오류가 발생했습니다."),
+    NICKNAME_CONTENT_REJECTED(HttpStatus.BAD_REQUEST, "U006", "부적절한 닉네임입니다."),
     
     // Profile Image
     PROFILE_IMAGE_REQUIRED(HttpStatus.BAD_REQUEST, "P001", "프로필 이미지가 필요합니다."),
@@ -29,6 +30,21 @@ public enum ErrorCode {
     ZONE_IMAGE_UPLOAD_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Z005", "이미지 업로드 중 오류가 발생했습니다."),
     ZONE_IMAGE_DELETE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Z006", "이미지 삭제 중 오류가 발생했습니다."),
     ZONE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Z007", "본인이 등록한 장소만 수정 또는 삭제할 수 있습니다."),
+    ZONE_DUPLICATE_REPORT(HttpStatus.CONFLICT, "Z008", "이미 신고한 장소입니다."),
+
+    // Review moderation
+    REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "R001", "리뷰를 찾을 수 없습니다."),
+    REVIEW_DUPLICATE_REPORT(HttpStatus.CONFLICT, "R002", "이미 신고한 리뷰입니다."),
+    REVIEW_CONTENT_REJECTED(HttpStatus.BAD_REQUEST, "R003", "부적절한 리뷰 내용입니다."),
+    USER_BLOCK_INVALID(HttpStatus.BAD_REQUEST, "R004", "차단할 수 없는 사용자입니다."),
+    MODERATION_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "M001", "신고 내역을 찾을 수 없습니다."),
+    MODERATION_DECISION_INVALID(HttpStatus.BAD_REQUEST, "M002", "처리할 수 없는 신고 결정입니다."),
+    ACCOUNT_REVOCATION_REQUIRED(HttpStatus.SERVICE_UNAVAILABLE, "U005", "연결 계정 해제를 완료할 수 없습니다."),
+    SUPPORT_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "SUP001", "지원 요청이 너무 많습니다."),
+    OPERATOR_ACCESS_DENIED(HttpStatus.FORBIDDEN, "SUP002", "운영자 접근 권한이 없습니다."),
+    OPERATOR_ACCESS_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "SUP003", "운영자 접근이 구성되지 않았습니다."),
+    SUPPORT_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "SUP004", "지원 요청을 찾을 수 없습니다."),
+    SUPPORT_STATUS_INVALID(HttpStatus.BAD_REQUEST, "SUP005", "처리할 수 없는 지원 요청 상태입니다."),
     
     // Search
     SEARCH_KEYWORD_INVALID(HttpStatus.BAD_REQUEST, "S001", "검색 키워드가 올바르지 않습니다."),
@@ -64,6 +80,9 @@ public enum ErrorCode {
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "V001", "입력값 검증에 실패했습니다."),
     REQUIRED_FIELD_MISSING(HttpStatus.BAD_REQUEST, "V002", "필수 필드가 누락되었습니다."),
     INVALID_FORMAT(HttpStatus.BAD_REQUEST, "V003", "잘못된 형식입니다."),
+
+    // HTTP contract
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "HTTP405", "지원하지 않는 요청 방식입니다."),
     
     // System
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "SYS001", "서버 내부 오류가 발생했습니다."),

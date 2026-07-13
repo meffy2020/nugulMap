@@ -13,6 +13,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,5 +40,19 @@ class ImageControllerUrlTest {
         mockMvc.perform(get("/api/images/sample.jpg").contextPath("/api"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("X-Image-Filename", "sample.jpg"));
+    }
+
+    @Test
+    @DisplayName("소유 리소스와 연결되지 않은 공용 업로드 엔드포인트는 제공하지 않는다")
+    void genericUploadEndpointIsNotExposed() throws Exception {
+        mockMvc.perform(post("/api/images/upload").contextPath("/api"))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    @DisplayName("파일명만으로 이미지를 삭제하는 엔드포인트는 제공하지 않는다")
+    void genericDeleteEndpointIsNotExposed() throws Exception {
+        mockMvc.perform(delete("/api/images/sample.jpg").contextPath("/api"))
+                .andExpect(status().isMethodNotAllowed());
     }
 }

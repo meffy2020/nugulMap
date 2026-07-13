@@ -19,7 +19,6 @@ public class ZoneReviewResponse {
     private Integer zoneId;
     private Long authorId;
     private String authorNickname;
-    private String authorEmail;
     private String content;
     private LocalDateTime createdAt;
 
@@ -28,18 +27,13 @@ public class ZoneReviewResponse {
             return null;
         }
 
-        String authorEmail = review.getAuthor() != null ? review.getAuthor().getEmail() : "";
-        String authorNickname = review.getAuthor() != null ? review.getAuthor().getNickname() : "";
-        if (authorNickname == null || authorNickname.trim().isEmpty()) {
-            authorNickname = authorEmail;
-        }
+        String authorNickname = PublicUserLabel.from(review.getAuthor());
 
         return ZoneReviewResponse.builder()
                 .id(review.getId())
                 .zoneId(review.getZone() != null ? review.getZone().getId() : null)
                 .authorId(review.getAuthor() != null ? review.getAuthor().getId() : null)
                 .authorNickname(authorNickname)
-                .authorEmail(authorEmail)
                 .content(review.getContent())
                 .createdAt(review.getCreatedAt())
                 .build();

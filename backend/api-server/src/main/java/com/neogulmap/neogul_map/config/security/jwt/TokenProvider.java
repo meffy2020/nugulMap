@@ -20,6 +20,10 @@ import java.util.Base64;
 @Slf4j
 @Component
 public class TokenProvider {
+    private static final String TOKEN_TYPE_CLAIM = "tokenType";
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String REFRESH_TOKEN_TYPE = "refresh";
+
     private final SecretKey key;
     private final long tokenValidityInMilliseconds;
 
@@ -32,13 +36,22 @@ public class TokenProvider {
         this.tokenValidityInMilliseconds = tokenValidityInSeconds * 1000;
     }
 
-    public String generateToken(User user, Duration duration) {
+    public String generateAccessToken(User user, Duration duration) {
+        return generateToken(user, duration, ACCESS_TOKEN_TYPE);
+    }
+
+    public String generateRefreshToken(User user, Duration duration) {
+        return generateToken(user, duration, REFRESH_TOKEN_TYPE);
+    }
+
+    private String generateToken(User user, Duration duration, String tokenType) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + duration.toMillis());
 
         return Jwts.builder()
                 .subject(user.getEmail())
                 .claim("userId", user.getId())
+                .claim(TOKEN_TYPE_CLAIM, tokenType)
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(key)
@@ -63,13 +76,26 @@ public class TokenProvider {
         return claims.get("userId", Long.class);
     }
 
+    public boolean validAccessToken(String token) {
+        return validTokenOfType(token, ACCESS_TOKEN_TYPE);
+    }
+
+    public boolean validRefreshToken(String token) {
+        return validTokenOfType(token, REFRESH_TOKEN_TYPE);
+    }
+
     public boolean validToken(String token) {
+        return validAccessToken(token);
+    }
+
+    private boolean validTokenOfType(String token, String expectedType) {
         try {
-            Jwts.parser()
+            Claims claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
-                .parseSignedClaims(token);
-            return true;
+                .parseSignedClaims(token)
+                .getPayload();
+            return expectedType.equals(claims.get(TOKEN_TYPE_CLAIM, String.class));
         } catch (SignatureException e) {
             log.error("Invalid JWT signature: {}", e.getMessage());
         } catch (MalformedJwtException e) {
@@ -85,6 +111,9 @@ public class TokenProvider {
     }
 
     public Authentication getAuthentication(String token) {
+        if (!validAccessToken(token)) {
+            throw new JwtException("Access token required");
+        }
         Claims claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
@@ -120,4 +149,3 @@ public class TokenProvider {
         }
     }
 }
-

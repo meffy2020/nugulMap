@@ -26,8 +26,8 @@ public class ZoneReview {
     @JoinColumn(name = "zone_id", nullable = false)
     private Zone zone;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "author_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "author_id")
     private User author;
 
     @Lob
