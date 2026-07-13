@@ -36,6 +36,14 @@ class LaunchSafetyMigrationContractTest {
         }
     }
 
+    @Test
+    void userBlockForeignKeysDoNotUseAnIncompatibleMySqlCheckConstraint() throws IOException {
+        String migrationDefinition = tableDefinition(readResource(MIGRATION), "user_block");
+
+        assertThat(migrationDefinition)
+                .doesNotContainIgnoringCase("CHECK (`blocker_id` <> `blocked_id`)");
+    }
+
     private String tableDefinition(String sql, String table) {
         Pattern pattern = Pattern.compile(
                 "CREATE\\s+TABLE\\s+IF\\s+NOT\\s+EXISTS\\s+`"
