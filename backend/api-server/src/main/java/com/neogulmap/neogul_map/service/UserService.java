@@ -13,6 +13,9 @@ import com.neogulmap.neogul_map.domain.enums.ImageType;
 import com.neogulmap.neogul_map.repository.UserRepository;
 import com.neogulmap.neogul_map.repository.ZoneRepository;
 import com.neogulmap.neogul_map.repository.ZoneReviewRepository;
+import com.neogulmap.neogul_map.repository.recommendation.RecommendationInteractionRepository;
+import com.neogulmap.neogul_map.repository.recommendation.UserPreferenceRepository;
+import com.neogulmap.neogul_map.repository.recommendation.UserSavedItemRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +37,9 @@ public class UserService {
     private final UserRepository userRepository;
     private final ZoneRepository zoneRepository;
     private final ZoneReviewRepository zoneReviewRepository;
+    private final RecommendationInteractionRepository recommendationInteractionRepository;
+    private final UserSavedItemRepository userSavedItemRepository;
+    private final UserPreferenceRepository userPreferenceRepository;
     private final ImageService imageService;
     private final TokenProvider tokenProvider;
     private final LinkedAccountRevocationService linkedAccountRevocationService;
@@ -119,6 +125,12 @@ public class UserService {
         // remains available for the user's next deletion attempt. Legacy accounts that never
         // had a token still complete local deletion and receive the manual-revocation notice.
         linkedAccountRevocationService.revokeBeforeDeletion(user);
+
+        userRepository.findForUpdateById(id)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
+        recommendationInteractionRepository.deleteByUser_Id(id);
+        userSavedItemRepository.deleteByUser_Id(id);
+        userPreferenceRepository.deleteByUser_Id(id);
 
         // App Store account-deletion contract: remove reviews authored on places owned by others too.
         zoneReviewRepository.deleteByAuthorId(id);

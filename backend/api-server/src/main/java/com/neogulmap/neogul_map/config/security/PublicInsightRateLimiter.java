@@ -33,25 +33,36 @@ public class PublicInsightRateLimiter {
     }
 
     public Decision tryAcquire(HttpServletRequest request) {
+        return tryAcquire(request, 1);
+    }
+
+    public Decision tryAcquire(HttpServletRequest request, int permitCost) {
+        if (permitCost < 1) {
+            throw new IllegalArgumentException("permitCost must be positive");
+        }
         Instant now = Instant.now(clock);
         cleanExpiredWindows(now);
-        String clientKey = clientKey(request);
+        String endpointBucket = endpointBucket(request);
+        String clientKey = endpointBucket + ":" + clientKey(request);
         if (!windows.containsKey(clientKey) && windows.size() >= maxTrackedClients) {
-            clientKey = OVERFLOW_CLIENT;
+            clientKey = endpointBucket + ":" + OVERFLOW_CLIENT;
+        }
+        if (permitCost > requestsPerWindow) {
+            return new Decision(false, windowSeconds);
         }
 
         Attempt attempt = new Attempt();
         windows.compute(clientKey, (ignored, current) -> {
             if (current == null || !current.expiresAt().isAfter(now)) {
                 attempt.allowed = true;
-                return new ClientWindow(1, now.plusSeconds(windowSeconds));
+                return new ClientWindow(permitCost, now.plusSeconds(windowSeconds));
             }
-            if (current.count() >= requestsPerWindow) {
+            if (permitCost > requestsPerWindow - current.usedPermits()) {
                 attempt.retryAfterSeconds = retryAfterSeconds(current.expiresAt(), now);
                 return current;
             }
             attempt.allowed = true;
-            return new ClientWindow(current.count() + 1, current.expiresAt());
+            return new ClientWindow(current.usedPermits() + permitCost, current.expiresAt());
         });
 
         return attempt.allowed
@@ -67,6 +78,19 @@ public class PublicInsightRateLimiter {
         // resolve forwarding headers only within its configured trusted-proxy boundary.
         String remoteAddress = request.getRemoteAddr().trim();
         return remoteAddress.length() <= 128 ? remoteAddress : UNKNOWN_CLIENT;
+    }
+
+    private String endpointBucket(HttpServletRequest request) {
+        if (request == null) {
+            return "insights";
+        }
+        String path = request.getServletPath();
+        if (path == null || path.isBlank()) {
+            path = request.getRequestURI();
+        }
+        return path != null && path.startsWith("/recommendations/")
+                ? "recommendations"
+                : "insights";
     }
 
     private void cleanExpiredWindows(Instant now) {
@@ -87,7 +111,7 @@ public class PublicInsightRateLimiter {
     public record Decision(boolean allowed, long retryAfterSeconds) {
     }
 
-    private record ClientWindow(int count, Instant expiresAt) {
+    private record ClientWindow(int usedPermits, Instant expiresAt) {
     }
 
     private static final class Attempt {

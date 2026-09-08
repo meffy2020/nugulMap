@@ -9,9 +9,9 @@ NUGUL_API_BASE_URL=https://api.nugulmap.com
 # Kakao Android native app key from Kakao Developers.
 KAKAO_NATIVE_APP_KEY=
 
-# Optional upload-key signing for Play-ready release AABs.
+# Required upload-key signing for release APK/AAB builds.
 # Relative paths are resolved from android-native/.
-NUGUL_RELEASE_STORE_FILE=release-upload-key.jks
-NUGUL_RELEASE_STORE_PASSWORD=
-NUGUL_RELEASE_KEY_ALIAS=nugulmap-upload
-NUGUL_RELEASE_KEY_PASSWORD=
+ANDROID_KEYSTORE_PATH=release-upload-key.jks
+ANDROID_KEYSTORE_PASSWORD=
+ANDROID_KEY_ALIAS=nugulmap-upload
+ANDROID_KEY_PASSWORD=

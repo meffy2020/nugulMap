@@ -1,0 +1,19 @@
+[FAIL] /privacy: HTTP 404: https://nugulmap.com/privacy
+[FAIL] /account-deletion: HTTP 404: https://nugulmap.com/account-deletion
+[FAIL] /connected-accounts: HTTP 404: https://nugulmap.com/connected-accounts
+[FAIL] /support: HTTP 404: https://nugulmap.com/support
+[PASS] /terms: HTTP 200 (17787 bytes)
+[PASS] api-health: status is UP
+[PASS] public-zones: HTTP 200 JSON
+[PASS] zone-public-pii: no email-like values in public zone response
+[FAIL] smoking-zone-data: zones[0] id=1 exactly matches a known demo fixture; quarantine and verify before launch
+[PASS] public-zone-search: HTTP 200 JSON
+[FAIL] smoking-zone-data: zones[0] id=1 exactly matches a known demo fixture; quarantine and verify before launch
+[PASS] zone-public-pii: no email-like values in public zone response
+[PASS] public-moderation: HTTP 200 JSON
+[FAIL] public-moderation-contract: supportEmailConfigured=true is required for a staffed public contact
+[FAIL] smoking-only-scope:/insights/status: expected disabled route (404/410), got HTTP 200; deploy the smoking-only backend
+[FAIL] smoking-only-scope:/recommendations/places: expected disabled route (404/410), got HTTP 401; deploy the smoking-only backend
+[FAIL] smoking-only-scope:/location-letters: expected disabled route (404/410), got HTTP 401; deploy the smoking-only backend
+
+Summary: PASS=7 WARN=0 FAIL=10

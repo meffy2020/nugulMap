@@ -1,0 +1,23 @@
+{
+  "verifiedOn": "2026-09-08",
+  "systemImage": "system-images;android-36.1;google_apis_ps16k;arm64-v8a",
+  "revision": 4,
+  "archiveBytes": 1936180596,
+  "publishedSha1": "a48079a4c1c7781d157ff9ff1c0fc9d5ab3ffc58",
+  "checksumVerified": true,
+  "pageSize": 16384,
+  "bootCompleted": "1",
+  "applicationPidAfterDetail": "4303",
+  "apk": {
+    "sha256": "e09b61dcfd9ccff02cbebc1d5f41c0111feb15215f6196d35415e7bbd20ba6b3",
+    "bytes": 46225844,
+    "signing": "existing Android Debug certificate - NOT FOR UPLOAD"
+  },
+  "kakaoHomeVisuallyVerified": true,
+  "detailActionsVerified": [
+    "길찾기",
+    "리뷰 보기",
+    "장소 신고"
+  ],
+  "scope": "Release variant with existing Debug certificate; no Play signing, field data, physical GPS or OAuth claims"
+}

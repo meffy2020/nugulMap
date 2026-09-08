@@ -1,0 +1,32 @@
+{
+  "archive": "/tmp/nugul-smoking-device-archive/NeogulMapNative.xcarchive",
+  "bundleID": "com.nugulmap.native",
+  "version": "1.0",
+  "build": "1",
+  "platform": "iphoneos",
+  "supportedPlatforms": [
+    "iPhoneOS"
+  ],
+  "minimumOS": "17.0",
+  "deviceFamilies": [
+    1,
+    2
+  ],
+  "locationPurpose": "허용하면 현재 위치 주변의 흡연구역을 보여줍니다. 허용하지 않아도 검색과 지도 탐색을 사용할 수 있습니다.",
+  "privacyTracking": false,
+  "collectedTypes": [
+    "NSPrivacyCollectedDataTypeName",
+    "NSPrivacyCollectedDataTypeEmailAddress",
+    "NSPrivacyCollectedDataTypeUserID",
+    "NSPrivacyCollectedDataTypePreciseLocation",
+    "NSPrivacyCollectedDataTypePhotosorVideos",
+    "NSPrivacyCollectedDataTypeOtherUserContent"
+  ],
+  "architectures": "arm64",
+  "embeddedProvisioningProfile": false,
+  "codesignExitCode": 1,
+  "codesignEvidence": "/tmp/nugul-smoking-device-archive/NeogulMapNative.xcarchive/Products/Applications/NeogulMapNative.app: code object is not signed at all",
+  "debugFixtureHooksEmbedded": false,
+  "apiBaseURL": "https://api.nugulmap.com",
+  "kakaoNativeKeyConfigured": true
+}

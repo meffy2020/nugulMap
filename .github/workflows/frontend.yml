@@ -1,0 +1,71 @@
+name: Verify Frontend
+
+# Production nugulmap.com is deployed by the existing Vercel Git integration.
+# This workflow verifies the exact source Vercel will build; it does not deploy
+# a second frontend to the API EC2 host.
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10.15.1"
+          run_install: false
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.5"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit production dependencies
+        working-directory: frontend
+        run: pnpm audit --prod --audit-level high
+
+      - name: Verify production security headers
+        working-directory: frontend
+        run: pnpm run test:security-headers
+
+      - name: Verify smoking-map behavior
+        working-directory: frontend
+        run: pnpm run test:smoking-map
+
+      - name: Type-check and build static policy routes
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://api.nugulmap.com
+          NEXT_PUBLIC_KAKAOMAP_APIKEY: ${{ secrets.NEXT_PUBLIC_KAKAOMAP_APIKEY }}
+        run: |
+          pnpm run lint
+          pnpm run build
+          test -f .next/server/app/privacy.html
+          test -f .next/server/app/account-deletion.html
+          test -f .next/server/app/connected-accounts.html
+          test -f .next/server/app/support.html
+          test -f .next/server/app/terms.html

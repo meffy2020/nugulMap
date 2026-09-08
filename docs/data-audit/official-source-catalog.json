@@ -1,0 +1,1118 @@
+{
+  "경기도_안양시_흡연구역현황_20240627.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "경기도 안양시_흡연구역현황",
+        "alternateName": "경기도 안양시_흡연구역현황_20260531",
+        "url": "https://www.data.go.kr/data/15060926/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2026-06-19",
+        "dateModified": "2026-06-19",
+        "datePublished": "2026-06-19",
+        "creator": {
+          "name": "경기도 안양시",
+          "contactPoint": {
+            "contactType": "AI정책과",
+            "telephone": "031-8045-5377",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15060926/fileData.json"
+      }
+    ]
+  },
+  "세종특별자치시_흡연구역 위치정보_20241129.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "세종특별자치시_흡연구역 위치정보",
+        "alternateName": "세종특별자치시_흡연구역 위치정보_20251224",
+        "url": "https://www.data.go.kr/data/15029191/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2019-12-10",
+        "dateModified": "2025-12-30",
+        "datePublished": "2019-12-10",
+        "creator": {
+          "name": "세종특별자치시",
+          "contactPoint": {
+            "contactType": "세종특별자치시 기획조정실 인공지능디지털담당관",
+            "telephone": "044-300-2417",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029191/fileData.json"
+      }
+    ]
+  },
+  "서울특별시_중구_흡연구역정보_20230331.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 중구_흡연구역정보",
+        "alternateName": "서울특별시 중구_흡연구역정보_20230331",
+        "url": "https://www.data.go.kr/data/15080296/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2022-04-05",
+        "dateModified": "2025-05-23",
+        "datePublished": "2022-04-05",
+        "creator": {
+          "name": "서울특별시 중구",
+          "contactPoint": {
+            "contactType": "중구보건소 보건지소과",
+            "telephone": "02-3396-5673",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15080296/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 용산구_흡연구역_20240719.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 용산구_흡연구역",
+        "alternateName": "서울특별시 용산구_흡연구역_20240719",
+        "url": "https://www.data.go.kr/data/15073796/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2020-11-25",
+        "dateModified": "2025-08-19",
+        "datePublished": "2020-11-25",
+        "creator": {
+          "name": "서울특별시 용산구",
+          "contactPoint": {
+            "contactType": "스마트정보과",
+            "telephone": "02-2199-6632",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15073796/fileData.json"
+      }
+    ]
+  },
+  "서울특별시_송파구_실외흡연구역 위치_20240630.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 송파구_실외흡연구역 위치",
+        "alternateName": "서울특별시 송파구_실외흡연구역 위치_20240630",
+        "url": "https://www.data.go.kr/data/15090343/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2021-09-28",
+        "dateModified": "2024-08-22",
+        "datePublished": "2021-09-28",
+        "creator": {
+          "name": "서울특별시 송파구",
+          "contactPoint": {
+            "contactType": "첨단도시과",
+            "telephone": "",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": null,
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15090343/fileData.json"
+      },
+      {
+        "name": "서울특별시 송파구_실외흡연구역위치",
+        "alternateName": "서울특별시 송파구_실외흡연구역위치_20200925",
+        "url": "https://www.data.go.kr/data/15067591/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2020-09-25",
+        "dateModified": "2020-09-25",
+        "datePublished": "2020-09-25",
+        "creator": {
+          "name": "서울특별시 송파구",
+          "contactPoint": {
+            "contactType": "송파구보건소 건강증진과",
+            "telephone": "02-2147-3467",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": null,
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15067591/fileData.json"
+      }
+    ]
+  },
+  "경상북도_울진군_흡연구역현황_20241231.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "경상북도_울진군_흡연구역현황",
+        "alternateName": "경상북도_울진군_흡연구역현황_20241231",
+        "url": "https://www.data.go.kr/data/15029131/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2025-04-30",
+        "dateModified": "2025-05-08",
+        "datePublished": "2025-04-30",
+        "creator": {
+          "name": "경상북도 울진군",
+          "contactPoint": {
+            "contactType": "총무과",
+            "telephone": "054-789-6583",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029131/fileData.json"
+      }
+    ]
+  },
+  "서울특별시_광진구_흡연구역정보_20230118.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시_광진구_흡연구역정보",
+        "alternateName": "서울특별시_광진구_흡연구역정보_20230118",
+        "url": "https://www.data.go.kr/data/15040615/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2020-10-12",
+        "dateModified": "2025-08-01",
+        "datePublished": "2020-10-12",
+        "creator": {
+          "name": "서울특별시 광진구",
+          "contactPoint": {
+            "contactType": "스마트정보과",
+            "telephone": "",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15040615/fileData.json"
+      }
+    ]
+  },
+  "경상북도_구미시_흡연구역현황_20250314.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "경상북도_구미시_흡연구역현황",
+        "alternateName": "경상북도_구미시_흡연구역현황_20260409",
+        "url": "https://www.data.go.kr/data/15033502/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2023-02-23",
+        "dateModified": "2026-04-09",
+        "datePublished": "2023-02-23",
+        "creator": {
+          "name": "경상북도 구미시",
+          "contactPoint": {
+            "contactType": "건강증진과",
+            "telephone": "054-480-4054",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15033502/fileData.json"
+      }
+    ]
+  },
+  "서울특별시_영등포구_흡연구역(실외) 현황_20231212.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 영등포구_흡연구역(실외) 현황",
+        "alternateName": "서울특별시 영등포구_흡연구역(실외) 현황_20231212",
+        "url": "https://www.data.go.kr/data/15069051/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2022-05-02",
+        "dateModified": "2025-08-20",
+        "datePublished": "2022-05-02",
+        "creator": {
+          "name": "서울특별시 영등포구",
+          "contactPoint": {
+            "contactType": "생활건강과",
+            "telephone": "02-2670-4764",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15069051/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 송파구_실외흡연구역위치_20200925.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 송파구_실외흡연구역 위치",
+        "alternateName": "서울특별시 송파구_실외흡연구역 위치_20240630",
+        "url": "https://www.data.go.kr/data/15090343/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2021-09-28",
+        "dateModified": "2024-08-22",
+        "datePublished": "2021-09-28",
+        "creator": {
+          "name": "서울특별시 송파구",
+          "contactPoint": {
+            "contactType": "첨단도시과",
+            "telephone": "",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": null,
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15090343/fileData.json"
+      },
+      {
+        "name": "서울특별시 송파구_실외흡연구역위치",
+        "alternateName": "서울특별시 송파구_실외흡연구역위치_20200925",
+        "url": "https://www.data.go.kr/data/15067591/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2020-09-25",
+        "dateModified": "2020-09-25",
+        "datePublished": "2020-09-25",
+        "creator": {
+          "name": "서울특별시 송파구",
+          "contactPoint": {
+            "contactType": "송파구보건소 건강증진과",
+            "telephone": "02-2147-3467",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": null,
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15067591/fileData.json"
+      }
+    ]
+  },
+  "서울특별시_중랑구_흡연정보_20250731.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시_중랑구_흡연정보",
+        "alternateName": "서울특별시_중랑구_흡연정보_20260212",
+        "url": "https://www.data.go.kr/data/15037881/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2025-07-31",
+        "dateModified": "2026-02-19",
+        "datePublished": "2025-07-31",
+        "creator": {
+          "name": "서울특별시 중랑구",
+          "contactPoint": {
+            "contactType": "행정지원과",
+            "telephone": "02-2094-0377",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15037881/fileData.json"
+      }
+    ]
+  },
+  "전라남도 보성군_흡연구역현황_20251208.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": []
+  },
+  "서울특별시_성동구_흡연시설정보_20250911.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시_성동구_흡연시설정보",
+        "alternateName": "서울특별시_성동구_흡연시설정보_20260724",
+        "url": "https://www.data.go.kr/data/15029169/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2025-09-11",
+        "dateModified": "2026-07-24",
+        "datePublished": "2025-09-11",
+        "creator": {
+          "name": "서울특별시 성동구",
+          "contactPoint": {
+            "contactType": "정보통신과",
+            "telephone": "02-2286-6691",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029169/fileData.json"
+      }
+    ]
+  },
+  "강원특별자치도 원주시_실외흡연구역_20240830.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "강원특별자치도 원주시_실외흡연구역",
+        "alternateName": "강원특별자치도 원주시_실외흡연구역_20240830",
+        "url": "https://www.data.go.kr/data/15134750/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2024-09-02",
+        "dateModified": "2025-11-30",
+        "datePublished": "2024-09-02",
+        "creator": {
+          "name": "강원특별자치도 원주시",
+          "contactPoint": {
+            "contactType": "정보통신과",
+            "telephone": "033-737-2543",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15134750/fileData.json"
+      }
+    ]
+  },
+  "전북특별자치도 장수군_흡연허가 구역_20250320.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "전북특별자치도 장수군_흡연허가 구역",
+        "alternateName": "전북특별자치도 장수군_흡연허가 구역_20260601",
+        "url": "https://www.data.go.kr/data/15029105/fileData.do",
+        "license": "공공저작물 : 출처표시 (제 1유형)",
+        "dateCreated": "2026-06-01",
+        "dateModified": "2026-06-01",
+        "datePublished": "2026-06-01",
+        "creator": {
+          "name": "전북특별자치도 장수군",
+          "contactPoint": {
+            "contactType": "행정지원과",
+            "telephone": "063-350-2172",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029105/fileData.json"
+      }
+    ]
+  },
+  "충청북도_단양군_흡연구역 정보_20250903.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "충청북도_단양군_흡연구역 정보",
+        "alternateName": "충청북도_단양군_흡연구역 정보_20250903",
+        "url": "https://www.data.go.kr/data/15029233/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2019-04-23",
+        "dateModified": "2025-11-25",
+        "datePublished": "2019-04-23",
+        "creator": {
+          "name": "충청북도 단양군",
+          "contactPoint": {
+            "contactType": "자치행정과",
+            "telephone": "043-420-2534",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029233/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 성북구_흡연시설 현황_20220401.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 성북구_흡연시설 현황",
+        "alternateName": "서울특별시 성북구_흡연시설 현황_20220401",
+        "url": "https://www.data.go.kr/data/15100203/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2022-05-10",
+        "dateModified": "2025-12-08",
+        "datePublished": "2022-05-10",
+        "creator": {
+          "name": "서울특별시 성북구",
+          "contactPoint": {
+            "contactType": "성북구 건강정책과",
+            "telephone": "02-2241-5943",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15100203/fileData.json"
+      }
+    ]
+  },
+  "서울특별시_중랑구_흡연시설_20250526.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시_중랑구_흡연시설",
+        "alternateName": "서울특별시_중랑구_흡연시설_20260212",
+        "url": "https://www.data.go.kr/data/15040636/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2024-05-16",
+        "dateModified": "2026-02-19",
+        "datePublished": "2024-05-16",
+        "creator": {
+          "name": "서울특별시 중랑구",
+          "contactPoint": {
+            "contactType": "행정지원과",
+            "telephone": "02-2094-0377",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15040636/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 성북구_흡연구역_20250201.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 성북구_흡연구역",
+        "alternateName": "서울특별시 성북구_흡연구역_20260223",
+        "url": "https://www.data.go.kr/data/15103853/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2022-08-11",
+        "dateModified": "2026-02-25",
+        "datePublished": "2022-08-11",
+        "creator": {
+          "name": "서울특별시 성북구",
+          "contactPoint": {
+            "contactType": "성북구보건소 건강정책과",
+            "telephone": "02-2241-5943",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15103853/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 노원구_흡연시설현황_20240710.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": []
+  },
+  "경기도 수원시_흡연부스 설치 현황_20250324.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": []
+  },
+  "서울특별시_양천구_흡연시설 현황_20250815.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시_양천구_흡연시설 현황",
+        "alternateName": "서울특별시_양천구_흡연시설 현황_20250815",
+        "url": "https://www.data.go.kr/data/15040511/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2025-08-28",
+        "dateModified": "2025-08-28",
+        "datePublished": "2025-08-28",
+        "creator": {
+          "name": "서울특별시 양천구",
+          "contactPoint": {
+            "contactType": "스마트정보과",
+            "telephone": "02-2620-3246",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15040511/fileData.json"
+      }
+    ]
+  },
+  "인천광역시 미추홀구_흡연구역 현황_20250210.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "인천광역시 미추홀구_흡연구역 현황",
+        "alternateName": "인천광역시 미추홀구_흡연구역 현황_20250210",
+        "url": "https://www.data.go.kr/data/15029170/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2022-04-29",
+        "dateModified": "2025-12-05",
+        "datePublished": "2022-04-29",
+        "creator": {
+          "name": "인천광역시 미추홀구",
+          "contactPoint": {
+            "contactType": "스마트정책실",
+            "telephone": "032-000-0000",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029170/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 중구_흡연구역정보_20230331.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 중구_흡연구역정보",
+        "alternateName": "서울특별시 중구_흡연구역정보_20230331",
+        "url": "https://www.data.go.kr/data/15080296/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2022-04-05",
+        "dateModified": "2025-05-23",
+        "datePublished": "2022-04-05",
+        "creator": {
+          "name": "서울특별시 중구",
+          "contactPoint": {
+            "contactType": "중구보건소 보건지소과",
+            "telephone": "02-3396-5673",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15080296/fileData.json"
+      }
+    ]
+  },
+  "전라남도 해남군_흡연구역 정보_20241129.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": []
+  },
+  "경상북도_군위군_흡연구역현황_20220712.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": []
+  },
+  "전북특별자치도 고창군_흡연구역지정현황_20230821.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "전북특별자치도 고창군_흡연구역지정현황",
+        "alternateName": "전북특별자치도 고창군_흡연구역지정현황_20230821",
+        "url": "https://www.data.go.kr/data/15029115/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2019-09-29",
+        "dateModified": "2025-07-01",
+        "datePublished": "2019-09-29",
+        "creator": {
+          "name": "전북특별자치도 고창군",
+          "contactPoint": {
+            "contactType": "행정지원과",
+            "telephone": "063-560-2337",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029115/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 관악구_흡연시설현황_20250910.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 관악구_흡연시설현황",
+        "alternateName": "서울특별시 관악구_흡연시설현황_20250910",
+        "url": "https://www.data.go.kr/data/15040591/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2025-09-10",
+        "dateModified": "2025-09-10",
+        "datePublished": "2025-09-10",
+        "creator": {
+          "name": "서울특별시 관악구",
+          "contactPoint": {
+            "contactType": "스마트정보과",
+            "telephone": "02-879-6074",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15040591/fileData.json"
+      }
+    ]
+  },
+  "울산광역시 남구_흡연구역 정보_20250212.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "울산광역시 남구_흡연구역 정보",
+        "alternateName": "울산광역시 남구_흡연구역 정보_20250209",
+        "url": "https://www.data.go.kr/data/15029166/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2020-02-10",
+        "dateModified": "2026-02-10",
+        "datePublished": "2020-02-10",
+        "creator": {
+          "name": "울산광역시 남구",
+          "contactPoint": {
+            "contactType": "정책미디어과",
+            "telephone": "052-226-5363",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029166/fileData.json"
+      }
+    ]
+  },
+  "경상북도 성주군_흡연구역 정보_20190830..csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "경상북도 성주군_흡연구역 정보",
+        "alternateName": "경상북도 성주군_흡연구역 정보_20190830",
+        "url": "https://www.data.go.kr/data/15031246/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2019-09-03",
+        "dateModified": "2025-12-01",
+        "datePublished": "2019-09-03",
+        "creator": {
+          "name": "경상북도 성주군",
+          "contactPoint": {
+            "contactType": "경제교통과",
+            "telephone": "054-930-6304",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15031246/fileData.json"
+      }
+    ]
+  },
+  "경상북도_칠곡군_흡연구역정보_20250925.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "경상북도_칠곡군_흡연구역정보",
+        "alternateName": "경상북도_칠곡군_흡연구역정보_20250925",
+        "url": "https://www.data.go.kr/data/15033733/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2025-09-19",
+        "dateModified": "2025-11-03",
+        "datePublished": "2025-09-19",
+        "creator": {
+          "name": "경상북도 칠곡군",
+          "contactPoint": {
+            "contactType": "회계정보과",
+            "telephone": "",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15033733/fileData.json"
+      }
+    ]
+  },
+  "인천광역시 서구_청사 및 광장 흡연구역_20250609.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": []
+  },
+  "서울특별시 영등포구_흡연구역(실외) 현황_20231212.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 영등포구_흡연구역(실외) 현황",
+        "alternateName": "서울특별시 영등포구_흡연구역(실외) 현황_20231212",
+        "url": "https://www.data.go.kr/data/15069051/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2022-05-02",
+        "dateModified": "2025-08-20",
+        "datePublished": "2022-05-02",
+        "creator": {
+          "name": "서울특별시 영등포구",
+          "contactPoint": {
+            "contactType": "생활건강과",
+            "telephone": "02-2670-4764",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15069051/fileData.json"
+      }
+    ]
+  },
+  "세종특별자치시_흡연구역 위치정보_20251224.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "세종특별자치시_흡연구역 위치정보",
+        "alternateName": "세종특별자치시_흡연구역 위치정보_20251224",
+        "url": "https://www.data.go.kr/data/15029191/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2019-12-10",
+        "dateModified": "2025-12-30",
+        "datePublished": "2019-12-10",
+        "creator": {
+          "name": "세종특별자치시",
+          "contactPoint": {
+            "contactType": "세종특별자치시 기획조정실 인공지능디지털담당관",
+            "telephone": "044-300-2417",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029191/fileData.json"
+      }
+    ]
+  },
+  "경기도 안양시_흡연구역현황_20250627.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "경기도 안양시_흡연구역현황",
+        "alternateName": "경기도 안양시_흡연구역현황_20260531",
+        "url": "https://www.data.go.kr/data/15060926/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2026-06-19",
+        "dateModified": "2026-06-19",
+        "datePublished": "2026-06-19",
+        "creator": {
+          "name": "경기도 안양시",
+          "contactPoint": {
+            "contactType": "AI정책과",
+            "telephone": "031-8045-5377",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15060926/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 강북구 흡연시설현황_20200917.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 강북구_흡연시설현황",
+        "alternateName": "서울특별시 강북구 흡연시설현황_20200917",
+        "url": "https://www.data.go.kr/data/15049030/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2020-09-28",
+        "dateModified": "2025-08-28",
+        "datePublished": "2020-09-28",
+        "creator": {
+          "name": "서울특별시 강북구",
+          "contactPoint": {
+            "contactType": "디지털정보과",
+            "telephone": "02-901-7207",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15049030/fileData.json"
+      }
+    ]
+  },
+  "부산광역시_서구_흡연구역 정보_20250908.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "부산광역시_서구_흡연구역 정보",
+        "alternateName": "부산광역시_서구_흡연구역 정보_20250908",
+        "url": "https://www.data.go.kr/data/15029123/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2025-04-22",
+        "dateModified": "2025-09-08",
+        "datePublished": "2025-04-22",
+        "creator": {
+          "name": "부산광역시 서구",
+          "contactPoint": {
+            "contactType": "보건행정과",
+            "telephone": "051-440-6509",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029123/fileData.json"
+      }
+    ]
+  },
+  "경상북도 영주시_흡연구역 정보_20190927..csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "경상북도 영주시_흡연구역 정보",
+        "alternateName": "경상북도 영주시_흡연구역 정보_20190927",
+        "url": "https://www.data.go.kr/data/15029208/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2019-09-27",
+        "dateModified": "2025-08-12",
+        "datePublished": "2019-09-27",
+        "creator": {
+          "name": "경상북도 영주시",
+          "contactPoint": {
+            "contactType": "영주시보건소 건강증진과",
+            "telephone": "054-639-5752",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15029208/fileData.json"
+      }
+    ]
+  },
+  "경상북도_청도군_흡연구역위치정보_20240516.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "경상북도_청도군_흡연구역위치정보",
+        "alternateName": "경상북도_청도군_흡연구역위치정보_20240516",
+        "url": "https://www.data.go.kr/data/15030755/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2018-09-19",
+        "dateModified": "2025-05-26",
+        "datePublished": "2018-09-19",
+        "creator": {
+          "name": "경상북도 청도군",
+          "contactPoint": {
+            "contactType": "총무과",
+            "telephone": "054-370-6078",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15030755/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 송파구_실외흡연구역 위치_20240630.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 송파구_실외흡연구역 위치",
+        "alternateName": "서울특별시 송파구_실외흡연구역 위치_20240630",
+        "url": "https://www.data.go.kr/data/15090343/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2021-09-28",
+        "dateModified": "2024-08-22",
+        "datePublished": "2021-09-28",
+        "creator": {
+          "name": "서울특별시 송파구",
+          "contactPoint": {
+            "contactType": "첨단도시과",
+            "telephone": "",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": null,
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15090343/fileData.json"
+      },
+      {
+        "name": "서울특별시 송파구_실외흡연구역위치",
+        "alternateName": "서울특별시 송파구_실외흡연구역위치_20200925",
+        "url": "https://www.data.go.kr/data/15067591/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2020-09-25",
+        "dateModified": "2020-09-25",
+        "datePublished": "2020-09-25",
+        "creator": {
+          "name": "서울특별시 송파구",
+          "contactPoint": {
+            "contactType": "송파구보건소 건강증진과",
+            "telephone": "02-2147-3467",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": null,
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15067591/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 동작구_흡연부스 현황_20250403.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 동작구_흡연부스 현황",
+        "alternateName": "서울특별시 동작구_흡연부스 현황_20260511",
+        "url": "https://www.data.go.kr/data/15049031/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2026-05-11",
+        "dateModified": "2026-05-11",
+        "datePublished": "2026-05-11",
+        "creator": {
+          "name": "서울특별시 동작구",
+          "contactPoint": {
+            "contactType": "스마트행정과",
+            "telephone": "02-820-9852",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15049031/fileData.json"
+      }
+    ]
+  },
+  "서울특별시_서대문구_흡연시설 현황_20210607.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시_서대문구_흡연시설 현황",
+        "alternateName": "서울특별시_서대문구_흡연시설 현황_20210607",
+        "url": "https://www.data.go.kr/data/15040413/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2021-06-07",
+        "dateModified": "2022-08-16",
+        "datePublished": "2021-06-07",
+        "creator": {
+          "name": "서울특별시 서대문구",
+          "contactPoint": {
+            "contactType": "스마트정보과",
+            "telephone": "02-330-8116",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": null,
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15040413/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 서초구_흡연시설 현황_20250623.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 서초구_흡연시설 현황",
+        "alternateName": "서울특별시 서초구_흡연시설 현황_20260318",
+        "url": "https://www.data.go.kr/data/15074379/fileData.do",
+        "license": "공공저작물 : 출처표시 (제 1유형)",
+        "dateCreated": "2026-03-18",
+        "dateModified": "2026-03-18",
+        "datePublished": "2026-03-18",
+        "creator": {
+          "name": "서울특별시 서초구",
+          "contactPoint": {
+            "contactType": "스마트도시과",
+            "telephone": "02-2155-6432",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15074379/fileData.json"
+      }
+    ]
+  },
+  "서울특별시 동대문구_흡연시설 현황_20211027.csv": {
+    "match_basis": "exact dataset title ignoring whitespace, underscores, filename date",
+    "datasets": [
+      {
+        "name": "서울특별시 동대문구_흡연시설 현황",
+        "alternateName": "서울특별시 동대문구_흡연시설 현황_20211027",
+        "url": "https://www.data.go.kr/data/15070168/fileData.do",
+        "license": "이용허락범위 제한 없음",
+        "dateCreated": "2021-10-21",
+        "dateModified": "2026-04-13",
+        "datePublished": "2021-10-21",
+        "creator": {
+          "name": "서울특별시 동대문구",
+          "contactPoint": {
+            "contactType": "정책관리관",
+            "telephone": "02-2127-5601",
+            "@type": "ContactPoint"
+          },
+          "@type": "Organization"
+        },
+        "spatialCoverage": "",
+        "encodingFormat": "CSV",
+        "checked_on": "2026-09-07",
+        "metadata_url": "https://www.data.go.kr/catalog/15070168/fileData.json"
+      }
+    ]
+  }
+}

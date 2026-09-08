@@ -21,6 +21,7 @@ const categories = [
 type SupportCategory = (typeof categories)[number][0]
 
 type SupportFormProps = {
+  defaultMessage?: string
   defaultCategory?: SupportCategory
   description?: string
   fixedCategory?: SupportCategory
@@ -29,6 +30,7 @@ type SupportFormProps = {
 }
 
 export function SupportForm({
+  defaultMessage = "",
   defaultCategory = "ACCOUNT_SUPPORT",
   description = "회신받을 이메일과 내용을 남겨 주세요. 앱 버전, 휴대전화 종류, 발생 시간을 함께 적으면 확인이 빨라집니다.",
   fixedCategory,
@@ -127,6 +129,7 @@ export function SupportForm({
           className="min-h-40 w-full resize-y rounded-md border bg-background px-3 py-2 font-normal"
           maxLength={1000}
           name="message"
+          defaultValue={defaultMessage}
           placeholder="문제가 발생한 화면과 상황을 적어 주세요."
           required
         />

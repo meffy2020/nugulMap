@@ -27,6 +27,8 @@ export interface Hotplace {
   source: string
   sourcePlaceCode: string
   updatedAt: string | null
+  freshnessStatus?: string | null
+  ageSeconds?: number | null
 }
 
 export interface HotplaceInsight {
@@ -49,6 +51,8 @@ export interface TrendEvent {
   imageUrl: string | null
   source: string
   sourceContentId: string
+  detailUrl?: string | null
+  collectedAt?: string | null
 }
 
 export interface EventInsight {
@@ -62,6 +66,59 @@ export interface MapInsight {
   hotplaces: HotplaceInsight
   events: EventInsight
   status: InsightStatus | null
+  updatedAt: string
+}
+
+export type RecommendationIntent = "CAFE" | "RESTAURANT" | "DATE"
+export type RecommendationDataStatus = "READY" | "PARTIAL" | "PROVIDER_NOT_CONFIGURED" | "PROVIDER_UNAVAILABLE"
+export type RecommendationPersonalizationMode = "CONTEXT_ONLY" | "PERSONALIZED"
+export type RecommendationEventType = "DETAIL_OPEN" | "SAVE" | "UNSAVE" | "ROUTE" | "NOT_INTERESTED"
+
+export interface RecommendedPlace {
+  id: string
+  provider: string
+  name: string
+  category: string
+  address: string
+  latitude: number
+  longitude: number
+  distanceMeters: number | null
+  score: number
+  reasonCodes: string[]
+  sourceUrl: string | null
+}
+
+export interface PlaceRecommendation {
+  requestId: string
+  modelVersion: string
+  dataStatus: RecommendationDataStatus
+  personalizationMode: RecommendationPersonalizationMode
+  intent: RecommendationIntent
+  eligibleCandidateCount: number
+  generatedAt: string
+  items: RecommendedPlace[]
+}
+
+export interface RecommendationPreference {
+  personalizationEnabled: boolean
+  preferredTags: string[]
+  dislikedTags: string[]
+  budgetLevel: "ANY" | "LOW" | "MEDIUM" | "HIGH" | null
+  maxDistanceMeters: number | null
+  updatedAt: string | null
+}
+
+export interface SavedRecommendationItem {
+  id: number
+  itemType: "PLACE" | "EVENT" | "HOTPLACE" | "COURSE"
+  provider: string
+  itemId: string
+  title: string
+  category: string | null
+  lat: number
+  lng: number
+  sourceUrl: string | null
+  createdAt: string
   updatedAt: string
 }
 

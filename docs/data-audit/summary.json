@@ -1,0 +1,29 @@
+{
+  "as_of": "2026-09-07",
+  "stale_threshold_days": 365,
+  "final_sha256": "14be1c9ac5ff12d4486aa55c1293cacc941978dde4a8be6f06d2fcad564e460a",
+  "final_rows": 1061,
+  "source_files": 47,
+  "source_rows": 1706,
+  "rows_with_exact_address_correspondence": 1058,
+  "flags": {
+    "all_matching_filename_dates_older_than_365_days": 855,
+    "final_coordinate_lineage_unproven": 900,
+    "invalid_or_missing_address": 3,
+    "missing_region": 849,
+    "multiple_source_row_correspondences": 433,
+    "source_coordinate_difference": 7,
+    "source_indoor_conflict": 227,
+    "unmatched_address": 3
+  },
+  "coordinate_backed_review_candidate_rows": 151,
+  "type_counts": {
+    "실외": 1061
+  },
+  "shared_coordinate_groups": 75,
+  "exact_duplicate_payload_rows": 0,
+  "invalid_coordinate_rows": 0,
+  "outside_korea_review_bounds_rows": 0,
+  "missing_description_rows": 0,
+  "verified_rows": 0
+}

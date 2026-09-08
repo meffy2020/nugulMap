@@ -162,6 +162,9 @@ app:
   support:
     closed-request-retention-days: ${SUPPORT_REQUEST_RETENTION_DAYS:30}
     closed-request-purge-cron: ${SUPPORT_REQUEST_PURGE_CRON:0 30 3 * * *}
+  recommendations:
+    interaction-retention-days: ${RECOMMENDATION_INTERACTION_RETENTION_DAYS:180}
+    interaction-purge-cron: ${RECOMMENDATION_INTERACTION_PURGE_CRON:0 15 4 * * *}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:3000,http://nugulmap.com,https://nugulmap.com,https://www.nugulmap.com}  # 운영 도메인 추가
     allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,PATCH,DELETE,OPTIONS}
@@ -190,6 +193,14 @@ jwt:
   refresh-expiration: 604800000  # 7일
 
 external:
+  kakao:
+    # 장소 후보는 서버가 요청 시점에만 조회합니다. OAuth 키와 별도 관리하며, 미설정 시 빈 상태를 반환합니다.
+    local-rest-api-key: ${KAKAO_LOCAL_REST_API_KEY:}
+    # 카카오의 서비스 사용 승인을 확인한 뒤에만 true로 전환합니다.
+    local-recommendations-enabled: ${KAKAO_LOCAL_RECOMMENDATIONS_ENABLED:false}
+    bulkhead:
+      max-concurrent-requests: ${KAKAO_LOCAL_MAX_CONCURRENT_REQUESTS:8}
+      acquire-timeout-millis: ${KAKAO_LOCAL_BULKHEAD_ACQUIRE_TIMEOUT_MILLIS:50}
   seoul:
     culture-api-page-size: ${SEOUL_CULTURE_API_PAGE_SIZE:1000}
     culture-api-max-pages: ${SEOUL_CULTURE_API_MAX_PAGES:25}
@@ -199,12 +210,12 @@ external:
     provider-failure-cooldown-seconds: ${INSIGHTS_PROVIDER_FAILURE_COOLDOWN_SECONDS:60}
     provider-circuit-failure-threshold: ${INSIGHTS_PROVIDER_CIRCUIT_FAILURE_THRESHOLD:3}
     hotplace-warmup:
-      enabled: ${INSIGHTS_HOTPLACE_WARMUP_ENABLED:true}
+      enabled: ${INSIGHTS_HOTPLACE_WARMUP_ENABLED:false}
       initial-delay-ms: ${INSIGHTS_HOTPLACE_WARMUP_INITIAL_DELAY_MS:0}
       interval-ms: ${INSIGHTS_HOTPLACE_WARMUP_INTERVAL_MS:300000}
       max-concurrency: ${INSIGHTS_HOTPLACE_WARMUP_MAX_CONCURRENCY:4}
     event-warmup:
-      enabled: ${INSIGHTS_EVENT_WARMUP_ENABLED:true}
+      enabled: ${INSIGHTS_EVENT_WARMUP_ENABLED:false}
       initial-delay-ms: ${INSIGHTS_EVENT_WARMUP_INITIAL_DELAY_MS:0}
       interval-ms: ${INSIGHTS_EVENT_WARMUP_INTERVAL_MS:86400000}
 

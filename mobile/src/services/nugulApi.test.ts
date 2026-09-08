@@ -7,10 +7,12 @@ const {
   deleteZone,
   fetchMyZones,
   fetchMapInsights,
+  fetchRecommendedPlaces,
   fetchZoneReviews,
   fetchZoneById,
   fetchZonesByBounds,
   getCurrentUser,
+  recordRecommendationInteraction,
   searchZones,
   updateZone,
   updateUserProfile,
@@ -128,6 +130,8 @@ describe("nugulApi", () => {
                 source: "TELECOM_CROWD",
                 sourcePlaceCode: "POI005",
                 updatedAt: "2026-06-18T10:00:00Z",
+                freshnessStatus: "CURRENT",
+                ageSeconds: 120,
               },
             ],
           },
@@ -149,6 +153,8 @@ describe("nugulApi", () => {
                 imageUrl: null,
                 source: "SEOUL_CULTURE_API",
                 sourceContentId: "1",
+                detailUrl: "https://culture.seoul.go.kr/event/1",
+                collectedAt: "2026-06-18T09:55:00Z",
               },
             ],
           },
@@ -205,10 +211,14 @@ describe("nugulApi", () => {
     expect(insight.hotplaces.places[0]).toMatchObject({
       id: "lotte-world",
       estimatedMinPeople: 12000,
+      freshnessStatus: "CURRENT",
+      ageSeconds: 120,
     })
     expect(insight.events.events[0]).toMatchObject({
       id: "seoul-culture-1",
       title: "성수 팝업",
+      detailUrl: "https://culture.seoul.go.kr/event/1",
+      collectedAt: "2026-06-18T09:55:00Z",
     })
     expect(insight.status?.hotplaceMode).toBe("LIVE_READY")
     expect(insight.status?.seoulCultureApi.qualityStatus).toBe("OK")
@@ -624,6 +634,75 @@ describe("nugulApi", () => {
       )
 
       await expect(updateZone(10, updatePayload, "token-abc")).rejects.toThrow("zone update failed")
+    })
+  })
+
+  describe("recommendations", () => {
+    const recommendedPlace = {
+      id: "123",
+      provider: "kakao_local",
+      name: "성수 카페",
+      category: "음식점 > 카페",
+      address: "서울 성동구",
+      latitude: 37.5446,
+      longitude: 127.0557,
+      distanceMeters: 320,
+      score: 0.91,
+      reasonCodes: ["CAFE_INTENT_MATCH", "WITHIN_ONE_KILOMETER"],
+      sourceUrl: "https://place.map.kakao.com/123",
+    }
+
+    it("parses ranked places and sends optional auth for personalization", async () => {
+      mockFetch.mockResolvedValue(mockJsonResponse({
+        success: true,
+        data: {
+          requestId: "req-1",
+          modelVersion: "pero-context-v1",
+          dataStatus: "READY",
+          personalizationMode: "PERSONALIZED",
+          intent: "CAFE",
+          eligibleCandidateCount: 1,
+          generatedAt: "2026-09-01T03:00:00Z",
+          items: [{ ...recommendedPlace, provider: "KAKAO_LOCAL" }],
+        },
+      }))
+
+      const result = await fetchRecommendedPlaces("CAFE", 37.5446, 127.0557, "token-abc")
+
+      expect(result.items).toEqual([recommendedPlace])
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/recommendations/places?intent=CAFE"),
+        expect.objectContaining({ headers: { Authorization: "Bearer token-abc" } }),
+      )
+    })
+
+    it("records only the recommendation contract and omits client location and time", async () => {
+      mockFetch.mockResolvedValue(mockJsonResponse({ success: true, data: { id: 1 } }))
+
+      await recordRecommendationInteraction(
+        "token-abc",
+        { requestId: "req-1", modelVersion: "pero-context-v1", intent: "CAFE" },
+        recommendedPlace,
+        "ROUTE",
+      )
+
+      const request = mockFetch.mock.calls[0]?.[1] as RequestInit
+      const body = JSON.parse(String(request.body))
+      expect(request).toEqual(expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ Authorization: "Bearer token-abc" }),
+      }))
+      expect(body).toEqual({
+        requestId: "req-1",
+        itemType: "PLACE",
+        provider: "kakao_local",
+        itemId: "123",
+        eventType: "ROUTE",
+        intent: "CAFE",
+        modelVersion: "pero-context-v1",
+      })
+      expect(body).not.toHaveProperty("contextRegion")
+      expect(body).not.toHaveProperty("occurredAt")
     })
   })
 })

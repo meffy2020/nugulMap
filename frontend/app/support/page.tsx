@@ -6,7 +6,11 @@ export const metadata: Metadata = {
   description: "너굴맵 이용 문의, 계정 지원, 콘텐츠와 사용자 신고 안내",
 }
 
-export default function SupportPage() {
+export default async function SupportPage({ searchParams }: {
+  searchParams: Promise<{ zoneId?: string }>
+}) {
+  const { zoneId } = await searchParams
+  const validZoneId = zoneId && /^\d+$/.test(zoneId) ? zoneId : null
   return (
     <main className="min-h-screen bg-background px-5 py-10 text-foreground">
       <div className="mx-auto max-w-3xl space-y-8">
@@ -21,13 +25,20 @@ export default function SupportPage() {
         <section className="grid gap-3 rounded-lg border bg-card p-5 text-sm leading-7 sm:grid-cols-[8rem_1fr]">
           <strong>서비스</strong>
           <span>너굴맵(NugulMap)</span>
+          <strong>운영자</strong>
+          <span>강승진</span>
+          <strong>지원 이메일</strong>
+          <a className="font-semibold underline" href="mailto:nugulmap@gmail.com">nugulmap@gmail.com</a>
           <strong>지원 채널</strong>
           <span>이 페이지의 공개 문의 폼</span>
           <strong>회신 방법</strong>
           <span>입력한 이메일로 접수 결과와 필요한 후속 절차 안내</span>
         </section>
 
-        <SupportForm />
+        <SupportForm
+          defaultCategory={validZoneId ? "CONTENT_REPORT" : "ACCOUNT_SUPPORT"}
+          defaultMessage={validZoneId ? `흡연구역 번호: ${validZoneId}\n잘못된 정보 또는 신고 사유: ` : ""}
+        />
 
         <section className="space-y-3">
           <h2 className="text-xl font-bold">리뷰·장소·사용자 신고</h2>

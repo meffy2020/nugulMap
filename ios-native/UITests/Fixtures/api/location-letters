@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "message": "이곳의 편지를 불러왔습니다.",
+  "data": {
+    "letters": [
+      {
+        "id": 701,
+        "authorId": 31,
+        "authorLabel": "하늘산책",
+        "content": "오늘 이 길을 걷는 마음이 조금은 가벼워지길.",
+        "mine": false,
+        "createdAt": "2026-09-01T22:13:00",
+        "likeCount": 12,
+        "likedByMe": false
+      },
+      {
+        "id": 702,
+        "authorId": 32,
+        "authorLabel": "밤편지",
+        "content": "바람이 좋은 자리였어요. 잠깐 천천히 가도 괜찮아요.",
+        "mine": false,
+        "createdAt": "2026-09-01T18:40:00",
+        "likeCount": 7,
+        "likedByMe": false
+      },
+      {
+        "id": 703,
+        "authorId": 33,
+        "authorLabel": "오후네시",
+        "content": "다시 오게 된다면 그때도 이 문장을 기억하고 싶어요.",
+        "mine": false,
+        "createdAt": "2026-08-31T20:05:00",
+        "likeCount": 3,
+        "likedByMe": true
+      }
+    ],
+    "count": 3,
+    "radiusMeters": 180
+  }
+}

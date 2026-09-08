@@ -83,6 +83,27 @@ class PublicZoneReadRateLimitFilterTest {
     }
 
     @Test
+    void limitsLocationLetterReadsWithoutConsumingTheZoneReadBucket() throws Exception {
+        PublicZoneReadRateLimitFilter filter = filter(1, 60, 100);
+        FilterChain chain = mock(FilterChain.class);
+        MockHttpServletRequest firstLetterRead = zoneRequest("/location-letters", "198.51.100.25");
+        MockHttpServletRequest secondLetterRead = zoneRequest("/location-letters", "198.51.100.25");
+        MockHttpServletRequest zoneRead = zoneRequest("/zones", "198.51.100.25");
+
+        MockHttpServletResponse firstResponse = new MockHttpServletResponse();
+        filter.doFilter(firstLetterRead, firstResponse, chain);
+        MockHttpServletResponse rejected = new MockHttpServletResponse();
+        filter.doFilter(secondLetterRead, rejected, chain);
+        MockHttpServletResponse zoneResponse = new MockHttpServletResponse();
+        filter.doFilter(zoneRead, zoneResponse, chain);
+
+        verify(chain).doFilter(firstLetterRead, firstResponse);
+        verify(chain, never()).doFilter(secondLetterRead, rejected);
+        verify(chain).doFilter(zoneRead, zoneResponse);
+        assertThat(rejected.getStatus()).isEqualTo(429);
+    }
+
+    @Test
     void boundsTrackedClientsWithSharedOverflowBucket() {
         PublicZoneReadRateLimitFilter filter = filter(1, 60, 1);
 

@@ -15,5 +15,12 @@ data class MapBounds(
             minLng = 126.88,
             maxLng = 127.12,
         )
+
+        val seongsu = MapBounds(
+            minLat = 37.532,
+            maxLat = 37.558,
+            minLng = 127.032,
+            maxLng = 127.072,
+        )
     }
 }

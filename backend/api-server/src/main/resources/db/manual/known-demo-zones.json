@@ -1,0 +1,62 @@
+[
+  {
+    "address": "서울특별시 강남구 강남대로 396",
+    "latitude": 37.4979,
+    "longitude": 127.0276,
+    "description": "강남역 근처 실외 흡연구역입니다."
+  },
+  {
+    "address": "서울특별시 마포구 홍익로 3",
+    "latitude": 37.5563,
+    "longitude": 126.9226,
+    "description": "홍대입구역 실내 흡연구역입니다."
+  },
+  {
+    "address": "서울특별시 중구 명동길 26",
+    "latitude": 37.5636,
+    "longitude": 126.9826,
+    "description": "명동역 근처 실외 흡연구역입니다."
+  },
+  {
+    "address": "서울특별시 종로구 종로 69",
+    "latitude": 37.57,
+    "longitude": 126.982,
+    "description": "종각역 실내 흡연구역입니다."
+  },
+  {
+    "address": "서울특별시 용산구 이태원로 177",
+    "latitude": 37.5347,
+    "longitude": 126.9947,
+    "description": "이태원역 근처 실외 흡연구역입니다."
+  },
+  {
+    "address": "서울특별시 광진구 능동로 110",
+    "latitude": 37.5403,
+    "longitude": 127.0692,
+    "description": "건대입구역 실내 흡연구역입니다."
+  },
+  {
+    "address": "서울특별시 서대문구 신촌로 83",
+    "latitude": 37.5551,
+    "longitude": 126.9368,
+    "description": "신촌역 근처 실외 흡연구역입니다."
+  },
+  {
+    "address": "서울특별시 강남구 압구정로 113",
+    "latitude": 37.5275,
+    "longitude": 127.0286,
+    "description": "압구정역 실내 흡연구역입니다."
+  },
+  {
+    "address": "서울특별시 송파구 올림픽로 240",
+    "latitude": 37.5133,
+    "longitude": 127.1028,
+    "description": "잠실역 근처 실외 흡연구역입니다."
+  },
+  {
+    "address": "서울특별시 영등포구 여의대로 24",
+    "latitude": 37.5219,
+    "longitude": 126.9242,
+    "description": "여의도역 실내 흡연구역입니다."
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": 9001,
+      "email": "reviewer@nugulmap.example",
+      "nickname": "심사 테스트",
+      "profileImage": null,
+      "profileImageUrl": null,
+      "createdAt": "2026-07-12"
+    }
+  }
+}

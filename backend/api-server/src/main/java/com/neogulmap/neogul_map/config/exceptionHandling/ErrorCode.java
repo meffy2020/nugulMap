@@ -63,6 +63,11 @@ public enum ErrorCode {
     ZOOM_LEVEL_TOO_HIGH(HttpStatus.BAD_REQUEST, "L006", "줌 레벨이 너무 높습니다. (최대 15)"),
     ZOOM_LEVEL_REQUIRED(HttpStatus.BAD_REQUEST, "L007", "줌 레벨이 필요합니다."),
     RADIUS_INVALID(HttpStatus.BAD_REQUEST, "L008", "반경이 올바르지 않습니다. (0.1-100km 범위)"),
+
+    // Location letters
+    LETTER_NOT_FOUND(HttpStatus.NOT_FOUND, "LTR001", "편지를 찾을 수 없습니다."),
+    LETTER_ACCESS_DENIED(HttpStatus.FORBIDDEN, "LTR002", "이 편지를 처리할 권한이 없습니다."),
+    LETTER_DUPLICATE_REPORT(HttpStatus.CONFLICT, "LTR003", "이미 신고한 편지입니다."),
     
     // File Storage
     FILE_UPLOAD_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "F001", "파일 업로드 중 오류가 발생했습니다."),

@@ -16,6 +16,45 @@ data class ZoneReviewCreateRequest(
     val content: String,
 )
 
+data class ReviewReportRequest(
+    val reason: String,
+    val details: String? = null,
+)
+
+data class ZoneReportRequest(
+    val reason: String,
+    val details: String? = null,
+)
+
+data class ZoneReportPayload(
+    val report: ZoneReportDto? = null,
+)
+
+data class ZoneReportDto(
+    val id: Long,
+    val zoneId: Int,
+    val reason: String,
+    val status: String,
+    val createdAt: String? = null,
+)
+
+data class ReviewReportPayload(
+    val report: ReviewReportDto? = null,
+)
+
+data class ReviewReportDto(
+    val id: Long,
+    val reviewId: Int,
+    val reason: String,
+    val status: String,
+    val createdAt: String? = null,
+)
+
+data class UserBlockPayload(
+    val blockedUserId: Long? = null,
+    val unblockedUserId: Long? = null,
+)
+
 data class ZoneReviewPayload(
     val reviews: List<ZoneReviewDto> = emptyList(),
     val count: Int = reviews.size,
@@ -26,7 +65,6 @@ data class ZoneReviewDto(
     val zoneId: Int,
     val authorId: Long? = null,
     val authorNickname: String? = null,
-    val authorEmail: String? = null,
     val authorProfileImage: String? = null,
     val content: String,
     val createdAt: String? = null,
@@ -34,7 +72,6 @@ data class ZoneReviewDto(
 ) {
     val displayAuthor: String
         get() = authorNickname?.takeIf { it.isNotBlank() }
-            ?: authorEmail?.takeIf { it.isNotBlank() }
             ?: "익명"
 }
 

@@ -6,6 +6,9 @@ enum AppConfig {
     static let oauthCallbackURL = URL(string: "nugulmap://oauth/callback")!
     static let privacyPolicyURL = URL(string: "https://nugulmap.com/privacy")!
     static let accountDeletionURL = URL(string: "https://nugulmap.com/account-deletion")!
+    static let supportURL = URL(string: "https://nugulmap.com/support")!
+    static let termsURL = URL(string: "https://nugulmap.com/terms")!
+    static let connectedAccountsURL = URL(string: "https://nugulmap.com/connected-accounts")!
 
     static var kakaoNativeAppKey: String? {
         guard let rawValue = Bundle.main.object(forInfoDictionaryKey: "KAKAO_NATIVE_APP_KEY") as? String else {
@@ -52,7 +55,11 @@ enum AppConfig {
         return URL(string: value)
     }
 
-    static func oauthAuthorizationURL(provider: OAuthProvider, codeChallenge: String) -> URL {
+    static func oauthAuthorizationURL(
+        provider: OAuthProvider,
+        codeChallenge: String,
+        clientState: String
+    ) -> URL {
         var components = URLComponents(
             url: apiBaseURL.appendingPathComponent("api/oauth2/authorization/\(provider.rawValue)"),
             resolvingAgainstBaseURL: false
@@ -61,8 +68,15 @@ enum AppConfig {
             URLQueryItem(name: "redirect_uri", value: oauthCallbackURL.absoluteString),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "code_challenge", value: codeChallenge),
-            URLQueryItem(name: "code_challenge_method", value: "S256")
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "client_state", value: clientState)
         ]
         return components.url!
+    }
+
+    static func isOAuthCallbackURL(_ url: URL) -> Bool {
+        url.scheme?.lowercased() == oauthCallbackScheme &&
+            url.host?.lowercased() == "oauth" &&
+            url.path == "/callback"
     }
 }

@@ -7,6 +7,12 @@ import type {
   MapBounds,
   MapInsight,
   PopupTrendStatus,
+  PlaceRecommendation,
+  RecommendationEventType,
+  RecommendationIntent,
+  RecommendationPreference,
+  RecommendedPlace,
+  SavedRecommendationItem,
   SmokingZone,
   TrendEvent,
   UserProfile,
@@ -84,6 +90,12 @@ function readString(value: unknown, fallback = ""): string {
   if (typeof value === "string") return value
   if (value == null) return fallback
   return String(value)
+}
+
+function readSafeHttpUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const url = value.trim()
+  return /^https?:\/\/[^\s]+$/i.test(url) ? url : null
 }
 
 function readNumber(value: unknown, fallback = 0): number {
@@ -168,11 +180,14 @@ function toHotplace(item: unknown): Hotplace {
     source: readString(record.source),
     sourcePlaceCode: readString(record.sourcePlaceCode),
     updatedAt: record.updatedAt ? readString(record.updatedAt) : null,
+    freshnessStatus: record.freshnessStatus ? readString(record.freshnessStatus) : null,
+    ageSeconds: record.ageSeconds == null ? null : readNumber(record.ageSeconds),
   }
 }
 
 function toTrendEvent(item: unknown): TrendEvent {
   const record = asRecord(item) || {}
+  const detailUrl = readSafeHttpUrl(record.detailUrl) || readSafeHttpUrl(record.sourceContentId)
 
   return {
     id: readString(record.id),
@@ -187,6 +202,8 @@ function toTrendEvent(item: unknown): TrendEvent {
     imageUrl: typeof record.imageUrl === "string" && record.imageUrl ? record.imageUrl : null,
     source: readString(record.source),
     sourceContentId: readString(record.sourceContentId),
+    detailUrl,
+    collectedAt: record.collectedAt ? readString(record.collectedAt) : null,
   }
 }
 
@@ -278,6 +295,80 @@ function pickMapInsight(payload: unknown): MapInsight {
     events: pickEventInsight(data.events),
     status: data.status ? pickInsightStatus(data.status) : null,
     updatedAt: readString(data.updatedAt, new Date().toISOString()),
+  }
+}
+
+function toRecommendedPlace(item: unknown): RecommendedPlace {
+  const record = asRecord(item) || {}
+  const reasonCodes = Array.isArray(record.reasonCodes)
+    ? record.reasonCodes.map((reason) => readString(reason)).filter(Boolean)
+    : []
+
+  return {
+    id: readString(record.id),
+    provider: readString(record.provider).toLowerCase(),
+    name: readString(record.name),
+    category: readString(record.category),
+    address: readString(record.address),
+    latitude: readNumber(record.latitude),
+    longitude: readNumber(record.longitude),
+    distanceMeters: record.distanceMeters == null ? null : readNumber(record.distanceMeters),
+    score: readNumber(record.score),
+    reasonCodes,
+    sourceUrl: readSafeHttpUrl(record.sourceUrl),
+  }
+}
+
+function pickPlaceRecommendation(payload: unknown): PlaceRecommendation {
+  const record = asRecord(payload) || {}
+  const items = Array.isArray(record.items)
+    ? record.items
+        .map((item) => toRecommendedPlace(item))
+        .filter((item) => item.id && item.name && Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
+    : []
+
+  return {
+    requestId: readString(record.requestId),
+    modelVersion: readString(record.modelVersion, "pero-context-v1"),
+    dataStatus: readString(record.dataStatus, "PROVIDER_UNAVAILABLE") as PlaceRecommendation["dataStatus"],
+    personalizationMode: readString(record.personalizationMode, "CONTEXT_ONLY") as PlaceRecommendation["personalizationMode"],
+    intent: readString(record.intent, "CAFE") as RecommendationIntent,
+    eligibleCandidateCount: readNumber(record.eligibleCandidateCount),
+    generatedAt: readString(record.generatedAt, new Date().toISOString()),
+    items,
+  }
+}
+
+function pickRecommendationPreference(payload: unknown): RecommendationPreference {
+  const record = asRecord(payload) || {}
+  return {
+    personalizationEnabled: Boolean(record.personalizationEnabled),
+    preferredTags: Array.isArray(record.preferredTags)
+      ? record.preferredTags.map((tag) => readString(tag)).filter(Boolean)
+      : [],
+    dislikedTags: Array.isArray(record.dislikedTags)
+      ? record.dislikedTags.map((tag) => readString(tag)).filter(Boolean)
+      : [],
+    budgetLevel: record.budgetLevel ? readString(record.budgetLevel) as RecommendationPreference["budgetLevel"] : null,
+    maxDistanceMeters: record.maxDistanceMeters == null ? null : readNumber(record.maxDistanceMeters),
+    updatedAt: record.updatedAt ? readString(record.updatedAt) : null,
+  }
+}
+
+function toSavedRecommendationItem(item: unknown): SavedRecommendationItem {
+  const record = asRecord(item) || {}
+  return {
+    id: readNumber(record.id),
+    itemType: readString(record.itemType, "PLACE") as SavedRecommendationItem["itemType"],
+    provider: readString(record.provider).toLowerCase(),
+    itemId: readString(record.itemId),
+    title: readString(record.title),
+    category: record.category ? readString(record.category) : null,
+    lat: readNumber(record.lat),
+    lng: readNumber(record.lng),
+    sourceUrl: readSafeHttpUrl(record.sourceUrl),
+    createdAt: readString(record.createdAt),
+    updatedAt: readString(record.updatedAt),
   }
 }
 
@@ -479,6 +570,121 @@ export async function fetchMapInsights(
       status: null,
       updatedAt: new Date().toISOString(),
     }
+  }
+}
+
+export async function fetchRecommendedPlaces(
+  intent: RecommendationIntent,
+  latitude: number,
+  longitude: number,
+  token?: string,
+  radiusMeters = 3_000,
+  limit = 8,
+): Promise<PlaceRecommendation> {
+  const params = new URLSearchParams({
+    intent,
+    lat: String(latitude),
+    lng: String(longitude),
+    radiusMeters: String(radiusMeters),
+    limit: String(limit),
+  })
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/recommendations/places?${params.toString()}`, {
+    headers: authHeaders(token),
+  })
+  const result = await safeJson(response)
+  if (!response.ok) {
+    throw new Error(toErrorMessage("추천 장소 조회 실패", response, result))
+  }
+  return pickPlaceRecommendation(extractPayloadData(result))
+}
+
+export async function fetchRecommendationPreference(token: string): Promise<RecommendationPreference> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/recommendations/preferences`, {
+    headers: authHeaders(token),
+  })
+  const result = await safeJson(response)
+  if (!response.ok) throw new Error(toErrorMessage("추천 설정 조회 실패", response, result))
+  return pickRecommendationPreference(extractPayloadData(result))
+}
+
+export async function updateRecommendationPreference(
+  token: string,
+  preference: Omit<RecommendationPreference, "updatedAt">,
+): Promise<RecommendationPreference> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/recommendations/preferences`, {
+    method: "PUT",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(preference),
+  })
+  const result = await safeJson(response)
+  if (!response.ok) throw new Error(toErrorMessage("추천 설정 저장 실패", response, result))
+  return pickRecommendationPreference(extractPayloadData(result))
+}
+
+export async function fetchSavedRecommendationItems(token: string): Promise<SavedRecommendationItem[]> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/recommendations/saved-items`, {
+    headers: authHeaders(token),
+  })
+  const result = await safeJson(response)
+  if (!response.ok) throw new Error(toErrorMessage("저장 추천 조회 실패", response, result))
+  const data = extractPayloadData(result)
+  return Array.isArray(data) ? data.map(toSavedRecommendationItem).filter((item) => item.itemId) : []
+}
+
+export async function saveRecommendedPlace(token: string, place: RecommendedPlace): Promise<SavedRecommendationItem> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/recommendations/saved-items`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      itemType: "PLACE",
+      provider: place.provider,
+      itemId: place.id,
+      title: place.name,
+      category: place.category,
+      lat: place.latitude,
+      lng: place.longitude,
+      sourceUrl: place.sourceUrl,
+    }),
+  })
+  const result = await safeJson(response)
+  if (!response.ok) throw new Error(toErrorMessage("추천 장소 저장 실패", response, result))
+  return toSavedRecommendationItem(extractPayloadData(result))
+}
+
+export async function unsaveRecommendedPlace(token: string, place: RecommendedPlace): Promise<void> {
+  const params = new URLSearchParams({ itemType: "PLACE", provider: place.provider, itemId: place.id })
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/recommendations/saved-items?${params.toString()}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  })
+  if (!response.ok) {
+    const result = await safeJson(response)
+    throw new Error(toErrorMessage("저장 추천 삭제 실패", response, result))
+  }
+}
+
+export async function recordRecommendationInteraction(
+  token: string,
+  recommendation: Pick<PlaceRecommendation, "requestId" | "modelVersion" | "intent">,
+  place: RecommendedPlace,
+  eventType: RecommendationEventType,
+): Promise<void> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/recommendations/interactions`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requestId: recommendation.requestId,
+      itemType: "PLACE",
+      provider: place.provider,
+      itemId: place.id,
+      eventType,
+      intent: recommendation.intent,
+      modelVersion: recommendation.modelVersion,
+    }),
+  })
+  if (!response.ok) {
+    const result = await safeJson(response)
+    throw new Error(toErrorMessage("추천 행동 기록 실패", response, result))
   }
 }
 

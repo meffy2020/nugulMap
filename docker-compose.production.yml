@@ -101,6 +101,9 @@ services:
   api-server:
     image: ${API_SERVER_IMAGE:?API_SERVER_IMAGE is required in production}
     environment:
+      APP_DISCOVERY_ENABLED: "false"
+      INSIGHTS_HOTPLACE_WARMUP_ENABLED: "false"
+      INSIGHTS_EVENT_WARMUP_ENABLED: "false"
       # Keep prod last so its logging, SQL-init, and error-detail hardening wins.
       SPRING_PROFILES_ACTIVE: mysql,s3,prod
       APP_COOKIE_SECURE: "true"
@@ -116,6 +119,10 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET is required in production}
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:?KAKAO_CLIENT_ID is required in production}
       KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:?KAKAO_CLIENT_SECRET is required in production}
+      KAKAO_LOCAL_REST_API_KEY: ${KAKAO_LOCAL_REST_API_KEY:-}
+      KAKAO_LOCAL_RECOMMENDATIONS_ENABLED: ${KAKAO_LOCAL_RECOMMENDATIONS_ENABLED:-false}
+      KAKAO_LOCAL_MAX_CONCURRENT_REQUESTS: ${KAKAO_LOCAL_MAX_CONCURRENT_REQUESTS:-8}
+      KAKAO_LOCAL_BULKHEAD_ACQUIRE_TIMEOUT_MILLIS: ${KAKAO_LOCAL_BULKHEAD_ACQUIRE_TIMEOUT_MILLIS:-50}
       NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:?NAVER_CLIENT_ID is required in production}
       NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET:?NAVER_CLIENT_SECRET is required in production}
       APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:?APPLE_CLIENT_ID is required in production}
@@ -135,8 +142,9 @@ services:
       OAUTH2_SUCCESS_REDIRECT_URL: https://nugulmap.com
       OAUTH2_FAILURE_REDIRECT_URL: https://nugulmap.com/login?error=oauth_failed
       MODERATION_OPERATOR_KEY: ${MODERATION_OPERATOR_KEY:?MODERATION_OPERATOR_KEY is required in production}
-      SEOUL_CITYDATA_API_KEY: ${SEOUL_CITYDATA_API_KEY:?SEOUL_CITYDATA_API_KEY is required for live crowd data}
-      SEOUL_CULTURE_API_KEY: ${SEOUL_CULTURE_API_KEY:?SEOUL_CULTURE_API_KEY is required for public Seongsu popup data}
+      MODERATION_CONTACT_EMAIL: ${MODERATION_CONTACT_EMAIL:?MODERATION_CONTACT_EMAIL is required in production}
+      SEOUL_CITYDATA_API_KEY: ${SEOUL_CITYDATA_API_KEY:-}
+      SEOUL_CULTURE_API_KEY: ${SEOUL_CULTURE_API_KEY:-}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID is required in production}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY is required in production}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:?AWS_S3_BUCKET is required in production}
@@ -146,7 +154,7 @@ services:
 
   popup-trend-collector:
     environment:
-      SEOUL_CULTURE_API_KEY: ${SEOUL_CULTURE_API_KEY:?SEOUL_CULTURE_API_KEY is required for public Seongsu popup data}
+      SEOUL_CULTURE_API_KEY: ${SEOUL_CULTURE_API_KEY:-}
       POPUP_TRENDS_MIN_RECORDS: "0"
       POPUP_TRENDS_ALLOW_SAMPLE_FALLBACK: "false"
       POPUP_TRENDS_ALLOW_MANUAL_FALLBACK: "false"

@@ -57,7 +57,8 @@ public final class SensitiveEndpointRateLimitFilter extends OncePerRequestFilter
         }
         String path = applicationPath(request);
         return !(path.startsWith("/operator/")
-                || ("POST".equalsIgnoreCase(request.getMethod()) && AUTH_POST_PATHS.contains(path)));
+                || ("POST".equalsIgnoreCase(request.getMethod()) && AUTH_POST_PATHS.contains(path))
+                || isProtectedDataWrite(request, path));
     }
 
     @Override
@@ -80,7 +81,7 @@ public final class SensitiveEndpointRateLimitFilter extends OncePerRequestFilter
     Decision tryAcquire(HttpServletRequest request) {
         Instant now = Instant.now(clock);
         cleanExpiredWindows(now);
-        String clientKey = clientKey(request);
+        String clientKey = endpointBucket(request) + ":" + clientKey(request);
         if (!windows.containsKey(clientKey) && windows.size() >= maxTrackedClients) {
             clientKey = OVERFLOW_CLIENT;
         }
@@ -131,6 +132,30 @@ public final class SensitiveEndpointRateLimitFilter extends OncePerRequestFilter
         return contextPath != null && !contextPath.isBlank() && uri.startsWith(contextPath)
                 ? uri.substring(contextPath.length())
                 : uri;
+    }
+
+    private boolean isProtectedDataWrite(HttpServletRequest request, String path) {
+        if (!path.startsWith("/recommendations/") && !path.startsWith("/location-letters")) {
+            return false;
+        }
+        return switch (request.getMethod().toUpperCase()) {
+            case "POST", "PUT", "PATCH", "DELETE" -> true;
+            default -> false;
+        };
+    }
+
+    private String endpointBucket(HttpServletRequest request) {
+        String path = applicationPath(request);
+        if (path.startsWith("/operator/")) {
+            return "operator";
+        }
+        if (path.startsWith("/recommendations/")) {
+            return "recommendation";
+        }
+        if (path.startsWith("/location-letters")) {
+            return "location-letter";
+        }
+        return "auth";
     }
 
     record Decision(boolean allowed, long retryAfterSeconds) {

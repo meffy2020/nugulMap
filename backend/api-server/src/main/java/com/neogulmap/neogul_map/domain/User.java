@@ -1,6 +1,8 @@
 package com.neogulmap.neogul_map.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -40,8 +42,8 @@ public class User implements UserDetails {
     private String profileImage;
 
     @JsonIgnore
-    @Lob
-    @Column(name = "apple_refresh_token_ciphertext")
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "apple_refresh_token_ciphertext", columnDefinition = "TEXT")
     private String appleRefreshTokenCiphertext;
     
     @Column(name = "created_at", nullable = false, updatable = false)

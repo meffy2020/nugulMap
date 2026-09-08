@@ -38,7 +38,6 @@ public class UserController {
         }
         User user = userService.getUser(id);
         return ResponseEntity.ok()
-                .header("X-Message", "사용자 조회 성공")
                 .body(UserResponse.from(user));
     }
 

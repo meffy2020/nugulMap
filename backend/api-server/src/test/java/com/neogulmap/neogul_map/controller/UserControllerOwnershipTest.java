@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class UserControllerOwnershipTest {
@@ -25,6 +26,18 @@ class UserControllerOwnershipTest {
     @Mock private UserService userService;
     @Mock private ImageService imageService;
     @InjectMocks private UserController controller;
+
+    @Test
+    void ownProfileResponseUsesJsonBodyWithoutNonAsciiMessageHeader() {
+        User user = User.builder().id(1L).nickname("너굴").build();
+        when(userService.getUser(1L)).thenReturn(user);
+
+        var response = controller.getUser(1L, user);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getHeaders()).doesNotContainKey("X-Message");
+        assertThat(response.getBody()).extracting("id", "nickname").containsExactly(1L, "너굴");
+    }
 
     @Test
     void authenticatedUserCannotReadAnotherUsersPrivateProfile() {

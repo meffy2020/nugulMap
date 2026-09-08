@@ -1,0 +1,37 @@
+{
+  "success": true,
+  "data": {
+    "zones": [
+      {
+        "id": 42,
+        "region": "서울특별시 성동구",
+        "type": "OPEN",
+        "subtype": "개방",
+        "description": "성수 지도 심사용 흡연구역",
+        "size": null,
+        "date": "2026-07-12",
+        "latitude": 37.5445,
+        "longitude": 127.0555,
+        "address": "서울특별시 성동구 연무장길 12",
+        "user": "운영팀",
+        "image": null,
+        "imageUrl": null
+      },
+      {
+        "id": 43,
+        "region": "서울특별시 중구",
+        "type": "OPEN",
+        "subtype": "개방",
+        "description": "지도 이동 검증용 흡연구역",
+        "size": null,
+        "date": "2026-07-12",
+        "latitude": 37.5665,
+        "longitude": 126.978,
+        "address": "시뮬레이터 테스트 위치",
+        "user": "운영팀",
+        "image": null,
+        "imageUrl": null
+      }
+    ]
+  }
+}

@@ -3,28 +3,25 @@ import SwiftUI
 struct SettingsView: View {
     var body: some View {
         List {
-            Section("앱") {
-                LabeledContent("이름", value: "너굴맵 Native")
-                LabeledContent("플랫폼", value: "SwiftUI + KakaoMapsSDK")
-            }
-
-            Section("정책") {
-                Link("개인정보 처리방침", destination: AppConfig.privacyPolicyURL)
-                Link("계정 삭제 안내", destination: AppConfig.accountDeletionURL)
-            }
-
-            Section("API") {
-                Text(AppConfig.apiBaseURL.absoluteString)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-            }
-
-            Section("개발 상태") {
-                Label("지도, 검색, 목록, 상세, 리뷰 조회 포함", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+            Section {
+                policyLink("개인정보 처리방침", destination: AppConfig.privacyPolicyURL)
+                policyLink("계정 삭제 안내", destination: AppConfig.accountDeletionURL)
+                policyLink("로그인 연결 관리", destination: AppConfig.connectedAccountsURL)
+                policyLink("서비스 이용약관", destination: AppConfig.termsURL)
+                policyLink("콘텐츠 신고 및 고객지원", destination: AppConfig.supportURL)
             }
         }
         .navigationTitle("설정")
+    }
+
+    private func policyLink(_ title: String, destination: URL) -> some View {
+        Link(destination: destination) {
+            Text(title)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityLabel(title)
     }
 }
