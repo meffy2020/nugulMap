@@ -50,6 +50,10 @@ def prop_or_env(props: dict[str, str], name: str) -> str:
     return (props.get(name) or os.environ.get(name) or "").strip()
 
 
+def env_or_prop(props: dict[str, str], name: str) -> str:
+    return (os.environ.get(name) or props.get(name) or "").strip()
+
+
 def match_int(pattern: str, text: str) -> int | None:
     found = re.search(pattern, text)
     return int(found.group(1)) if found else None
@@ -99,6 +103,47 @@ def check_bundle_alignment(aab_path: Path) -> tuple[str, str]:
     return ("FAIL", "AAB config did not report PAGE_ALIGNMENT_16K")
 
 
+def check_bundle_signature(aab_path: Path) -> tuple[str, str]:
+    jarsigner = shutil.which("jarsigner")
+    if jarsigner is None:
+        java_home = os.environ.get("JAVA_HOME", "").strip()
+        candidate = Path(java_home) / "bin" / "jarsigner" if java_home else None
+        if candidate and candidate.is_file():
+            jarsigner = str(candidate)
+    if jarsigner is None:
+        return ("MANUAL", "jarsigner unavailable; AAB signature could not be inspected")
+
+    result = subprocess.run(
+        [jarsigner, "-verify", "-certs", "-verbose", str(aab_path)],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    output = result.stdout.lower()
+    if result.returncode == 0 and "jar verified" in output and "jar is unsigned" not in output:
+        return ("PASS", "release AAB has a verifiable JAR signature")
+    if "jar is unsigned" in output or "unsigned" in output:
+        return ("FAIL", "release AAB is unsigned")
+    return ("FAIL", f"AAB signature verification failed with exit {result.returncode}")
+
+
+def unexpected_permissions(manifest: str, map_screen: str, location_provider: str) -> set[str]:
+    declared = set(re.findall(r'<uses-permission\s+android:name="([^"]+)"', manifest))
+    allowed = {"android.permission.INTERNET"}
+    # Foreground location is optional and requested by the explicit recenter action.
+    runtime_gate = all(token in map_screen for token in (
+        "onCurrentLocation = moveMapToCurrentLocation",
+        "currentLocationProvider.hasPermission()",
+        "mapLocationPermissionLauncher.launch(",
+        "viewModel.searchSmokingZones(searchQuery)",
+    )) and "ACCESS_COARSE_LOCATION" in location_provider
+    if runtime_gate:
+        allowed.update({"android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION"})
+    return declared - allowed
+
+
 def main() -> int:
     checks: list[Check] = []
     props = local_properties()
@@ -106,13 +151,17 @@ def main() -> int:
     build = read("app/build.gradle.kts")
     manifest = read("app/src/main/AndroidManifest.xml")
     libs = read("gradle/libs.versions.toml")
+    map_screen = read("app/src/main/java/com/nugulmap/nativeapp/ui/map/MapScreen.kt")
+    api_service = read("app/src/main/java/com/nugulmap/nativeapp/data/api/NugulApiService.kt")
+    backup_rules = read("app/src/main/res/xml/backup_rules.xml")
+    extraction_rules = read("app/src/main/res/xml/data_extraction_rules.xml")
 
     compile_sdk = match_int(r"compileSdk\s*=\s*(\d+)", build)
     target_sdk = match_int(r"targetSdk\s*=\s*(\d+)", build)
-    if target_sdk is not None and target_sdk >= 35:
-        add(checks, "PASS", "target-sdk", f"targetSdk={target_sdk} satisfies Play's Android 15/API 35 floor")
+    if target_sdk is not None and target_sdk >= 36:
+        add(checks, "PASS", "target-sdk", f"targetSdk={target_sdk} satisfies Play's Android 16/API 36 floor")
     else:
-        add(checks, "FAIL", "target-sdk", f"targetSdk={target_sdk}", "Set targetSdk >= 35 before Play submission")
+        add(checks, "FAIL", "target-sdk", f"targetSdk={target_sdk}", "Set targetSdk >= 36 before Play submission")
     if compile_sdk is not None and target_sdk is not None and compile_sdk >= target_sdk:
         add(checks, "PASS", "compile-sdk", f"compileSdk={compile_sdk} covers targetSdk={target_sdk}")
     else:
@@ -135,21 +184,21 @@ def main() -> int:
         add(checks, "FAIL", "versioning", f"versionCode={version_code}, versionName={version_name.group(1) if version_name else None}", "Set upload-ready version values")
 
     signing_names = [
-        "NUGUL_RELEASE_STORE_FILE",
-        "NUGUL_RELEASE_STORE_PASSWORD",
-        "NUGUL_RELEASE_KEY_ALIAS",
-        "NUGUL_RELEASE_KEY_PASSWORD",
+        "ANDROID_KEYSTORE_PATH",
+        "ANDROID_KEYSTORE_PASSWORD",
+        "ANDROID_KEY_ALIAS",
+        "ANDROID_KEY_PASSWORD",
     ]
-    signing_values = {name: prop_or_env(props, name) for name in signing_names}
+    signing_values = {name: env_or_prop(props, name) for name in signing_names}
     if all(signing_values.values()):
-        store_file = Path(signing_values["NUGUL_RELEASE_STORE_FILE"])
+        store_file = Path(signing_values["ANDROID_KEYSTORE_PATH"])
         store_path = store_file if store_file.is_absolute() else ROOT / store_file
         add(
             checks,
-            "PASS" if store_path.exists() else "FAIL",
+            "PASS" if store_path.is_file() else "FAIL",
             "release-signing-config",
-            f"release signing properties present; keystore file {'exists' if store_path.exists() else 'missing'}",
-            "Create/provide the upload keystore file outside git" if not store_path.exists() else "",
+            f"release signing properties present; keystore file {'exists' if store_path.is_file() else 'missing'}",
+            "Create/provide the upload keystore file outside git" if not store_path.is_file() else "",
         )
     else:
         add(
@@ -157,7 +206,7 @@ def main() -> int:
             "FAIL",
             "release-signing-config",
             "upload-key signing properties are incomplete or absent",
-            "Set NUGUL_RELEASE_* in local.properties or environment before signed AAB upload",
+            "Set ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD before release builds",
         )
 
     kakao_key = prop_or_env(props, "KAKAO_NATIVE_APP_KEY")
@@ -172,8 +221,8 @@ def main() -> int:
         checks,
         "MANUAL",
         "kakao-key-hash",
-        "Kakao package/key-hash registration cannot be proven from repo secrets-free state",
-        "Run keytool/openssl against the Play upload key and register the Android key hash for com.nugulmap.nativeapp",
+        "Kakao package/key-hash registration for the Play-delivered signing certificate cannot be proven from repo state",
+        "After Play App Signing is enabled, register the Play app-signing certificate hash for com.nugulmap.nativeapp and test a Play-installed build; the upload-key hash alone is not sufficient",
     )
 
     if all(token in manifest for token in ('android:scheme="nugulmap"', 'android:host="oauth"', 'android:path="/callback"')):
@@ -187,6 +236,63 @@ def main() -> int:
         "Static deeplink exists; real provider OAuth needs a device/emulator and provider credentials",
         "Run scripts/smoke-oauth-deeplink.sh, then login-button OAuth with real provider code",
     )
+
+    sensitive_permissions = unexpected_permissions(manifest, map_screen, read("app/src/main/java/com/nugulmap/nativeapp/ui/map/CurrentLocationProvider.kt"))
+    if sensitive_permissions:
+        add(
+            checks,
+            "FAIL",
+            "manifest-permissions",
+            f"unexpected permissions declared: {', '.join(sorted(sensitive_permissions))}",
+            "Remove permissions that are not required by current app behavior",
+        )
+    else:
+        add(checks, "PASS", "manifest-permissions", "Internet and optional foreground location only; manual search remains available without location")
+
+    if 'android:icon="@mipmap/ic_launcher"' in manifest:
+        add(checks, "PASS", "launcher-icon", "adaptive/legacy launcher icon is declared")
+    else:
+        add(checks, "FAIL", "launcher-icon", "launcher icon is not declared", "Declare @mipmap/ic_launcher")
+
+    if all("nugul_auth_encrypted.xml" in rules for rules in (backup_rules, extraction_rules)):
+        add(checks, "PASS", "auth-backup-exclusion", "encrypted auth state excluded from cloud backup and transfer")
+    else:
+        add(checks, "FAIL", "auth-backup-exclusion", "auth state backup exclusion is incomplete")
+
+    account_delete_ready = '@DELETE("api/users/me")' in api_service and "계정 삭제" in map_screen
+    add(
+        checks,
+        "PASS" if account_delete_ready else "FAIL",
+        "in-app-account-deletion",
+        "discoverable account deletion UI calls DELETE /api/users/me" if account_delete_ready else "in-app account deletion path incomplete",
+    )
+
+    policy_urls = (
+        "https://nugulmap.com/privacy",
+        "https://nugulmap.com/account-deletion",
+        "https://nugulmap.com/support",
+        "https://nugulmap.com/terms",
+    )
+    if all(url in map_screen for url in policy_urls):
+        add(checks, "PASS", "policy-links", "privacy, deletion, support, and terms links are discoverable in settings")
+    else:
+        add(checks, "FAIL", "policy-links", "one or more required policy/support links are missing")
+
+    moderation_tokens = (
+        "UgcPolicyAcceptance",
+        "reportZone",
+        "reportZoneReview",
+        "blockUser",
+        "장소 신고",
+        "리뷰 신고",
+        "사용자 차단",
+        "ZONE_REPORT_ACCESSIBILITY_LABEL",
+    )
+    moderation_sources = map_screen + api_service
+    if all(token in moderation_sources for token in moderation_tokens):
+        add(checks, "PASS", "ugc-safety-ui", "terms acceptance, zone/review reporting, accessibility labels, and user blocking are wired in app")
+    else:
+        add(checks, "FAIL", "ugc-safety-ui", "UGC terms/report/block wiring is incomplete")
 
     agp = re.search(r'agp\s*=\s*"([^"]+)"', libs)
     if agp:
@@ -202,6 +308,14 @@ def main() -> int:
     ])
     if aab_path:
         add(checks, "PASS", "release-aab-artifact", str(aab_path.relative_to(ROOT)))
+        signature_status, signature_detail = check_bundle_signature(aab_path)
+        add(
+            checks,
+            signature_status,
+            "release-aab-signature",
+            signature_detail,
+            "Configure the Play upload key and rebuild the release AAB" if signature_status != "PASS" else "",
+        )
         with zipfile.ZipFile(aab_path) as archive:
             native_libs = [name for name in archive.namelist() if name.startswith("base/lib/") and name.endswith(".so")]
         if native_libs or "kakao-map" in libs:
@@ -251,7 +365,7 @@ def main() -> int:
         print("Result: NOT ANDROID PUBLIC-LAUNCH READY")
     else:
         print("Result: STATIC ANDROID GATES CLEAR; continue with manual Play/device gates")
-    return 0
+    return 1 if counts.get("FAIL", 0) else 0
 
 
 if __name__ == "__main__":

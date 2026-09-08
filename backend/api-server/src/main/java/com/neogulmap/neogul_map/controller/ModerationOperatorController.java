@@ -1,12 +1,14 @@
 package com.neogulmap.neogul_map.controller;
 
 import com.neogulmap.neogul_map.dto.ReviewReportOperatorResponse;
+import com.neogulmap.neogul_map.dto.LocationLetterReportOperatorResponse;
 import com.neogulmap.neogul_map.dto.ZoneReportOperatorResponse;
 import com.neogulmap.neogul_map.dto.ModerationDecisionRequest;
 import com.neogulmap.neogul_map.dto.ModerationDecisionResponse;
 import com.neogulmap.neogul_map.dto.ZoneSubmissionOperatorResponse;
 import com.neogulmap.neogul_map.dto.ZonePublicationDecisionResponse;
 import com.neogulmap.neogul_map.service.OperatorAccessGuard;
+import com.neogulmap.neogul_map.service.LocationLetterService;
 import com.neogulmap.neogul_map.service.ReviewModerationService;
 import com.neogulmap.neogul_map.service.ZoneModerationService;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ public class ModerationOperatorController {
 
     private final ReviewModerationService reviewModerationService;
     private final ZoneModerationService zoneModerationService;
+    private final LocationLetterService locationLetterService;
     private final OperatorAccessGuard operatorAccessGuard;
 
     @GetMapping
@@ -53,6 +56,19 @@ public class ModerationOperatorController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "대기 중인 장소 신고 조회 성공",
+                "data", Map.of("reports", reports, "count", reports.size())
+        ));
+    }
+
+    @GetMapping("/location-letters")
+    public ResponseEntity<?> getPendingLocationLetterReports(
+            @RequestHeader(value = "X-Nugul-Operator-Key", required = false) String operatorKey
+    ) {
+        operatorAccessGuard.requireAccess(operatorKey);
+        List<LocationLetterReportOperatorResponse> reports = locationLetterService.getPendingReports();
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "대기 중인 위치 편지 신고 조회 성공",
                 "data", Map.of("reports", reports, "count", reports.size())
         ));
     }
@@ -96,6 +112,21 @@ public class ModerationOperatorController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "장소 신고 처리 성공",
+                "data", Map.of("decision", decision)
+        ));
+    }
+
+    @PatchMapping("/location-letters/{reportId}")
+    public ResponseEntity<?> decideLocationLetterReport(
+            @PathVariable Long reportId,
+            @RequestBody ModerationDecisionRequest request,
+            @RequestHeader(value = "X-Nugul-Operator-Key", required = false) String operatorKey
+    ) {
+        operatorAccessGuard.requireAccess(operatorKey);
+        ModerationDecisionResponse decision = locationLetterService.decideReport(reportId, request);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "위치 편지 신고 처리 성공",
                 "data", Map.of("decision", decision)
         ));
     }

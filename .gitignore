@@ -5,6 +5,16 @@
 # Markdown files
 *.md
 !docs/season2-product-plan.md
+!docs/season3-live-map-spec.md
+!docs/pero-recommendation-plan.md
+!/README.md
+!docs/smoking-only-release-plan.md
+!docs/smoking-only-release-verification.md
+!docs/data-audit/README.md
+!backend/api-server/src/main/resources/db/manual/README.md
+!android-native/docs/release-evidence/*.md
+!frontend/docs/release-evidence/*.md
+!ios-native/review-evidence/smoking-release-20260907/*.md
 
 # Backup and temporary folders
 frontend_backup/
@@ -51,6 +61,8 @@ node_modules/
 firebase/
 
 *.csv
+!docs/data-audit/review-queue.csv
+!docs/data-audit/coordinate-backed-review-only.csv
 
 # IntelliJ IDE specific files
 .idea/
@@ -71,3 +83,9 @@ ios-native/.derivedData/
 tmp/xcodebuildmcp-derived/
 tmp/ios-native-screenshots/DerivedData/
 ios-native/Config/Secrets.xcconfig
+
+# Native release signing material
+*.jks
+*.keystore
+*.p12
+*.mobileprovision

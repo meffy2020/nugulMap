@@ -3,6 +3,7 @@ package com.neogulmap.neogul_map.service;
 import com.neogulmap.neogul_map.domain.enums.ModerationStatus;
 import com.neogulmap.neogul_map.repository.ZoneReportRepository;
 import com.neogulmap.neogul_map.repository.ZoneReviewReportRepository;
+import com.neogulmap.neogul_map.repository.LocationLetterReportRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ class ModerationReportRetentionServiceTest {
 
     @Mock private ZoneReviewReportRepository reviewReportRepository;
     @Mock private ZoneReportRepository zoneReportRepository;
+    @Mock private LocationLetterReportRepository locationLetterReportRepository;
 
     private ModerationReportRetentionService service;
 
@@ -33,6 +35,7 @@ class ModerationReportRetentionServiceTest {
         service = new ModerationReportRetentionService(
                 reviewReportRepository,
                 zoneReportRepository,
+                locationLetterReportRepository,
                 Clock.fixed(Instant.parse("2026-07-12T08:15:00Z"), ZoneOffset.UTC)
         );
         ReflectionTestUtils.setField(service, "closedReportRetentionDays", 14L);
@@ -49,11 +52,14 @@ class ModerationReportRetentionServiceTest {
                 .thenReturn(2L);
         when(zoneReportRepository.deleteByStatusInAndResolvedAtBefore(terminalStatuses, cutoff))
                 .thenReturn(3L);
+        when(locationLetterReportRepository.deleteByStatusInAndResolvedAtBefore(terminalStatuses, cutoff))
+                .thenReturn(4L);
 
         long purged = service.purgeExpiredClosedReports();
 
-        assertThat(purged).isEqualTo(5L);
+        assertThat(purged).isEqualTo(9L);
         verify(reviewReportRepository).deleteByStatusInAndResolvedAtBefore(terminalStatuses, cutoff);
         verify(zoneReportRepository).deleteByStatusInAndResolvedAtBefore(terminalStatuses, cutoff);
+        verify(locationLetterReportRepository).deleteByStatusInAndResolvedAtBefore(terminalStatuses, cutoff);
     }
 }

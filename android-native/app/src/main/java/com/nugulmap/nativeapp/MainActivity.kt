@@ -18,13 +18,20 @@ class MainActivity : ComponentActivity() {
         oauthCallbackUri = intent?.data
         setContent {
             NugulMapTheme {
-                MapScreen(oauthCallbackUri = oauthCallbackUri)
+                MapScreen(
+                    oauthCallbackUri = oauthCallbackUri,
+                    onOAuthCallbackConsumed = {
+                        oauthCallbackUri = null
+                        intent?.data = null
+                    },
+                )
             }
         }
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         oauthCallbackUri = intent.data
     }
 }

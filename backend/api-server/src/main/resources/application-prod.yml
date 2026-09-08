@@ -13,6 +13,9 @@ spring:
     show-sql: false
     properties:
       hibernate:
+        # vendor 속성은 ddl-auto보다 우선한다. mysql 프로필 순서와 MYSQL_DDL_AUTO에 관계없이 검증한다.
+        hbm2ddl:
+          auto: validate
         format_sql: false
         dialect: org.hibernate.dialect.MySQLDialect
   sql:
@@ -71,6 +74,9 @@ app:
   support:
     closed-request-retention-days: 30
     closed-request-purge-cron: "0 30 3 * * *"
+  recommendations:
+    interaction-retention-days: 180
+    interaction-purge-cron: "0 15 4 * * *"
 
 jwt:
   secret: ${JWT_SECRET}
@@ -110,7 +116,9 @@ logging:
 external:
   insights:
     hotplace-warmup:
-      enabled: true
+      enabled: false
+    event-warmup:
+      enabled: false
 
 springdoc:
   api-docs:

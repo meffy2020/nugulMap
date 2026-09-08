@@ -9,16 +9,16 @@ const sections = [
   {
     title: "1. 서비스",
     body: [
-      "너굴맵(NugulMap)은 공개 흡연구역, 혼잡도 기반 핫플, 성수 팝업 정보를 지도에서 찾을 수 있도록 제공합니다.",
+      "너굴맵(NugulMap)은 흡연구역 위치와 이용 정보를 지도에서 찾을 수 있도록 제공합니다.",
       "지도 조회는 로그인 없이 이용할 수 있으며, 장소 제보·리뷰·신고·차단과 계정 관리는 로그인이 필요합니다.",
     ],
   },
   {
     title: "2. 지도와 외부 정보",
     body: [
-      "흡연구역, 혼잡도와 팝업 정보는 공공 데이터, 제휴·공식 출처 또는 이용자 제보를 바탕으로 표시됩니다.",
+      "흡연구역 정보는 공공 데이터, 제휴·공식 출처 또는 이용자 제보를 바탕으로 표시됩니다.",
       "너굴맵은 담배·전자담배를 판매·홍보하거나 흡연을 권장하지 않습니다. 흡연구역 정보는 지정구역 준수와 간접흡연 노출 감소를 돕기 위한 안내입니다.",
-      "장소 운영, 행사 일정과 혼잡도는 바뀔 수 있습니다. 앱에 표시된 갱신 시각과 원문 링크를 확인해야 합니다.",
+      "흡연구역의 운영 여부와 이용 조건은 바뀔 수 있습니다. 현장 안내와 이용 제한을 확인해 주세요.",
       "너굴맵은 특정 장소의 흡연 가능 여부, 대기 시간, 안전 또는 행사 입장을 보증하지 않습니다. 현장 안내와 관련 법령이 우선합니다.",
     ],
   },
@@ -72,7 +72,7 @@ export default function TermsPage() {
         <header className="space-y-3">
           <p className="text-sm font-semibold text-muted-foreground">너굴맵 · NugulMap</p>
           <h1 className="text-3xl font-bold tracking-normal">서비스 이용약관</h1>
-          <p className="text-sm text-muted-foreground">시행일: 2026년 7월 11일</p>
+          <p className="text-sm text-muted-foreground">시행일: 2026년 9월 7일</p>
         </header>
 
         {sections.map((section) => (

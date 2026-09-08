@@ -180,8 +180,14 @@ struct NugulZoneEntityQuery: EntityQuery {
     }
 
     func suggestedEntities() async throws -> [NugulZoneEntity] {
-        SmokingZone.fallback.map {
-            NugulZoneEntity(id: String($0.id), title: $0.title, address: $0.address)
+        do {
+            return try await NugulAPIClient()
+                .fetchZonesByBounds(.centralSeoul)
+                .map {
+                    NugulZoneEntity(id: String($0.id), title: $0.title, address: $0.address)
+                }
+        } catch {
+            return []
         }
     }
 }

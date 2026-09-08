@@ -1,8 +1,8 @@
-import React from "react"
 import { fireEvent, render, screen } from "@testing-library/react-native"
+import React from "react"
 import { View } from "react-native"
+import type { MapRegion, SmokingZone } from "../types"
 import { MapScreen } from "./MapScreen"
-import type { Hotplace, MapRegion, SmokingZone, TrendEvent } from "../types"
 
 const mockPostMessage = jest.fn()
 
@@ -47,84 +47,34 @@ const zone: SmokingZone = {
   image: null,
 }
 
-const hotplace: Hotplace = {
-  id: "lotte-world",
-  name: "롯데월드·잠실",
-  category: "theme_park",
-  crowdLevel: "약간 붐빔",
-  crowdMessage: "이동에 여유가 필요합니다.",
-  estimatedMinPeople: 12000,
-  estimatedMaxPeople: 14000,
-  latitude: 37.5111,
-  longitude: 127.0982,
-  address: "서울 송파구 올림픽로 240",
-  source: "SEOUL_CITYDATA",
-  sourcePlaceCode: "잠실 관광특구",
-  updatedAt: "2026-06-18T12:00:00Z",
-}
-
-const event: TrendEvent = {
-  id: "popup-seongsu",
-  title: "성수 팝업",
-  kind: "popup",
-  period: "최근 후보",
-  startDate: null,
-  endDate: null,
-  latitude: 37.5446,
-  longitude: 127.0557,
-  address: "서울 성동구 성수동2가",
-  imageUrl: null,
-  source: "CRAWLED_POPUP_TREND",
-  sourceContentId: "popup-seongsu",
-}
-
 function renderMapScreen(overrides: Partial<React.ComponentProps<typeof MapScreen>> = {}) {
   return render(
     <View style={{ height: 640, width: 360 }}>
       <MapScreen
         region={region}
         zones={[zone]}
-        hotplaces={[hotplace]}
-        events={[event]}
         selectedZone={null}
         isLoading={false}
         onRegionChangeComplete={jest.fn()}
         onSelectZone={jest.fn()}
-        onSelectHotplace={jest.fn()}
-        onSelectEvent={jest.fn()}
         {...overrides}
       />
     </View>,
   )
 }
 
-describe("MapScreen Season 2 bridge", () => {
+describe("MapScreen smoking-zone bridge", () => {
   beforeEach(() => {
     mockPostMessage.mockClear()
   })
 
-  it("selects a hotplace from a Kakao WebView overlay press", () => {
-    const onSelectHotplace = jest.fn()
-
-    renderMapScreen({ onSelectHotplace })
-
+  it("selects a smoking zone from a map marker", () => {
+    const onSelectZone = jest.fn()
+    renderMapScreen({ onSelectZone })
     fireEvent(screen.getByTestId("kakao-webview"), "message", {
-      nativeEvent: { data: JSON.stringify({ type: "hotplacePress", id: "lotte-world" }) },
+      nativeEvent: { data: JSON.stringify({ type: "markerPress", id: zone.id }) },
     })
-
-    expect(onSelectHotplace).toHaveBeenCalledWith(hotplace)
-  })
-
-  it("selects an event from a Kakao WebView overlay press", () => {
-    const onSelectEvent = jest.fn()
-
-    renderMapScreen({ onSelectEvent })
-
-    fireEvent(screen.getByTestId("kakao-webview"), "message", {
-      nativeEvent: { data: JSON.stringify({ type: "eventPress", id: "popup-seongsu" }) },
-    })
-
-    expect(onSelectEvent).toHaveBeenCalledWith(event)
+    expect(onSelectZone).toHaveBeenCalledWith(zone)
   })
 
   it("forwards visible Kakao map region changes", () => {
@@ -152,42 +102,15 @@ describe("MapScreen Season 2 bridge", () => {
     })
   })
 
-  it("filters bridge payloads when switching to hotplace layer", () => {
+  it("renders only smoking zones without discovery controls or payloads", () => {
     renderMapScreen()
-
     fireEvent(screen.getByTestId("kakao-webview"), "message", {
       nativeEvent: { data: JSON.stringify({ type: "ready" }) },
     })
-    mockPostMessage.mockClear()
-
-    fireEvent.press(screen.getByTestId("season2-layer-hotplaces"))
-
     const payloads = mockPostMessage.mock.calls.map(([payload]) => JSON.parse(String(payload)))
-    expect(payloads).toContainEqual({ type: "SET_ZONES", zones: [] })
-    expect(payloads).toContainEqual({ type: "SET_INSIGHTS", hotplaces: [hotplace], events: [] })
-  })
-
-  it("filters bridge payloads when switching to event layer", () => {
-    renderMapScreen()
-
-    fireEvent(screen.getByTestId("kakao-webview"), "message", {
-      nativeEvent: { data: JSON.stringify({ type: "ready" }) },
-    })
-    mockPostMessage.mockClear()
-
-    fireEvent.press(screen.getByTestId("season2-layer-events"))
-
-    const payloads = mockPostMessage.mock.calls.map(([payload]) => JSON.parse(String(payload)))
-    expect(payloads).toContainEqual({ type: "SET_ZONES", zones: [] })
-    expect(payloads).toContainEqual({ type: "SET_INSIGHTS", hotplaces: [], events: [event] })
-  })
-
-  it("includes estimated people ranges in hotplace overlay labels", () => {
-    renderMapScreen()
-
-    const source = screen.getByTestId("kakao-webview").props.source
-    expect(source.html).toContain("formatHotplaceOverlayLabel")
-    expect(source.html).toContain("estimatedMinPeople")
-    expect(source.html).toContain("formatPeopleRange")
+    expect(payloads).toContainEqual({ type: "SET_ZONES", zones: [zone] })
+    expect(payloads.some((payload) => payload.type === "SET_INSIGHTS")).toBe(false)
+    expect(screen.queryByTestId("season2-layer-control")).toBeNull()
+    expect(screen.getByTestId("kakao-webview").props.source.html).not.toMatch(/SET_INSIGHTS|hotplacePress|recommendationPress/)
   })
 })

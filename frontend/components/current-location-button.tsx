@@ -40,12 +40,14 @@ export function CurrentLocationButton({ onLocationFound, className }: CurrentLoc
         })
         setLoading(false)
       },
-      { enableHighAccuracy: true },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     )
   }
 
   return (
     <Button
+      aria-label="현재 위치로 이동"
+      aria-busy={loading}
       variant="outline"
       size="icon"
       className={`h-12 w-12 rounded-full bg-black/20 backdrop-blur-sm border-2 border-white hover:bg-black/40 active:scale-90 transition-all ${className}`}

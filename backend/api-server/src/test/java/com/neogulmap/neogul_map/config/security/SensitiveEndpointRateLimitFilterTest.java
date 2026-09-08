@@ -77,6 +77,48 @@ class SensitiveEndpointRateLimitFilterTest {
     }
 
     @Test
+    void rateLimitsRecommendationWritesWithoutConsumingThePublicReadBucket() throws Exception {
+        SensitiveEndpointRateLimitFilter filter = filter(1, 60, 100);
+        MockHttpServletRequest firstWrite = request("POST", "/recommendations/interactions", "198.51.100.30");
+        MockHttpServletRequest secondWrite = request("POST", "/recommendations/interactions", "198.51.100.30");
+        MockHttpServletRequest publicRead = request("GET", "/recommendations/places", "198.51.100.30");
+        FilterChain chain = mock(FilterChain.class);
+
+        MockHttpServletResponse firstResponse = new MockHttpServletResponse();
+        filter.doFilter(firstWrite, firstResponse, chain);
+        MockHttpServletResponse rejected = new MockHttpServletResponse();
+        filter.doFilter(secondWrite, rejected, chain);
+        MockHttpServletResponse readResponse = new MockHttpServletResponse();
+        filter.doFilter(publicRead, readResponse, chain);
+
+        verify(chain).doFilter(firstWrite, firstResponse);
+        verify(chain, never()).doFilter(secondWrite, rejected);
+        verify(chain).doFilter(publicRead, readResponse);
+        assertThat(rejected.getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    void rateLimitsLocationLetterWritesButKeepsNearbyReadingPublic() throws Exception {
+        SensitiveEndpointRateLimitFilter filter = filter(1, 60, 100);
+        MockHttpServletRequest firstWrite = request("POST", "/location-letters", "198.51.100.31");
+        MockHttpServletRequest secondWrite = request("POST", "/location-letters", "198.51.100.31");
+        MockHttpServletRequest publicRead = request("GET", "/location-letters", "198.51.100.31");
+        FilterChain chain = mock(FilterChain.class);
+
+        MockHttpServletResponse firstResponse = new MockHttpServletResponse();
+        filter.doFilter(firstWrite, firstResponse, chain);
+        MockHttpServletResponse rejected = new MockHttpServletResponse();
+        filter.doFilter(secondWrite, rejected, chain);
+        MockHttpServletResponse readResponse = new MockHttpServletResponse();
+        filter.doFilter(publicRead, readResponse, chain);
+
+        verify(chain).doFilter(firstWrite, firstResponse);
+        verify(chain, never()).doFilter(secondWrite, rejected);
+        verify(chain).doFilter(publicRead, readResponse);
+        assertThat(rejected.getStatus()).isEqualTo(429);
+    }
+
+    @Test
     void boundsTrackedClientsWithSharedOverflowBucket() {
         SensitiveEndpointRateLimitFilter filter = filter(1, 60, 1);
 
@@ -101,8 +143,12 @@ class SensitiveEndpointRateLimitFilterTest {
     }
 
     private MockHttpServletRequest authRequest(String remoteAddress) {
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/auth/mobile/exchange");
-        request.setServletPath("/auth/mobile/exchange");
+        return request("POST", "/auth/mobile/exchange", remoteAddress);
+    }
+
+    private MockHttpServletRequest request(String method, String path, String remoteAddress) {
+        MockHttpServletRequest request = new MockHttpServletRequest(method, path);
+        request.setServletPath(path);
         request.setRemoteAddr(remoteAddress);
         return request;
     }

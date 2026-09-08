@@ -9,8 +9,7 @@ spring:
     password: ${MYSQL_PASSWORD:password}
   jpa:
     hibernate:
-      # schema.sql을 사용하므로 ddl-auto는 none 또는 update 사용
-      # none: schema.sql만 사용, update: schema.sql + JPA 자동 업데이트
+      # 로컬 MySQL 전용 선택. prod 프로필에서는 Hibernate validate로 고정한다.
       ddl-auto: ${MYSQL_DDL_AUTO:none}
     defer-datasource-initialization: true
     show-sql: ${MYSQL_SHOW_SQL:true}
@@ -18,13 +17,11 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
-        hbm2ddl:
-          auto: ${MYSQL_DDL_AUTO:none}
     database-platform: org.hibernate.dialect.MySQLDialect
   sql:
     init:
-      # schema.sql로 스키마 생성, data.sql로 초기 데이터 삽입
-      mode: ${MYSQL_SQL_INIT_MODE:always}
+      # 스키마/migration은 별도로 적용한다. 운영 DB에 예제 data.sql을 자동 삽입하지 않는다.
+      mode: never
       schema-locations: classpath:schema.sql
       data-locations: classpath:data.sql
       continue-on-error: true

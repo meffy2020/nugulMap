@@ -14,11 +14,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.time.Instant;
 import java.util.Map;
 
 @RestController
+@ConditionalOnProperty(name = "app.discovery.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @RequestMapping("/insights")
 public class InsightController {

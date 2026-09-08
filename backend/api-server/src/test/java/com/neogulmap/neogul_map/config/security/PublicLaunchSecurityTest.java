@@ -8,7 +8,9 @@ import com.neogulmap.neogul_map.config.security.oauth.OAuth2FailureHandler;
 import com.neogulmap.neogul_map.config.security.oauth.OAuth2SuccessHandler;
 import com.neogulmap.neogul_map.config.security.oauth.OAuth2UserCustomService;
 import com.neogulmap.neogul_map.controller.InsightController;
+import com.neogulmap.neogul_map.controller.LocationLetterController;
 import com.neogulmap.neogul_map.controller.ModerationOperatorController;
+import com.neogulmap.neogul_map.controller.RecommendationController;
 import com.neogulmap.neogul_map.controller.SupportOperatorController;
 import com.neogulmap.neogul_map.controller.SupportRequestController;
 import com.neogulmap.neogul_map.controller.ZoneController;
@@ -16,15 +18,23 @@ import com.neogulmap.neogul_map.dto.EventInsightResponse;
 import com.neogulmap.neogul_map.dto.HotplaceResponse;
 import com.neogulmap.neogul_map.dto.InsightStatusResponse;
 import com.neogulmap.neogul_map.dto.SupportRequestResponse;
+import com.neogulmap.neogul_map.dto.LocationLetterNearbyResponse;
 import com.neogulmap.neogul_map.dto.SupportRequestOperatorResponse;
 import com.neogulmap.neogul_map.dto.ModerationDecisionResponse;
+import com.neogulmap.neogul_map.dto.recommendation.RecommendationDataStatus;
+import com.neogulmap.neogul_map.dto.recommendation.RecommendationIntent;
+import com.neogulmap.neogul_map.dto.recommendation.RecommendationPersonalizationMode;
+import com.neogulmap.neogul_map.dto.recommendation.RecommendationPlaceResponse;
 import com.neogulmap.neogul_map.dto.ZonePublicationDecisionResponse;
 import com.neogulmap.neogul_map.service.EventInsightService;
 import com.neogulmap.neogul_map.service.HotplaceService;
 import com.neogulmap.neogul_map.service.InsightStatusService;
+import com.neogulmap.neogul_map.service.LocationLetterService;
 import com.neogulmap.neogul_map.service.ImageService;
 import com.neogulmap.neogul_map.service.OperatorAccessGuard;
 import com.neogulmap.neogul_map.service.ReviewModerationService;
+import com.neogulmap.neogul_map.service.recommendation.RecommendationDataService;
+import com.neogulmap.neogul_map.service.recommendation.RecommendationQueryService;
 import com.neogulmap.neogul_map.service.SupportRequestService;
 import com.neogulmap.neogul_map.service.UserService;
 import com.neogulmap.neogul_map.service.ZoneModerationService;
@@ -58,13 +68,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest({
         InsightController.class,
+        LocationLetterController.class,
+        RecommendationController.class,
         SupportRequestController.class,
         SupportOperatorController.class,
         ModerationOperatorController.class,
         ZoneController.class
 })
 @ActiveProfiles("dev")
-@TestPropertySource(properties = "app.swagger.enabled=false")
+@TestPropertySource(properties = {"app.swagger.enabled=false", "app.discovery.enabled=true"})
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtAuthenticationEntryPoint.class})
 class PublicLaunchSecurityTest {
 
@@ -74,6 +86,9 @@ class PublicLaunchSecurityTest {
     @MockitoBean private EventInsightService eventInsightService;
     @MockitoBean private InsightStatusService insightStatusService;
     @MockitoBean private PublicInsightRateLimiter publicInsightRateLimiter;
+    @MockitoBean private RecommendationQueryService recommendationQueryService;
+    @MockitoBean private RecommendationDataService recommendationDataService;
+    @MockitoBean private LocationLetterService locationLetterService;
     @MockitoBean private SupportRequestService supportRequestService;
     @MockitoBean private ReviewModerationService reviewModerationService;
     @MockitoBean private ZoneModerationService zoneModerationService;
@@ -93,6 +108,10 @@ class PublicLaunchSecurityTest {
     void insightStatusIsPublicButReviewReportsAndBlocksRequireAuthentication() throws Exception {
         when(publicInsightRateLimiter.tryAcquire(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new PublicInsightRateLimiter.Decision(true, 0));
+        when(publicInsightRateLimiter.tryAcquire(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyInt()
+        )).thenReturn(new PublicInsightRateLimiter.Decision(true, 0));
         when(insightStatusService.getStatus()).thenReturn(fallbackStatus());
         when(hotplaceService.getHotplaces(null, 8, null, null, null, null)).thenReturn(
                 new HotplaceResponse(List.of(), "NO_VERIFIED_DATA", Instant.parse("2026-07-10T00:00:00Z"), List.of())
@@ -100,6 +119,23 @@ class PublicLaunchSecurityTest {
         when(eventInsightService.getEvents(null, 8, null, null, null, null)).thenReturn(
                 new EventInsightResponse(List.of(), "NO_VERIFIED_DATA", Instant.parse("2026-07-10T00:00:00Z"), List.of())
         );
+        when(recommendationQueryService.recommendPlaces(
+                null,
+                RecommendationIntent.CAFE,
+                37.5446,
+                127.0557,
+                3000,
+                8
+        )).thenReturn(new RecommendationPlaceResponse(
+                "req-public",
+                RecommendationQueryService.MODEL_VERSION,
+                RecommendationDataStatus.PROVIDER_NOT_CONFIGURED,
+                RecommendationPersonalizationMode.CONTEXT_ONLY,
+                RecommendationIntent.CAFE,
+                0,
+                Instant.parse("2026-09-01T00:00:00Z"),
+                List.of()
+        ));
 
         mockMvc.perform(get("/api/insights/status").contextPath("/api"))
                 .andExpect(status().isOk())
@@ -108,6 +144,20 @@ class PublicLaunchSecurityTest {
         mockMvc.perform(get("/api/insights/map").contextPath("/api"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/recommendations/places")
+                        .contextPath("/api")
+                        .param("intent", "CAFE")
+                        .param("lat", "37.5446")
+                        .param("lng", "127.0557"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.dataStatus").value("PROVIDER_NOT_CONFIGURED"));
+
+        mockMvc.perform(post("/api/recommendations/interactions")
+                        .contextPath("/api")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/api/zones/1/reviews/2/reports")
                         .contextPath("/api")
@@ -125,6 +175,27 @@ class PublicLaunchSecurityTest {
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/api/zones/my").contextPath("/api"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void nearbyLocationLettersArePublicButWritingRequiresAuthentication() throws Exception {
+        when(locationLetterService.getNearby(37.5665, 126.978, 30, null))
+                .thenReturn(new LocationLetterNearbyResponse(List.of(), 0, 180));
+
+        mockMvc.perform(get("/api/location-letters")
+                        .contextPath("/api")
+                        .queryParam("lat", "37.5665")
+                        .queryParam("lng", "126.9780")
+                        .queryParam("limit", "30"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.count").value(0))
+                .andExpect(jsonPath("$.data.radiusMeters").value(180));
+
+        mockMvc.perform(post("/api/location-letters")
+                        .contextPath("/api")
+                        .contentType("application/json")
+                        .content("{\"latitude\":37.5665,\"longitude\":126.9780,\"content\":\"안녕\"}"))
                 .andExpect(status().isUnauthorized());
     }
 

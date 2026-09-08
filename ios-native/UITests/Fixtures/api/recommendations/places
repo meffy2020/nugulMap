@@ -1,0 +1,53 @@
+{
+  "success": true,
+  "data": {
+    "requestId": "ios-ui-preview-20260901",
+    "modelVersion": "context-ranker-v1",
+    "dataStatus": "READY",
+    "personalizationMode": "CONTEXT_ONLY",
+    "intent": "CAFE",
+    "eligibleCandidateCount": 3,
+    "generatedAt": "2026-09-01T12:00:00+09:00",
+    "items": [
+      {
+        "id": "seoul-book-cafe",
+        "provider": "KAKAO_LOCAL",
+        "name": "서울책방 카페",
+        "category": "카페",
+        "address": "서울특별시 중구 세종대로 110",
+        "latitude": 37.5669,
+        "longitude": 126.9784,
+        "distanceMeters": 180,
+        "score": 0.96,
+        "reasonCodes": ["CAFE_INTENT_MATCH", "WITHIN_ONE_KILOMETER"],
+        "sourceUrl": "https://place.map.kakao.com/1"
+      },
+      {
+        "id": "deoksugung-coffee",
+        "provider": "KAKAO_LOCAL",
+        "name": "덕수궁 돌담길 커피",
+        "category": "카페",
+        "address": "서울특별시 중구 덕수궁길 15",
+        "latitude": 37.5659,
+        "longitude": 126.9752,
+        "distanceMeters": 420,
+        "score": 0.91,
+        "reasonCodes": ["CAFE_INTENT_MATCH", "TRUSTED_PROVIDER"],
+        "sourceUrl": "https://place.map.kakao.com/2"
+      },
+      {
+        "id": "cityhall-roastery",
+        "provider": "KAKAO_LOCAL",
+        "name": "시청 로스터리",
+        "category": "커피전문점",
+        "address": "서울특별시 중구 서소문로 120",
+        "latitude": 37.5638,
+        "longitude": 126.9768,
+        "distanceMeters": 650,
+        "score": 0.87,
+        "reasonCodes": ["CAFE_INTENT_MATCH", "DIVERSE_CATEGORY"],
+        "sourceUrl": "https://place.map.kakao.com/3"
+      }
+    ]
+  }
+}

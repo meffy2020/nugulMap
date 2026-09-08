@@ -2,6 +2,8 @@ package com.neogulmap.neogul_map.domain;
 
 import com.neogulmap.neogul_map.domain.enums.ZonePublicationStatus;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Builder;
@@ -33,7 +35,8 @@ public class Zone {
     @Column(length = 50)
     private String subtype;
 
-    @Lob
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(nullable = false, precision = 10, scale = 7)

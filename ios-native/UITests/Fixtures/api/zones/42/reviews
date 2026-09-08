@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "data": {
+    "reviews": [
+      {
+        "id": 4201,
+        "zoneId": 42,
+        "authorId": 4202,
+        "authorNickname": "성수 방문자",
+        "authorProfileImage": null,
+        "content": "위치 안내가 정확했어요.",
+        "createdAt": "2026-07-12T12:00:00+09:00",
+        "updatedAt": "2026-07-12T12:00:00+09:00"
+      }
+    ]
+  }
+}

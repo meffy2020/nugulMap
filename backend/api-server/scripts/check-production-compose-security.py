@@ -23,7 +23,6 @@ REQUIRED_SERVICE_PORTS = {
     "mysql": {3306},
     "mysql-app-init": set(),
     "api-server": {8080},
-    "popup-trend-collector": set(),
 }
 COMPOSE_ENV_DEFAULTS = {
     "API_SERVER_IMAGE": "ghcr.io/example/nugulmap-backend:sha-ci",
@@ -49,7 +48,8 @@ COMPOSE_ENV_DEFAULTS = {
     "APPLE_PRIVATE_KEY_BASE64": "Y2ktbm90LWEtcmVhbC1wcml2YXRlLWtleQ==",
     "APPLE_TOKEN_ENCRYPTION_KEY": "Y2ktb25seS10b2tlbi1lbmNyeXB0aW9uLWtleQ==",
     "MODERATION_OPERATOR_KEY": "ci-operator-key-not-production",
-    "SEOUL_CITYDATA_API_KEY": "ci-seoul-citydata-key",
+    "MODERATION_CONTACT_EMAIL": "support@example.com",
+    "SEOUL_CITYDATA_API_KEY": "",
     "SEOUL_CULTURE_API_KEY": "ci-seoul-culture-key",
 }
 MINIO_POLICY_ACTIONS = {
@@ -77,6 +77,18 @@ def deployment_database_errors(workflow: str, schema: str) -> list[str]:
     ):
         if marker not in workflow:
             errors.append(f"deployment workflow does not pin migrations to the image source: {marker}")
+    for marker in ('umask 077', 'chmod 700 "$backup_dir"', 'chmod 600 "$backup_path"'):
+        if marker not in workflow:
+            errors.append(f"deployment workflow does not restrict database backup access: {marker}")
+    for marker in (
+        "recommendation saved-item unique index entries: $count/4",
+        "recommendation cascade foreign keys: $count/3",
+        "location letter tables: $count/3",
+        "location letter moderation retention column: $count/1",
+        "location letter cascade foreign keys: $count/5",
+    ):
+        if marker not in workflow:
+            errors.append(f"deployment workflow does not verify recommendation schema constraints: {marker}")
     ordered_markers = (
         'gzip -t "$backup_path"',
         "backend/api-server/src/main/resources/schema.sql",
@@ -84,6 +96,10 @@ def deployment_database_errors(workflow: str, schema: str) -> list[str]:
         "backend/api-server/src/main/resources/db/manual/20260711_apple_token_storage.sql",
         "backend/api-server/src/main/resources/db/manual/20260711_ugc_publication_safety.sql",
         "backend/api-server/src/main/resources/db/manual/20260712_support_request_retention.sql",
+        "backend/api-server/src/main/resources/db/manual/20260712_moderation_report_retention.sql",
+        "backend/api-server/src/main/resources/db/manual/20260901_recommendation_data_foundation.sql",
+        "backend/api-server/src/main/resources/db/manual/20260901_recommendation_data_limits.sql",
+        "backend/api-server/src/main/resources/db/manual/20260901_location_letters.sql",
         "deploy_api() {",
     )
     positions: list[int] = []
@@ -95,9 +111,29 @@ def deployment_database_errors(workflow: str, schema: str) -> list[str]:
     if all(position >= 0 for position in positions) and positions != sorted(positions):
         errors.append("database backup, base schema, guarded migrations, and API restart are out of order")
 
-    for table in ("users", "zone", "zone_review"):
+    for table in ("users", "zone", "zone_review", "location_letter", "location_letter_report"):
         if f"CREATE TABLE IF NOT EXISTS `{table}`" not in schema:
             errors.append(f"canonical schema is missing fresh-database table: {table}")
+    return errors
+
+
+def deployment_runtime_credential_errors(workflow: str) -> list[str]:
+    required_marker_counts = {
+        "MODERATION_CONTACT_EMAIL: ${{ secrets.MODERATION_CONTACT_EMAIL }}": 3,
+        "Missing production environment secret: MODERATION_CONTACT_EMAIL": 1,
+        "envs: API_SERVER_IMAGE,SOURCE_SHA,DEPLOYMENT_ID,GHCR_USERNAME,GHCR_TOKEN,MODERATION_CONTACT_EMAIL": 1,
+        "envs: API_SERVER_IMAGE,DEPLOYMENT_ID,MODERATION_CONTACT_EMAIL": 1,
+        "requested_moderation_contact_email=\"$MODERATION_CONTACT_EMAIL\"": 2,
+        "export API_SERVER_IMAGE MODERATION_CONTACT_EMAIL": 2,
+    }
+    errors: list[str] = []
+    for marker, minimum_count in required_marker_counts.items():
+        observed_count = workflow.count(marker)
+        if observed_count < minimum_count:
+            errors.append(
+                "deployment workflow does not wire required moderation contact "
+                f"through deploy and rollback: {marker} ({observed_count}/{minimum_count})"
+            )
     return errors
 
 
@@ -173,6 +209,7 @@ def production_credential_errors(config: dict[str, Any]) -> list[str]:
             "AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY",
             "AWS_S3_BUCKET",
+            "MODERATION_CONTACT_EMAIL",
         },
     }
     environments: dict[str, dict[str, Any]] = {}
@@ -295,6 +332,7 @@ def production_overlay_contract_errors(content: str) -> list[str]:
         "MYSQL_ROOT_PASSWORD": "MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?",
         "MYSQL_USER": "MYSQL_USER: ${MYSQL_USERNAME:?",
         "MYSQL_PASSWORD": "MYSQL_PASSWORD: ${MYSQL_PASSWORD:?",
+        "MODERATION_CONTACT_EMAIL": "MODERATION_CONTACT_EMAIL: ${MODERATION_CONTACT_EMAIL:?",
     }
     for name, marker in required_markers.items():
         if marker not in content:
@@ -404,6 +442,7 @@ def main() -> int:
         workflow = DEPLOY_WORKFLOW_PATH.read_text(encoding="utf-8")
         schema = SCHEMA_PATH.read_text(encoding="utf-8")
         errors.extend(deployment_database_errors(workflow, schema))
+        errors.extend(deployment_runtime_credential_errors(workflow))
     except OSError as error:
         errors.append(f"cannot read production database deployment contract: {error}")
     if errors:

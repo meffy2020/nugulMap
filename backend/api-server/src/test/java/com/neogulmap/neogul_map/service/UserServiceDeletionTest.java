@@ -7,6 +7,9 @@ import com.neogulmap.neogul_map.domain.enums.ImageType;
 import com.neogulmap.neogul_map.repository.UserRepository;
 import com.neogulmap.neogul_map.repository.ZoneRepository;
 import com.neogulmap.neogul_map.repository.ZoneReviewRepository;
+import com.neogulmap.neogul_map.repository.recommendation.RecommendationInteractionRepository;
+import com.neogulmap.neogul_map.repository.recommendation.UserPreferenceRepository;
+import com.neogulmap.neogul_map.repository.recommendation.UserSavedItemRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,6 +34,9 @@ class UserServiceDeletionTest {
     @Mock private UserRepository userRepository;
     @Mock private ZoneRepository zoneRepository;
     @Mock private ZoneReviewRepository zoneReviewRepository;
+    @Mock private RecommendationInteractionRepository recommendationInteractionRepository;
+    @Mock private UserSavedItemRepository userSavedItemRepository;
+    @Mock private UserPreferenceRepository userPreferenceRepository;
     @Mock private ImageService imageService;
     @Mock private LinkedAccountRevocationService linkedAccountRevocationService;
     @Mock private AppleRefreshTokenCipher appleRefreshTokenCipher;
@@ -45,6 +51,7 @@ class UserServiceDeletionTest {
                 .appleRefreshTokenCiphertext("encrypted-token")
                 .build();
         when(userRepository.findById(1L)).thenReturn(Optional.of(appleUser));
+        when(userRepository.findForUpdateById(1L)).thenReturn(Optional.of(appleUser));
         when(zoneRepository.findByCreatorId(1L)).thenReturn(List.of());
         org.mockito.Mockito.doThrow(new BusinessBaseException(
                         com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode.ACCOUNT_REVOCATION_REQUIRED,
@@ -58,6 +65,10 @@ class UserServiceDeletionTest {
                 .hasMessageContaining("Apple 연결 해제를 완료할 수 없습니다.");
 
         verify(userRepository, never()).deleteById(1L);
+        verify(recommendationInteractionRepository, never()).deleteByUser_Id(1L);
+        verify(userSavedItemRepository, never()).deleteByUser_Id(1L);
+        verify(userPreferenceRepository, never()).deleteByUser_Id(1L);
+        verify(userRepository, never()).findForUpdateById(1L);
         verify(zoneReviewRepository, never()).deleteByAuthorId(1L);
         verify(zoneRepository, never()).findByCreatorId(1L);
 
@@ -66,6 +77,10 @@ class UserServiceDeletionTest {
         assertThat(result.manualAppleRevocationRequired()).isFalse();
         verify(linkedAccountRevocationService, times(2)).revokeBeforeDeletion(appleUser);
         verify(userRepository).deleteById(1L);
+        verify(userRepository).findForUpdateById(1L);
+        verify(recommendationInteractionRepository).deleteByUser_Id(1L);
+        verify(userSavedItemRepository).deleteByUser_Id(1L);
+        verify(userPreferenceRepository).deleteByUser_Id(1L);
         verify(zoneReviewRepository).deleteByAuthorId(1L);
         verify(zoneRepository).findByCreatorId(1L);
         verify(imageService, never()).deleteImage(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());
@@ -104,18 +119,26 @@ class UserServiceDeletionTest {
         Zone firstZone = Zone.builder().id(10).creator(kakaoUser).image("zone-10.jpg").build();
         Zone secondZone = Zone.builder().id(11).creator(kakaoUser).build();
         when(userRepository.findById(2L)).thenReturn(Optional.of(kakaoUser));
+        when(userRepository.findForUpdateById(2L)).thenReturn(Optional.of(kakaoUser));
         when(zoneRepository.findByCreatorId(2L)).thenReturn(List.of(firstZone, secondZone));
 
         userService.deleteUser(2L);
 
         InOrder deletionOrder = inOrder(
                 linkedAccountRevocationService,
+                recommendationInteractionRepository,
+                userSavedItemRepository,
+                userPreferenceRepository,
                 zoneReviewRepository,
                 zoneRepository,
                 imageService,
                 userRepository
         );
         deletionOrder.verify(linkedAccountRevocationService).revokeBeforeDeletion(kakaoUser);
+        deletionOrder.verify(userRepository).findForUpdateById(2L);
+        deletionOrder.verify(recommendationInteractionRepository).deleteByUser_Id(2L);
+        deletionOrder.verify(userSavedItemRepository).deleteByUser_Id(2L);
+        deletionOrder.verify(userPreferenceRepository).deleteByUser_Id(2L);
         deletionOrder.verify(zoneReviewRepository).deleteByAuthorId(2L);
         deletionOrder.verify(zoneRepository).findByCreatorId(2L);
         deletionOrder.verify(imageService).deleteImage("zone-10.jpg", ImageType.ZONE);
@@ -132,12 +155,17 @@ class UserServiceDeletionTest {
                 .oauthId("legacy-apple-id")
                 .build();
         when(userRepository.findById(3L)).thenReturn(Optional.of(legacyAppleUser));
+        when(userRepository.findForUpdateById(3L)).thenReturn(Optional.of(legacyAppleUser));
         when(zoneRepository.findByCreatorId(3L)).thenReturn(List.of());
 
         UserService.AccountDeletionResult result = userService.deleteUser(3L);
 
         assertThat(result.manualAppleRevocationRequired()).isTrue();
         verify(userRepository).deleteById(3L);
+        verify(userRepository).findForUpdateById(3L);
+        verify(recommendationInteractionRepository).deleteByUser_Id(3L);
+        verify(userSavedItemRepository).deleteByUser_Id(3L);
+        verify(userPreferenceRepository).deleteByUser_Id(3L);
         verify(zoneReviewRepository).deleteByAuthorId(3L);
     }
 }

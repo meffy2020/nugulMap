@@ -1,0 +1,22 @@
+{
+  "name": "서울특별시 종로구_흡연부스현황",
+  "alternateName": "서울특별시 종로구_흡연부스현황_20260520",
+  "url": "https://www.data.go.kr/data/15142571/fileData.do",
+  "license": "공공저작물 : 출처표시 (제 1유형)",
+  "dateCreated": "2025-03-25",
+  "dateModified": "2026-05-21",
+  "datePublished": "2025-03-25",
+  "creator": {
+    "name": "서울특별시 종로구",
+    "contactPoint": {
+      "contactType": "보건정책과",
+      "telephone": "02-2148-3543",
+      "@type": "ContactPoint"
+    },
+    "@type": "Organization"
+  },
+  "spatialCoverage": "대한민국 서울시 종로구",
+  "encodingFormat": "CSV",
+  "checked_on": "2026-09-07",
+  "metadata_url": "https://www.data.go.kr/catalog/15142571/fileData.json"
+}

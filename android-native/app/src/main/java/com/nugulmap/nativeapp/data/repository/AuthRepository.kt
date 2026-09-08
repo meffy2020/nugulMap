@@ -2,53 +2,101 @@ package com.nugulmap.nativeapp.data.repository
 
 import android.net.Uri
 import com.nugulmap.nativeapp.BuildConfig
-import com.nugulmap.nativeapp.core.auth.AuthTokenStore
+import com.nugulmap.nativeapp.core.auth.AuthStore
+import com.nugulmap.nativeapp.core.auth.OAuthClientState
 import com.nugulmap.nativeapp.core.auth.OAuthProvider
+import com.nugulmap.nativeapp.core.auth.PendingOAuthRequest
+import com.nugulmap.nativeapp.core.auth.PendingOAuthRequestConsumption
 import com.nugulmap.nativeapp.core.deeplink.OAuthDeepLink
 import com.nugulmap.nativeapp.core.auth.PkcePair
 import com.nugulmap.nativeapp.data.api.NugulApiClient
 import com.nugulmap.nativeapp.data.api.NugulApiService
+import com.nugulmap.nativeapp.data.dto.AccountDeletionPayload
+import com.nugulmap.nativeapp.data.dto.ApiEnvelope
+import com.nugulmap.nativeapp.data.dto.AuthTokenResponse
 import com.nugulmap.nativeapp.data.dto.MobileOAuthExchangeRequest
 import com.nugulmap.nativeapp.data.dto.UserProfileDto
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 class AuthRepository(
-    private val tokenStore: AuthTokenStore,
+    private val tokenStore: AuthStore,
     private val apiService: NugulApiService = NugulApiClient.service,
+    private val authenticatedRequests: AuthenticatedRequestExecutor =
+        AuthenticatedRequestExecutor(tokenStore, apiService),
+    private val exchangeMobileOAuthCode: suspend (MobileOAuthExchangeRequest) -> ApiEnvelope<AuthTokenResponse> =
+        apiService::exchangeMobileOAuthCode,
+    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
 ) {
-    private var pendingPkce: PkcePair? = null
-
     fun buildAuthorizationUrl(provider: OAuthProvider): String {
         val pkce = PkcePair.create()
-        pendingPkce = pkce
-
-        return Uri.parse(BuildConfig.NUGUL_API_BASE_URL)
-            .buildUpon()
-            .appendEncodedPath("api/oauth2/authorization/${provider.id}")
-            .appendQueryParameter("redirect_uri", OAuthDeepLink.CALLBACK_URL)
-            .appendQueryParameter("response_type", "code")
-            .appendQueryParameter("code_challenge", pkce.challenge)
-            .appendQueryParameter("code_challenge_method", "S256")
-            .build()
-            .toString()
+        val clientState = OAuthClientState.create()
+        val authorizationUrl = buildOAuthAuthorizationUrl(
+            baseUrl = BuildConfig.NUGUL_API_BASE_URL,
+            providerId = provider.id,
+            redirectUri = OAuthDeepLink.CALLBACK_URL,
+            codeChallenge = pkce.challenge,
+            clientState = clientState,
+        )
+        tokenStore.savePendingOAuthRequest(
+            PendingOAuthRequest(
+                codeVerifier = pkce.verifier,
+                clientState = clientState,
+                createdAtEpochMillis = currentTimeMillis(),
+            ),
+        )
+        return authorizationUrl
     }
 
-    suspend fun exchangeCallback(callbackUri: Uri): Boolean {
-        val code = callbackUri.getQueryParameter("code") ?: error("OAuth code가 없습니다.")
-        val verifier = pendingPkce?.verifier ?: error("로그인 세션이 만료되었습니다.")
-        val response = apiService.exchangeMobileOAuthCode(
-            MobileOAuthExchangeRequest(code = code, codeVerifier = verifier),
+    suspend fun exchangeCallback(callbackUri: Uri): Boolean = exchangeCallback(
+        code = callbackUri.getQueryParameter("code"),
+        clientState = callbackUri.getQueryParameter(OAUTH_CLIENT_STATE_QUERY_PARAMETER),
+        providerError = callbackUri.getQueryParameter("error"),
+    )
+
+    internal suspend fun exchangeCallback(
+        code: String?,
+        clientState: String?,
+        providerError: String? = null,
+    ): Boolean {
+        val verifier = when (
+            val result = tokenStore.consumePendingOAuthRequest(
+                callbackState = clientState,
+                nowEpochMillis = currentTimeMillis(),
+                ttlMillis = OAUTH_PENDING_REQUEST_TTL_MILLIS,
+            )
+        ) {
+            is PendingOAuthRequestConsumption.Accepted -> result.codeVerifier
+            PendingOAuthRequestConsumption.NoPendingRequest ->
+                error("로그인 요청이 없거나 이미 처리되었습니다. 다시 로그인해 주세요.")
+            PendingOAuthRequestConsumption.MissingState ->
+                error("로그인 확인 정보가 없습니다. 다시 로그인해 주세요.")
+            PendingOAuthRequestConsumption.StateMismatch ->
+                error("로그인 요청이 일치하지 않습니다. 다시 로그인해 주세요.")
+            PendingOAuthRequestConsumption.Expired ->
+                error("로그인 요청이 만료되었습니다. 다시 로그인해 주세요.")
+        }
+
+        if (!providerError.isNullOrBlank()) {
+            error("소셜 로그인 인증에 실패했습니다. 다시 시도해 주세요.")
+        }
+
+        val normalizedCode = code?.trim()?.takeIf(String::isNotEmpty)
+            ?: error("OAuth code가 없습니다.")
+        val response = exchangeMobileOAuthCode(
+            MobileOAuthExchangeRequest(code = normalizedCode, codeVerifier = verifier),
         )
         val token = response.data ?: error(response.message ?: "로그인에 실패했습니다.")
         tokenStore.save(token.accessToken, token.refreshToken)
-        pendingPkce = null
         return token.profileComplete
     }
 
     suspend fun currentUser(): UserProfileDto? {
-        val token = tokenStore.accessToken()?.takeIf { it.isNotBlank() } ?: return null
-        val response = apiService.getCurrentUser(token.bearer())
+        if (!authenticatedRequests.hasSession()) return null
+        val response = authenticatedRequests.execute { token ->
+            apiService.getCurrentUser(token.bearer())
+        }
         if (!response.success) {
             error(response.message ?: "프로필 조회에 실패했습니다.")
         }
@@ -58,11 +106,12 @@ class AuthRepository(
     suspend fun completeProfile(nickname: String): UserProfileDto {
         val normalized = nickname.trim()
         require(normalized.isNotBlank()) { "닉네임을 입력해 주세요." }
-        val token = tokenStore.accessToken()?.takeIf { it.isNotBlank() } ?: error("로그인이 필요합니다.")
-        val response = apiService.completeProfileSetup(
-            authorization = token.bearer(),
-            nickname = normalized.toRequestBody(TEXT_PLAIN),
-        )
+        val response = authenticatedRequests.execute { token ->
+            apiService.completeProfileSetup(
+                authorization = token.bearer(),
+                nickname = normalized.toRequestBody(TEXT_PLAIN),
+            )
+        }
         if (!response.success) {
             error(response.message ?: "프로필 설정에 실패했습니다.")
         }
@@ -70,18 +119,16 @@ class AuthRepository(
     }
 
     suspend fun deleteAccount() {
-        val token = tokenStore.accessToken()?.takeIf { it.isNotBlank() } ?: error("로그인이 필요합니다.")
-        val response = apiService.deleteCurrentUser(token.bearer())
-        if (!response.success) {
-            error(response.message ?: "계정 삭제에 실패했습니다.")
-        }
-        logout()
+        deleteAccountSession(
+            authenticatedRequests = authenticatedRequests,
+            deleteCurrentUser = apiService::deleteCurrentUser,
+            clearSession = tokenStore::clear,
+        )
     }
 
-    fun isSignedIn(): Boolean = !tokenStore.accessToken().isNullOrBlank()
+    fun isSignedIn(): Boolean = authenticatedRequests.hasSession()
 
     fun logout() {
-        pendingPkce = null
         tokenStore.clear()
     }
 
@@ -90,4 +137,39 @@ class AuthRepository(
     companion object {
         private val TEXT_PLAIN = "text/plain; charset=utf-8".toMediaType()
     }
+}
+
+internal fun buildOAuthAuthorizationUrl(
+    baseUrl: String,
+    providerId: String,
+    redirectUri: String,
+    codeChallenge: String,
+    clientState: String,
+): String = baseUrl.trim().trimEnd('/').toHttpUrl()
+    .newBuilder()
+    .addPathSegments("api/oauth2/authorization")
+    .addPathSegment(providerId)
+    .addQueryParameter("redirect_uri", redirectUri)
+    .addQueryParameter("response_type", "code")
+    .addQueryParameter("code_challenge", codeChallenge)
+    .addQueryParameter("code_challenge_method", "S256")
+    .addQueryParameter(OAUTH_CLIENT_STATE_QUERY_PARAMETER, clientState)
+    .build()
+    .toString()
+
+internal const val OAUTH_CLIENT_STATE_QUERY_PARAMETER = "client_state"
+internal const val OAUTH_PENDING_REQUEST_TTL_MILLIS = 10 * 60 * 1000L
+
+internal suspend fun deleteAccountSession(
+    authenticatedRequests: AuthenticatedRequestExecutor,
+    deleteCurrentUser: suspend (authorization: String) -> ApiEnvelope<AccountDeletionPayload>,
+    clearSession: () -> Unit,
+) {
+    val response = authenticatedRequests.execute { token ->
+        deleteCurrentUser("Bearer $token")
+    }
+    if (!response.success) {
+        error(response.message ?: "계정 삭제에 실패했습니다.")
+    }
+    clearSession()
 }

@@ -15,7 +15,7 @@ const dataRows = [
   {
     category: "위치·지도 조회",
     data: "허용한 현재 위치, 지도 중심과 조회 범위, 공개 장소 좌표",
-    purpose: "주변 흡연구역·핫플·팝업 조회와 지도 위치 맞춤",
+    purpose: "주변 흡연구역 조회와 지도 위치 맞춤",
     retention: "현재 위치를 이동 이력으로 계속 저장하지 않음. 조회 요청과 운영 로그는 장애·보안 대응에 필요한 기간만 보관",
   },
   {
@@ -52,8 +52,8 @@ const providers = [
   },
   {
     provider: "Kakao Maps",
-    role: "지도 화면, 위치·좌표 표시와 장소 이동",
-    data: "지도 조회에 필요한 좌표·조회 범위와 네트워크 정보",
+    role: "지도 화면, 위치·좌표 표시, 장소 검색과 장소 이동",
+    data: "지도와 주변 장소 조회에 필요한 좌표·조회 범위, 검색어와 네트워크 정보",
   },
   {
     provider: "운영 서버·데이터베이스·이미지 저장소",
@@ -69,14 +69,16 @@ export default function PrivacyPage() {
         <header className="space-y-3">
           <p className="text-sm font-semibold text-muted-foreground">너굴맵 · NugulMap</p>
           <h1 className="text-3xl font-bold tracking-normal">개인정보 처리방침</h1>
-          <p className="text-sm text-muted-foreground">시행일: 2026년 7월 12일</p>
+          <p className="text-sm text-muted-foreground">시행일: 2026년 9월 7일</p>
         </header>
 
         <section className="grid gap-3 rounded-lg border bg-card p-5 text-sm leading-7 sm:grid-cols-[9rem_1fr]">
           <strong>서비스</strong>
           <span>너굴맵(NugulMap)</span>
           <strong>개인정보 처리자</strong>
-          <span>너굴맵 운영자</span>
+          <span>강승진</span>
+          <strong>문의 이메일</strong>
+          <a className="font-semibold underline" href="mailto:nugulmap@gmail.com">nugulmap@gmail.com</a>
           <strong>공개 문의 채널</strong>
           <a className="font-semibold underline" href="/support">너굴맵 지원 및 콘텐츠 신고</a>
         </section>
@@ -84,8 +86,7 @@ export default function PrivacyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold">1. 처리하는 정보, 목적과 보관</h2>
           <p className="text-sm leading-7 text-muted-foreground">
-            지도 조회는 로그인하지 않아도 이용할 수 있습니다. 계정, 제보, 리뷰, 신고 기능을 사용할 때만
-            해당 기능에 필요한 정보를 처리합니다.
+            흡연구역 지도와 검색은 로그인하지 않아도 이용할 수 있습니다. 장소 제보와 리뷰 등 계정이 필요한 기능을 이용할 때 로그인 정보를 처리합니다.
           </p>
           <div className="overflow-x-auto rounded-lg border">
             <table className="min-w-[760px] w-full border-collapse text-left text-sm leading-6">
@@ -134,10 +135,6 @@ export default function PrivacyPage() {
             </table>
           </div>
           <p className="text-sm leading-7 text-muted-foreground">
-            팝업·문화행사 정보는 서울 열린데이터광장, 한국관광공사 TourAPI 또는 주최자·시설의 공식 공지에서
-            제목, 장소, 기간과 원문 링크를 가져옵니다. 이 공개 행사 정보는 이용자 계정의 방문 이력과 결합하지 않습니다.
-          </p>
-          <p className="text-sm leading-7 text-muted-foreground">
             너굴맵은 개인정보를 판매하지 않으며 제3자 광고 추적에 사용하지 않습니다. 법령상 요구, 이용자 동의 또는
             서비스 제공에 필요한 처리 위탁이 아닌 목적으로 개인정보를 제공하지 않습니다.
           </p>
@@ -151,6 +148,7 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-bold">3. 위치 정보</h2>
           <ul className="list-disc space-y-2 pl-5 text-sm leading-7 text-muted-foreground">
             <li>현재 위치는 사용자가 운영체제 권한을 허용한 경우에만 주변 장소와 지도 위치를 보여주는 데 사용합니다.</li>
+            <li>백그라운드에서 위치를 수집하거나 이동 이력을 저장하지 않습니다.</li>
             <li>권한을 거부해도 검색과 지도 이동으로 공개 장소 정보를 볼 수 있습니다.</li>
             <li>운영체제 설정에서 위치 권한을 언제든 끌 수 있습니다.</li>
           </ul>
@@ -171,7 +169,8 @@ export default function PrivacyPage() {
           <ul className="list-disc space-y-2 pl-5 text-sm leading-7 text-muted-foreground">
             <li>앱의 프로필·계정 화면에서 계정 삭제를 직접 요청할 수 있습니다.</li>
             <li><a className="font-semibold text-foreground underline" href="/account-deletion">웹 계정 삭제 페이지</a>에서도 요청할 수 있습니다.</li>
-            <li>계정 삭제 시 계정·프로필·연결 정보, 작성 리뷰, 직접 등록한 장소와 이미지가 삭제됩니다.</li>
+            <li>계정 삭제 시 계정·프로필·연결 정보, 작성 리뷰, 직접 등록한 장소와 이미지가 삭제됩니다. 이전 버전에서 저장한 추천 설정·장소·행동 기록이 있다면 함께 삭제됩니다.</li>
+            <li>배포 전 복구용 운영 백업에는 삭제 전 정보가 최대 14일 남을 수 있으며, 일반 서비스에 사용하지 않고 보관 기간이 끝나면 삭제합니다.</li>
             <li>소셜 로그인 제공자의 계정 자체는 삭제되지 않습니다. 제공자 계정 관리는 해당 제공자 설정을 이용해야 합니다.</li>
             <li><a className="font-semibold text-foreground underline" href="/connected-accounts">로그인 연결 관리 안내</a>에서 제공자별 연결 해제 경로를 확인할 수 있습니다.</li>
             <li>열람, 정정, 삭제, 처리 정지와 동의 철회 요청은 <a className="font-semibold text-foreground underline" href="/support">지원 페이지</a>에서 접수합니다.</li>

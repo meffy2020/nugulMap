@@ -3,6 +3,7 @@ package com.neogulmap.neogul_map.service;
 import com.neogulmap.neogul_map.domain.enums.ModerationStatus;
 import com.neogulmap.neogul_map.repository.ZoneReportRepository;
 import com.neogulmap.neogul_map.repository.ZoneReviewReportRepository;
+import com.neogulmap.neogul_map.repository.LocationLetterReportRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,6 +25,7 @@ public class ModerationReportRetentionService {
 
     private final ZoneReviewReportRepository reviewReportRepository;
     private final ZoneReportRepository zoneReportRepository;
+    private final LocationLetterReportRepository locationLetterReportRepository;
     private final Clock clock;
 
     @Value("${app.moderation.closed-report-retention-days:30}")
@@ -32,18 +34,21 @@ public class ModerationReportRetentionService {
     @Autowired
     public ModerationReportRetentionService(
             ZoneReviewReportRepository reviewReportRepository,
-            ZoneReportRepository zoneReportRepository
+            ZoneReportRepository zoneReportRepository,
+            LocationLetterReportRepository locationLetterReportRepository
     ) {
-        this(reviewReportRepository, zoneReportRepository, Clock.systemUTC());
+        this(reviewReportRepository, zoneReportRepository, locationLetterReportRepository, Clock.systemUTC());
     }
 
     ModerationReportRetentionService(
             ZoneReviewReportRepository reviewReportRepository,
             ZoneReportRepository zoneReportRepository,
+            LocationLetterReportRepository locationLetterReportRepository,
             Clock clock
     ) {
         this.reviewReportRepository = reviewReportRepository;
         this.zoneReportRepository = zoneReportRepository;
+        this.locationLetterReportRepository = locationLetterReportRepository;
         this.clock = clock;
     }
 
@@ -53,7 +58,8 @@ public class ModerationReportRetentionService {
         long retentionDays = Math.max(1, closedReportRetentionDays);
         LocalDateTime cutoff = now().minusDays(retentionDays);
         return reviewReportRepository.deleteByStatusInAndResolvedAtBefore(TERMINAL_STATUSES, cutoff)
-                + zoneReportRepository.deleteByStatusInAndResolvedAtBefore(TERMINAL_STATUSES, cutoff);
+                + zoneReportRepository.deleteByStatusInAndResolvedAtBefore(TERMINAL_STATUSES, cutoff)
+                + locationLetterReportRepository.deleteByStatusInAndResolvedAtBefore(TERMINAL_STATUSES, cutoff);
     }
 
     private LocalDateTime now() {

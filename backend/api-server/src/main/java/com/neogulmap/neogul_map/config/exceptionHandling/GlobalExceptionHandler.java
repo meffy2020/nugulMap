@@ -2,6 +2,7 @@ package com.neogulmap.neogul_map.config.exceptionHandling;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.neogulmap.neogul_map.dto.ErrorResponse;
@@ -9,8 +10,10 @@ import com.neogulmap.neogul_map.config.exceptionHandling.exception.*;
 import com.neogulmap.neogul_map.config.exceptionHandling.ErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -138,6 +141,21 @@ public class GlobalExceptionHandler {
     }
 
     // ==================== Spring 프레임워크 예외 처리 ====================
+
+    /**
+     * 요청 파라미터 enum 변환 및 JSON 본문 역직렬화 예외 처리
+     */
+    @ExceptionHandler({
+            MethodArgumentTypeMismatchException.class,
+            HttpMessageNotReadableException.class,
+            ServletRequestBindingException.class
+    })
+    protected ResponseEntity<ErrorResponse> handleRequestBindingException(Exception e) {
+        log.warn("[Validation Exception] Request binding failed: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(ErrorCode.VALIDATION_ERROR));
+    }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     protected ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(

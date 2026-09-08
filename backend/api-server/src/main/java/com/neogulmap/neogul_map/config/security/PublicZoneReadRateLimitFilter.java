@@ -48,7 +48,9 @@ public final class PublicZoneReadRateLimitFilter extends OncePerRequestFilter {
             return true;
         }
         String path = applicationPath(request);
-        return !(path.equals("/zones") || path.startsWith("/zones/"));
+        return !(path.equals("/zones")
+                || path.startsWith("/zones/")
+                || path.equals("/location-letters"));
     }
 
     @Override
@@ -73,9 +75,10 @@ public final class PublicZoneReadRateLimitFilter extends OncePerRequestFilter {
     Decision tryAcquire(HttpServletRequest request) {
         Instant now = Instant.now(clock);
         cleanExpiredWindows(now);
-        String clientKey = clientKey(request);
+        String endpointBucket = endpointBucket(request);
+        String clientKey = endpointBucket + ":" + clientKey(request);
         if (!windows.containsKey(clientKey) && windows.size() >= maxTrackedClients) {
-            clientKey = OVERFLOW_CLIENT;
+            clientKey = endpointBucket + ":" + OVERFLOW_CLIENT;
         }
 
         Attempt attempt = new Attempt();
@@ -128,6 +131,12 @@ public final class PublicZoneReadRateLimitFilter extends OncePerRequestFilter {
         return contextPath != null && !contextPath.isBlank() && uri.startsWith(contextPath)
                 ? uri.substring(contextPath.length())
                 : uri;
+    }
+
+    private String endpointBucket(HttpServletRequest request) {
+        return applicationPath(request).equals("/location-letters")
+                ? "location-letter"
+                : "zone";
     }
 
     record Decision(boolean allowed, long retryAfterSeconds) {

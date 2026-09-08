@@ -148,6 +148,8 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/zones/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/images/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/insights/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/recommendations/places").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/location-letters").permitAll()
                 
                 // 정적 리소스 허용
                 .requestMatchers("/static/**", "/css/**", "/js/**", "/favicon.ico").permitAll()

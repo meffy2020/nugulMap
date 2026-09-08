@@ -1,0 +1,40 @@
+name: Monitor Public Runtime Contract
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_run:
+    workflows:
+      - Verify and Deploy Backend
+      - Verify Frontend
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  public-contract:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout public contract checker
+        uses: actions/checkout@v4
+
+      - name: Check deployed public contract after Vercel or backend propagation
+        run: |
+          for attempt in $(seq 1 12); do
+            if python3 scripts/check-public-launch-runtime.py; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 12 ]; then
+              echo "Public contract is not ready yet; retrying in 30 seconds ($attempt/12)"
+              sleep 30
+            fi
+          done
+          exit 1

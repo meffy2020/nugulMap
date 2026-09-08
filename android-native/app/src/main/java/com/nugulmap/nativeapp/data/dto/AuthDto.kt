@@ -5,11 +5,27 @@ data class MobileOAuthExchangeRequest(
     val codeVerifier: String,
 )
 
+data class RefreshTokenRequest(
+    val refreshToken: String,
+)
+
+data class RefreshTokenResponse(
+    val success: Boolean = false,
+    val message: String? = null,
+    val accessToken: String? = null,
+    val refreshToken: String? = null,
+)
+
 data class AuthTokenResponse(
     val accessToken: String,
     val refreshToken: String? = null,
     val profileComplete: Boolean = false,
     val user: AuthUserSummary? = null,
+)
+
+data class AccountDeletionPayload(
+    val deletedUserId: Long,
+    val manualAppleRevocationRequired: Boolean = false,
 )
 
 data class AuthUserSummary(

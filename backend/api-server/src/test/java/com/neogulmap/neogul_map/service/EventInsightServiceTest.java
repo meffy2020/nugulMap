@@ -20,6 +20,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -654,6 +656,9 @@ class EventInsightServiceTest {
 
     @Test
     void getEventsFetchesSeoulCultureApiAtRuntime() {
+        LocalDate todayInSeoul = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        String startDate = todayInSeoul.plusDays(1).toString();
+        String endDate = todayInSeoul.plusDays(3).toString();
         EventInsightService service = new EventInsightService(new RestTemplateBuilder(), new ObjectMapper());
         ReflectionTestUtils.setField(service, "tourApiKey", "");
         ReflectionTestUtils.setField(service, "seoulCultureApiKey", "culture-key");
@@ -672,10 +677,10 @@ class EventInsightServiceTest {
                                 "CULTCODE": "158297",
                                 "CODENAME": "전시",
                                 "TITLE": "성수 런타임 팝업 문화행사",
-                                "DATE": "2026-08-21~2026-08-23",
+                                "DATE": "%s~%s",
                                 "PLACE": "서울 성동구 성수동",
-                                "STRTDATE": "2026-08-21 00:00:00.0",
-                                "END_DATE": "2026-08-23 00:00:00.0",
+                                "STRTDATE": "%s 00:00:00.0",
+                                "END_DATE": "%s 00:00:00.0",
                                 "LOT": "127.0557",
                                 "LAT": "37.5446",
                                 "MAIN_IMG": "https://example.com/culture.jpg",
@@ -684,7 +689,8 @@ class EventInsightServiceTest {
                             ]
                           }
                         }
-                        """, new MediaType("application", "json", StandardCharsets.UTF_8)));
+                        """.formatted(startDate, endDate, startDate, endDate),
+                        new MediaType("application", "json", StandardCharsets.UTF_8)));
 
         service.warmEventCache();
         EventInsightResponse response = service.getEvents("요즘 뜨는 장소 어디", 5);
@@ -694,8 +700,8 @@ class EventInsightServiceTest {
         assertThat(response.events()).hasSize(1);
         assertThat(response.events().getFirst().title()).isEqualTo("성수 런타임 팝업 문화행사");
         assertThat(response.events().getFirst().kind()).isEqualTo("popup");
-        assertThat(response.events().getFirst().startDate()).isEqualTo("2026-08-21");
-        assertThat(response.events().getFirst().endDate()).isEqualTo("2026-08-23");
+        assertThat(response.events().getFirst().startDate()).isEqualTo(startDate);
+        assertThat(response.events().getFirst().endDate()).isEqualTo(endDate);
         assertThat(response.events().getFirst().source()).isEqualTo("SEOUL_CULTURE_API");
         assertThat(response.events().getFirst().attribution()).isEqualTo("서울특별시 문화행사 정보");
         assertThat(response.events().getFirst().sourceUrl())
@@ -1772,6 +1778,9 @@ class EventInsightServiceTest {
 
     @Test
     void getEventsReadsTourApiBodyItemAndAlternativeFields() {
+        LocalDate todayInSeoul = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        String startDate = todayInSeoul.plusDays(1).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+        String endDate = todayInSeoul.plusDays(3).format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
         EventInsightService service = new EventInsightService(new RestTemplateBuilder(), new ObjectMapper());
         ReflectionTestUtils.setField(service, "tourApiKey", "test-key");
         ReflectionTestUtils.setField(service, "popupTrendsFile", "");
@@ -1785,8 +1794,8 @@ class EventInsightServiceTest {
                               "item": {
                                 "contentId": "tour-alt-1",
                                 "eventTitle": "잠실 대체 필드 행사",
-                                "startDate": "2026.07.10",
-                                "endDate": "2026.07.12",
+                                "startDate": "%s",
+                                "endDate": "%s",
                                 "latitude": "37.5125",
                                 "longitude": "127.1028",
                                 "addr1": "서울 송파구",
@@ -1797,7 +1806,7 @@ class EventInsightServiceTest {
                             }
                           }
                         }
-                        """, new MediaType("application", "json", StandardCharsets.UTF_8)));
+                        """.formatted(startDate, endDate), new MediaType("application", "json", StandardCharsets.UTF_8)));
 
         service.warmEventCache();
         EventInsightResponse response = service.getEvents("잠실", 5);
@@ -1806,7 +1815,7 @@ class EventInsightServiceTest {
         assertThat(response.dataFreshness()).isEqualTo("LIVE_OR_PARTIAL");
         assertThat(response.events()).hasSize(1);
         assertThat(response.events().getFirst().title()).isEqualTo("잠실 대체 필드 행사");
-        assertThat(response.events().getFirst().startDate()).isEqualTo("2026.07.10");
+        assertThat(response.events().getFirst().startDate()).isEqualTo(startDate);
         assertThat(response.events().getFirst().address()).isEqualTo("서울 송파구 올림픽로 240");
         assertThat(response.events().getFirst().imageUrl()).isEqualTo("https://example.com/thumb.jpg");
         assertThat(response.events().getFirst().sourceContentId()).isEqualTo("tour-alt-1");

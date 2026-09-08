@@ -1,6 +1,8 @@
 package com.neogulmap.neogul_map.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -30,8 +32,8 @@ public class ZoneReview {
     @JoinColumn(name = "author_id")
     private User author;
 
-    @Lob
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @Column(name = "created_at", nullable = false)

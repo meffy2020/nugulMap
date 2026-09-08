@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "data": {
+    "hotplaces": {
+      "places": [],
+      "dataFreshness": "CURRENT",
+      "updatedAt": "2026-07-12T12:00:00+09:00",
+      "sources": []
+    },
+    "events": {
+      "events": [
+        {
+          "id": "seongsu-popup-review-fixture",
+          "title": "성수 여름 팝업",
+          "kind": "popup",
+          "period": "2026-07-10 ~ 2026-07-20",
+          "startDate": "2026-07-10",
+          "endDate": "2026-07-20",
+          "latitude": 37.5445,
+          "longitude": 127.0555,
+          "address": "서울특별시 성동구 연무장길 1",
+          "imageUrl": null,
+          "source": "SEOUL_CULTURE_API",
+          "sourceContentId": "fixture-seongsu-popup",
+          "detailUrl": "https://example.com/seongsu-popup",
+          "collectedAt": "2026-07-12T12:00:00+09:00",
+          "attribution": "서울특별시 문화행사 정보",
+          "sourceUrl": "https://data.seoul.go.kr/dataList/OA-15486/S/1/datasetView.do",
+          "license": "공공누리 제1유형",
+          "licenseUrl": "https://www.kogl.or.kr/info/licenseType1.do"
+        }
+      ],
+      "dataFreshness": "DAILY",
+      "updatedAt": "2026-07-12T12:00:00+09:00",
+      "sources": ["SEOUL_CULTURE_API"]
+    },
+    "status": null,
+    "updatedAt": "2026-07-12T12:00:00+09:00"
+  }
+}

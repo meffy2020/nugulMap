@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import os
+from unittest.mock import patch
 import unittest
 from pathlib import Path
 
@@ -12,6 +14,16 @@ SPEC.loader.exec_module(security)
 
 
 class ProductionComposeSecurityTest(unittest.TestCase):
+    def test_smoking_only_compose_renders_without_live_crowd_key(self) -> None:
+        # Empty overrides any host/.env value and is rejected by Compose's :? gate.
+        with patch.dict(os.environ, {"SEOUL_CITYDATA_API_KEY": ""}):
+            config = security.render_effective_production_compose()
+        environment = config["services"]["api-server"]["environment"]
+        self.assertEqual(environment["SEOUL_CITYDATA_API_KEY"], "")
+        for key in ("APP_DISCOVERY_ENABLED", "INSIGHTS_HOTPLACE_WARMUP_ENABLED",
+                    "INSIGHTS_EVENT_WARMUP_ENABLED"):
+            self.assertEqual(str(environment[key]).lower(), "false")
+
     def test_accepts_only_loopback_host_bindings_for_published_ports(self) -> None:
         config = {
             "services": {
@@ -54,7 +66,7 @@ class ProductionComposeSecurityTest(unittest.TestCase):
 
         self.assertTrue(any("minio:9001" in error for error in errors))
         self.assertTrue(any("api-server:8080" in error for error in errors))
-        self.assertTrue(any("popup-trend-collector" in error for error in errors))
+        self.assertTrue(any("mysql-app-init" in error for error in errors))
 
     def test_accepts_separate_root_and_runtime_credentials(self) -> None:
         self.assertEqual(
@@ -103,6 +115,14 @@ class ProductionComposeSecurityTest(unittest.TestCase):
 
         self.assertEqual([], security.production_overlay_contract_errors(content))
 
+    def test_rejects_missing_moderation_contact_email(self) -> None:
+        config = self.secure_config()
+        del config["services"]["api-server"]["environment"]["MODERATION_CONTACT_EMAIL"]
+
+        errors = security.production_credential_errors(config)
+
+        self.assertTrue(any("MODERATION_CONTACT_EMAIL" in error for error in errors))
+
     def test_minio_policy_is_bucket_scoped_and_runtime_only(self) -> None:
         policy = json.loads(security.MINIO_POLICY_PATH.read_text(encoding="utf-8"))
 
@@ -130,6 +150,28 @@ class ProductionComposeSecurityTest(unittest.TestCase):
 
         self.assertEqual([], security.deployment_database_errors(workflow, schema))
 
+    def test_deployment_database_gate_rejects_world_readable_backup(self) -> None:
+        workflow = security.DEPLOY_WORKFLOW_PATH.read_text(encoding="utf-8").replace(
+            'chmod 600 "$backup_path"',
+            "",
+        )
+        schema = security.SCHEMA_PATH.read_text(encoding="utf-8")
+
+        errors = security.deployment_database_errors(workflow, schema)
+
+        self.assertTrue(any("restrict database backup access" in error for error in errors))
+
+    def test_deployment_database_gate_rejects_missing_recommendation_constraints(self) -> None:
+        workflow = security.DEPLOY_WORKFLOW_PATH.read_text(encoding="utf-8").replace(
+            "recommendation cascade foreign keys: $count/3",
+            "",
+        )
+        schema = security.SCHEMA_PATH.read_text(encoding="utf-8")
+
+        errors = security.deployment_database_errors(workflow, schema)
+
+        self.assertTrue(any("verify recommendation schema constraints" in error for error in errors))
+
     def test_deployment_database_gate_rejects_schema_before_backup(self) -> None:
         workflow = "\n".join((
             "SOURCE_SHA: ${{ github.sha }}",
@@ -141,16 +183,32 @@ class ProductionComposeSecurityTest(unittest.TestCase):
             "backend/api-server/src/main/resources/db/manual/20260711_apple_token_storage.sql",
             "backend/api-server/src/main/resources/db/manual/20260711_ugc_publication_safety.sql",
             "backend/api-server/src/main/resources/db/manual/20260712_support_request_retention.sql",
+            "backend/api-server/src/main/resources/db/manual/20260712_moderation_report_retention.sql",
+            "backend/api-server/src/main/resources/db/manual/20260901_recommendation_data_foundation.sql",
+            "backend/api-server/src/main/resources/db/manual/20260901_recommendation_data_limits.sql",
+            "backend/api-server/src/main/resources/db/manual/20260901_location_letters.sql",
             "deploy_api() {",
         ))
         schema = "\n".join(
             f"CREATE TABLE IF NOT EXISTS `{table}` ();"
-            for table in ("users", "zone", "zone_review")
+            for table in ("users", "zone", "zone_review", "location_letter", "location_letter_report")
         )
 
         errors = security.deployment_database_errors(workflow, schema)
 
         self.assertTrue(any("out of order" in error for error in errors))
+
+    def test_deployment_wires_required_moderation_contact(self) -> None:
+        workflow = security.DEPLOY_WORKFLOW_PATH.read_text(encoding="utf-8")
+
+        self.assertEqual([], security.deployment_runtime_credential_errors(workflow))
+
+    def test_deployment_rejects_missing_moderation_contact_wiring(self) -> None:
+        workflow = "MODERATION_CONTACT_EMAIL: ${{ secrets.MODERATION_CONTACT_EMAIL }}"
+
+        errors = security.deployment_runtime_credential_errors(workflow)
+
+        self.assertTrue(any("Missing production environment secret" in error for error in errors))
 
     @staticmethod
     def port(target: int, host_ip: str | None = "127.0.0.1") -> dict[str, object]:
@@ -228,6 +286,7 @@ class ProductionComposeSecurityTest(unittest.TestCase):
                         "AWS_ACCESS_KEY_ID": "app-minio",
                         "AWS_SECRET_ACCESS_KEY": "app-secret",
                         "AWS_S3_BUCKET": "app-bucket",
+                        "MODERATION_CONTACT_EMAIL": "support@example.com",
                     }
                 },
             }

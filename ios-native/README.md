@@ -22,12 +22,15 @@ NUGUL_API_BASE_URL = http://127.0.0.1:8080
 
 운영 제출 전에는 공개 HTTPS 도메인으로 되돌리세요.
 
+## 출시 범위
+
+흡연구역만 제공한다. 첫 화면은 흡연구역 지도이며 레이어 선택, 핫플, 팝업, 추천, 주변 편지 진입점은 제공하지 않는다. 시작·로그인·지도 이동·검색에서 해당 기능의 백그라운드 API를 호출하지 않는다. 기존 보조 모델/API 코드는 보존하지만 출시 흐름에서 사용하지 않는다.
+
 ## 포함된 기능
 
-- 웹 버전처럼 전체 화면 지도 첫 화면
-- 상단 플로팅 검색바와 프로필 버튼
+- 전체 화면 흡연구역 지도와 장소·주소 검색
 - 하단 현재 위치 버튼과 `제보하기` 버튼
-- KakaoMapsSDK 기반 지도에 흡연구역 마커 표시
+- KakaoMapsSDK 기반 지도에 기존 흡연구역 너구리 마커 표시
 - 지도 위 선택 카드 스타일: 장소명, 타입 배지, 주소, 좌표, 길찾기
 - 웹 add 화면의 슬림 등록 바텀시트 스타일: 주소, 타입 선택, 사진 선택, 팁 입력, 등록 버튼
 - 제보 이미지 1280px JPEG 압축 및 30초 중복 등록 제한
@@ -47,7 +50,19 @@ NUGUL_API_BASE_URL = http://127.0.0.1:8080
 - 프로필 설정: `POST /api/users/profile-setup`
 - 내 등록 장소: `GET /api/zones/my`
 - 장소 삭제: `DELETE /api/zones/{id}`
-- 네트워크 실패 시 서울 기본 샘플 데이터 표시
+- 네트워크 실패 시 직전 정상 결과는 유지하고 기술 용어 없는 오류 상태 표시
+
+### Simulator smoke
+
+로컬 백엔드에서 장소 검색을 바로 실행할 때 process environment를 사용한다. 검색어는 일반 장소·주소로 처리하며 부가 지도 모드를 활성화하지 않는다.
+
+```bash
+SIMCTL_CHILD_NUGUL_API_BASE_URL=http://127.0.0.1:18080 \
+SIMCTL_CHILD_NUGUL_INITIAL_SEARCH_QUERY=서울역 \
+xcrun simctl launch booted com.nugulmap.native
+```
+
+회귀 검증: `sh ios-native/scripts/run-contract-tests.sh`. `SmokingReleaseNetworkContractTests`는 시작·위치 이동·검색 초기화에서 인사이트, 추천, 편지 요청이 발생하지 않는지 검증한다. 과거 시즌3 검색 테스트는 현 출시 계약에서 제외한다.
 
 ## KakaoMap 전환 상태 (2026-06-13)
 
@@ -90,17 +105,23 @@ ios-native/scripts/smoke-oauth-deeplink.sh
 
 ## App Store / TestFlight launch readiness
 
+2026년 4월 28일 이후 제출에 필요한 Xcode 26+iOS 26 SDK에서, 서명과 무관한 Release 아카이브 코드 검증은 다음 스크립트로 반복할 수 있습니다. 결과는 임시 폴더에만 생성되며 App Store 서명·검증·업로드를 대신하지 않습니다.
+
+```bash
+ios-native/scripts/verify-release-archive-code.sh
+```
+
 정적 확인 기준으로 iOS 앱은 아직 App Store 공개 출시 준비가 완료되지 않았습니다. 로컬에서 확인된 핵심 blocker는 아래와 같습니다.
 
 | 항목 | 현재 근거 | 판정 | 다음 조치 |
 | --- | --- | --- | --- |
-| Signing Team | `project.pbxproj`의 Debug/Release `DEVELOPMENT_TEAM = ""` | blocker | Xcode Signing & Capabilities에서 Apple Developer Team을 로컬로 지정하고, 팀/프로비저닝 값은 저장소에 secret으로 커밋하지 않습니다. |
-| Archive/TestFlight | shared scheme은 있지만 signing team이 비어 있음 | blocker | Team 설정 후 `generic/platform=iOS` archive, App Store Connect validate/upload, TestFlight 내부 테스트를 수행합니다. |
+| Signing Team | Debug/Release가 `$(NUGUL_DEVELOPMENT_TEAM)`을 참조하고 ignored `Config/Secrets.xcconfig`에서만 실값을 주입 | blocker | Xcode Signing & Capabilities 또는 ignored 설정/CI에서 Apple Developer Team과 프로비저닝을 지정하고 secret은 커밋하지 않습니다. |
+| Archive/TestFlight | Xcode 26+iOS 26 SDK의 unsigned arm64 Release archive는 통과, signing team은 비어 있음 | blocker | Team 설정 후 signed archive, App Store Connect validate/upload, TestFlight 내부 테스트를 수행합니다. |
 | Bundle ID | `com.nugulmap.native` | 확인 필요 | App Store Connect에 동일 bundle id를 등록합니다. |
 | OAuth callback | `nugulmap://oauth/callback`이 `Info.plist`, `AppConfig`, `ASWebAuthenticationSession`에 연결됨 | static pass | 실제 iPhone/TestFlight에서 provider OAuth → callback → token persistence를 검증합니다. |
 | App Review Guideline 4.8 | Sign in with Apple 버튼과 `/api/auth/apple/mobile` 교환 경로 존재 | static pass | Apple Developer capability/App ID 설정 후 실제 기기에서 Apple 로그인 smoke를 수행합니다. |
 | Account deletion | 프로필 화면의 `계정 삭제`가 `/api/users/me`를 호출함 | static pass | 실제 로그인 계정으로 삭제, 토큰 정리, 재접근 차단을 검증합니다. |
-| App Privacy | `/privacy`, `/account-deletion` 웹 라우트 존재 | manual | 배포 URL 접근성 확인 후 App Store Connect App Privacy 값을 최종 입력합니다. |
+| App Privacy / Support | `/privacy`, `/account-deletion`, `/support`, `/connected-accounts`, `/terms` 웹 라우트와 앱 링크 존재 | manual | 다섯 공개 URL의 HTTPS 200과 실제 지원 접수·회신을 확인한 뒤 App Store Connect 값을 최종 입력합니다. |
 
 반복 가능한 정적 확인은 저장소 루트에서 실행합니다.
 

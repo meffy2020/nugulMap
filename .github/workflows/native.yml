@@ -1,0 +1,160 @@
+name: Verify Native Apps
+
+on:
+  pull_request:
+    paths:
+      - "android-native/**"
+      - "ios-native/**"
+      - "scripts/check-native-public-launch-readiness.py"
+      - "scripts/tests/test_native_public_launch_readiness.py"
+      - ".github/workflows/native.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "android-native/**"
+      - "ios-native/**"
+      - "scripts/check-native-public-launch-readiness.py"
+      - "scripts/tests/test_native_public_launch_readiness.py"
+      - ".github/workflows/native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readiness-contracts:
+    name: Native release readiness contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Run readiness checker unit tests
+        run: python3 -m unittest scripts.tests.test_native_public_launch_readiness -v
+
+  android:
+    name: Android unit, lint, and unsigned release build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: |
+            android-native/*.gradle.kts
+            android-native/gradle/libs.versions.toml
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 36 build tools
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Run Android verification without release signing secrets
+        working-directory: android-native
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest lintRelease :app:packageRelease --no-daemon --stacktrace
+          test -f app/build/outputs/apk/release/app-release-unsigned.apk
+          apksigner="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          test -x "$apksigner"
+          if "$apksigner" verify app/build/outputs/apk/release/app-release-unsigned.apk \
+            >/dev/null 2>&1; then
+            echo "CI verification APK must remain unsigned" >&2
+            exit 1
+          fi
+
+      - name: Upload Android test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-verification-reports-${{ github.run_attempt }}
+          path: |
+            android-native/app/build/reports/
+            android-native/app/build/test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload unsigned Android release APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-unsigned-release-apk-${{ github.run_attempt }}
+          path: android-native/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  ios:
+    name: iOS contract tests and unsigned build
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Require Xcode 26 and iOS 26 SDK
+        run: |
+          xcodebuild -version
+          xcode_major=$(xcodebuild -version | awk '/Xcode/{split($2, value, "."); print value[1]}')
+          sdk_major=$(xcrun --sdk iphoneos --show-sdk-version | awk -F. '{print $1}')
+          test "$xcode_major" -ge 26
+          test "$sdk_major" -ge 26
+
+      - name: Run native iOS contract tests
+        run: ios-native/scripts/run-contract-tests.sh
+
+      - name: Build iOS Simulator app without signing
+        run: |
+          xcodebuild -quiet \
+            -project ios-native/NeogulMapNative.xcodeproj \
+            -scheme NeogulMapNative \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath '${{ runner.temp }}/NugulMapDerivedData' \
+            -resultBundlePath '${{ runner.temp }}/NeogulMapNative-build.xcresult' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Verify unsigned iOS Release archive
+        env:
+          NUGUL_IOS_ARCHIVE_ROOT: ${{ runner.temp }}/NugulMapUnsignedArchive
+        run: ios-native/scripts/verify-release-archive-code.sh
+
+      - name: Upload iOS build result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-result-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/NeogulMapNative-build.xcresult
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload unsigned iOS Simulator app
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned-simulator-app-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/NugulMapDerivedData/Build/Products/Debug-iphonesimulator/NeogulMapNative.app
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload unsigned iOS Release archive
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned-release-archive-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/NugulMapUnsignedArchive/NeogulMapNative.xcarchive
+          if-no-files-found: error
+          retention-days: 14

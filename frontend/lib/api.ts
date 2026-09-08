@@ -108,6 +108,65 @@ export interface FetchMapInsightsOptions {
   signal?: AbortSignal
 }
 
+export type RecommendationIntent = "CAFE" | "RESTAURANT" | "DATE"
+export type RecommendationDataStatus = "READY" | "PARTIAL" | "PROVIDER_NOT_CONFIGURED" | "PROVIDER_UNAVAILABLE"
+export type RecommendationPersonalizationMode = "CONTEXT_ONLY" | "PERSONALIZED"
+export type RecommendationEventType = "IMPRESSION" | "DETAIL_OPEN" | "SAVE" | "UNSAVE" | "ROUTE" | "NOT_INTERESTED"
+
+export interface RecommendedPlace {
+  id: string
+  provider: string
+  name: string
+  category: string
+  address: string
+  latitude: number
+  longitude: number
+  distanceMeters: number | null
+  score: number
+  reasonCodes: string[]
+  sourceUrl: string | null
+}
+
+export interface PlaceRecommendation {
+  requestId: string
+  modelVersion: string
+  dataStatus: RecommendationDataStatus
+  personalizationMode: RecommendationPersonalizationMode
+  intent: RecommendationIntent
+  eligibleCandidateCount: number
+  generatedAt: string
+  items: RecommendedPlace[]
+}
+
+export interface RecommendationPreference {
+  personalizationEnabled: boolean
+  preferredTags: string[]
+  dislikedTags: string[]
+  budgetLevel: "ANY" | "LOW" | "MEDIUM" | "HIGH" | null
+  maxDistanceMeters: number | null
+  updatedAt: string | null
+}
+
+export interface SavedRecommendationItem {
+  id: number
+  itemType: "PLACE" | "EVENT" | "HOTPLACE" | "COURSE"
+  provider: string
+  itemId: string
+  title: string
+  category: string | null
+  lat: number
+  lng: number
+  sourceUrl: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FetchRecommendationOptions {
+  radiusMeters?: number
+  limit?: number
+  signal?: AbortSignal
+}
+
 // Zone 생성 시 요청 DTO에 맞는 타입 정의
 export type CreateZonePayload = Omit<SmokingZone, "id" | "image">
 
@@ -178,6 +237,128 @@ export async function fetchMapInsights(
     status: data.status || null,
     updatedAt: data.updatedAt || "",
   }
+}
+
+export async function fetchRecommendedPlaces(
+  intent: RecommendationIntent,
+  latitude: number,
+  longitude: number,
+  options: FetchRecommendationOptions = {},
+): Promise<PlaceRecommendation> {
+  const params = new URLSearchParams({
+    intent,
+    lat: String(latitude),
+    lng: String(longitude),
+    radiusMeters: String(options.radiusMeters ?? 3_000),
+    limit: String(options.limit ?? 8),
+  })
+  const response = await fetch(`${API_BASE_URL}/api/recommendations/places?${params.toString()}`, {
+    cache: "no-store",
+    credentials: "include",
+    signal: options.signal,
+  })
+  return recommendationData<PlaceRecommendation>(response, "추천 장소를 불러오지 못했습니다.")
+}
+
+export async function fetchRecommendationPreference(): Promise<RecommendationPreference> {
+  const response = await fetch(`${API_BASE_URL}/api/recommendations/preferences`, {
+    cache: "no-store",
+    credentials: "include",
+  })
+  return recommendationData<RecommendationPreference>(response, "추천 설정을 불러오지 못했습니다.")
+}
+
+export async function updateRecommendationPreference(
+  preference: Omit<RecommendationPreference, "updatedAt">,
+): Promise<RecommendationPreference> {
+  const response = await fetch(`${API_BASE_URL}/api/recommendations/preferences`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(preference),
+  })
+  return recommendationData<RecommendationPreference>(response, "추천 설정을 저장하지 못했습니다.")
+}
+
+export async function fetchSavedRecommendationItems(): Promise<SavedRecommendationItem[]> {
+  const response = await fetch(`${API_BASE_URL}/api/recommendations/saved-items`, {
+    cache: "no-store",
+    credentials: "include",
+  })
+  return recommendationData<SavedRecommendationItem[]>(response, "저장한 추천을 불러오지 못했습니다.")
+}
+
+export async function saveRecommendedPlace(place: RecommendedPlace): Promise<SavedRecommendationItem> {
+  const response = await fetch(`${API_BASE_URL}/api/recommendations/saved-items`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      itemType: "PLACE",
+      provider: place.provider,
+      itemId: place.id,
+      title: place.name,
+      category: place.category,
+      lat: place.latitude,
+      lng: place.longitude,
+      sourceUrl: place.sourceUrl,
+    }),
+  })
+  return recommendationData<SavedRecommendationItem>(response, "추천 장소를 저장하지 못했습니다.")
+}
+
+export async function unsaveRecommendedPlace(place: RecommendedPlace): Promise<void> {
+  const params = new URLSearchParams({
+    itemType: "PLACE",
+    provider: place.provider,
+    itemId: place.id,
+  })
+  const response = await fetch(`${API_BASE_URL}/api/recommendations/saved-items?${params.toString()}`, {
+    method: "DELETE",
+    credentials: "include",
+  })
+  if (!response.ok) {
+    throw new Error(await recommendationError(response, "저장한 추천을 삭제하지 못했습니다."))
+  }
+}
+
+export async function recordRecommendationInteraction(
+  recommendation: Pick<PlaceRecommendation, "requestId" | "modelVersion" | "intent">,
+  place: RecommendedPlace,
+  eventType: RecommendationEventType,
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/recommendations/interactions`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requestId: recommendation.requestId,
+      itemType: "PLACE",
+      provider: place.provider,
+      itemId: place.id,
+      eventType,
+      intent: recommendation.intent,
+      contextRegion: null,
+      modelVersion: recommendation.modelVersion,
+      occurredAt: null,
+    }),
+  })
+  if (!response.ok) {
+    throw new Error(await recommendationError(response, "추천 행동을 기록하지 못했습니다."))
+  }
+}
+
+async function recommendationData<T>(response: Response, fallbackMessage: string): Promise<T> {
+  const result = await response.json().catch(() => null)
+  if (!response.ok || result?.success !== true || result.data == null) {
+    throw new Error(result?.message || fallbackMessage)
+  }
+  return result.data as T
+}
+
+async function recommendationError(response: Response, fallbackMessage: string): Promise<string> {
+  const result = await response.json().catch(() => null)
+  return typeof result?.message === "string" && result.message.trim() ? result.message : fallbackMessage
 }
 
 function normalizeHotplace(value: Record<string, unknown>): Hotplace {

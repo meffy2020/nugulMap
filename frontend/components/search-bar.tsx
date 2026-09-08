@@ -35,7 +35,7 @@ export function SearchBar({ className, placeholder = "장소, 주소 검색...",
         className
       )}
     >
-      <label htmlFor="map-search" className="sr-only">장소, 혼잡도 및 행사 검색</label>
+      <label htmlFor="map-search" className="sr-only">장소와 흡연구역 검색</label>
       <Search className="w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" aria-hidden="true" />
       <input
         id="map-search"

@@ -35,8 +35,10 @@
 	<string>$(KAKAO_NATIVE_APP_KEY)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.navigation</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>현재 위치 주변의 흡연구역을 보여주기 위해 위치 권한이 필요합니다.</string>
+	<string>허용하면 현재 위치 주변의 흡연구역을 보여줍니다. 허용하지 않아도 검색과 지도 탐색을 사용할 수 있습니다.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

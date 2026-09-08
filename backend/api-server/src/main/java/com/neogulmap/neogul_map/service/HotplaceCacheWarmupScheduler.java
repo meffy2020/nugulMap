@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(
         name = "external.insights.hotplace-warmup.enabled",
         havingValue = "true",
-        matchIfMissing = true
+        matchIfMissing = false
 )
 public class HotplaceCacheWarmupScheduler {
 

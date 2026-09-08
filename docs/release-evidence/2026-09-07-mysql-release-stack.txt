@@ -1,0 +1,38 @@
+Private local logs: /var/folders/fy/trpq7zh12pg8_ln0hz8s0m2c0000gn/T/nugul-release-check-6dwimsgk
+PASS: MySQL 8 canonical schema and all ordered migrations run twice
+PASS: Explicit demo fixture contains ten zones
+PASS: Demo quarantine idempotent; ten rows retained and unpublished
+PASS: Production profile boots on real MySQL and health is UP
+PASS: Retired endpoint absent: /insights/status
+PASS: Retired endpoint absent: /recommendations/places
+PASS: Retired endpoint absent: /location-letters
+PASS: Public bounds returns exactly the published fixture and no demos
+PASS: Quarantined detail unavailable
+PASS: Public support request accepted
+PASS: Wrong operator key denied
+PASS: Operator can read support queue
+PASS: Operator resolves support request
+PASS: Bearer token authenticates local fixture
+PASS: Other account access denied
+PASS: Authenticated multipart zone submission accepted
+PASS: New submission is pending and unavailable publicly
+PASS: Submitter can see pending submission in own list
+PASS: Untrusted operator cannot publish submission
+PASS: Authorized operator publishes submission
+PASS: Approved submission visible without creator email
+PASS: Authenticated review creation
+PASS: Other user sees the review before blocking
+PASS: Review report accepted
+PASS: User block accepted
+PASS: Blocked author review hidden
+PASS: Self account deletion succeeds
+PASS: Account and authored reviews removed
+PASS: User-owned submission removed as promised by account-deletion policy
+PASS: Deleted account token rejected
+PASS: Production rejects missing required column despite MYSQL_DDL_AUTO=none
+{
+  "result": "PASS",
+  "checks": 31,
+  "database": "disposable MySQL 8",
+  "scope": "loopback fixtures only; no production writes or real OAuth"
+}
