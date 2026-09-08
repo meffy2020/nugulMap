@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -21,10 +24,33 @@ class FrontendDeploymentWorkflowContractTest(unittest.TestCase):
         workflow = FRONTEND_WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("existing Vercel Git integration", workflow)
-        for route in ("privacy", "account-deletion", "connected-accounts", "support", "terms"):
+        for route in ("privacy", "account-deletion", "connected-accounts", "terms"):
             self.assertIn(f".next/server/app/{route}.html", workflow)
+        self.assertIn("test -f .next/server/app/support/page.js", workflow)
+        self.assertNotIn("test -f .next/server/app/support.html", workflow)
         self.assertNotIn("docker compose", workflow)
         self.assertNotIn("vercel deploy", workflow.lower())
+
+    def test_route_artifact_gate_accepts_dynamic_support_and_rejects_missing_routes(self) -> None:
+        workflow = FRONTEND_WORKFLOW.read_text(encoding="utf-8")
+        commands = re.findall(r"^\s*(test -f \.next/server/app/\S+)\s*$", workflow, re.MULTILINE)
+        self.assertEqual(len(commands), 5)
+        artifacts = [f".next/server/app/{route}.html" for route in
+                     ("privacy", "account-deletion", "connected-accounts", "terms")]
+        artifacts.append(".next/server/app/support/page.js")
+        with tempfile.TemporaryDirectory() as directory:
+            for artifact in artifacts:
+                path = Path(directory) / artifact
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.touch()
+            command = "set -e\n" + "\n".join(commands)
+            self.assertEqual(subprocess.run(["sh", "-c", command], cwd=directory).returncode, 0)
+            for artifact in artifacts:
+                with self.subTest(missing=artifact):
+                    path = Path(directory) / artifact
+                    path.unlink()
+                    self.assertNotEqual(subprocess.run(["sh", "-c", command], cwd=directory).returncode, 0)
+                    path.touch()
 
     def test_public_contract_runs_after_frontend_verification_with_propagation_retry(self) -> None:
         workflow = PUBLIC_CONTRACT_WORKFLOW.read_text(encoding="utf-8")

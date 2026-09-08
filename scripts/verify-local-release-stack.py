@@ -58,9 +58,19 @@ def main():
 
     def sql(statement):
         env = {**os.environ, 'MYSQL_PWD': password}
-        return run(['docker', 'exec', '-i', '-e', 'MYSQL_PWD', name,
-                    'mysql', '-uroot', '--batch', '--skip-column-names',
-                    '--default-character-set=utf8mb4', 'release_check'], input=statement, env=env)
+        try:
+            # The image first starts a socket-only bootstrap server, then stops
+            # it. TCP readiness waits for the final server before applying DDL.
+            return run(['docker', 'exec', '-i', '-e', 'MYSQL_PWD', name,
+                        'mysql', '--protocol=TCP', '-h127.0.0.1', '-uroot',
+                        '--batch', '--skip-column-names',
+                        '--default-character-set=utf8mb4', 'release_check'], input=statement, env=env)
+        except subprocess.CalledProcessError as error:
+            if statement == 'SELECT 1;':
+                raise
+            # Only this script's synthetic local DB is used. Keep CI DDL errors
+            # visible without printing credentials or the submitted SQL.
+            raise RuntimeError('Disposable MySQL SQL failed: ' + error.stderr[-2000:]) from error
 
     try:
         envfile = scratch / 'mysql.env'
